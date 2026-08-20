@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waterline — Structured Finance Advisory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,450;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0b0f0e;
+    --ink:#141b19;
+    --ink-2:#1b2321;
+    --hairline:#2a332f;
+    --bone:#e7e2d3;
+    --bone-dim:#9ea89f;
+    --brass:#b3893f;
+    --brass-bright:#d1a860;
+    --verdigris:#6f9484;
+    --verdigris-bright:#8ab3a0;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+
+  body{
+    margin:0;
+    background:var(--void);
+    color:var(--bone);
+    font-family:'Inter', sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    margin:0;
+    color:var(--bone);
+  }
+
+  .mono{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.02em;
+  }
+
+  a{color:inherit;}
+
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:0 32px;
+  }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky;
+    top:0;
+    z-index:50;
+    background:rgba(11,15,14,0.88);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .nav-inner{
+    max-width:1080px;
+    margin:0 auto;
+    padding:18px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-size:20px;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+  .brand span{ color:var(--brass-bright); }
+  .nav-links{
+    display:flex;
+    gap:28px;
+    font-size:14px;
+  }
+  .nav-links a{
+    text-decoration:none;
+    color:var(--bone-dim);
+    transition:color 0.2s;
+    padding:4px 2px;
+  }
+  .nav-links a:hover, .nav-links a:focus-visible{ color:var(--bone); }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    padding:110px 0 80px;
+    overflow:hidden;
+    border-bottom:1px solid var(--hairline);
+  }
+  .hero-pattern{
+    position:absolute;
+    inset:0;
+    opacity:0.10;
+    pointer-events:none;
+    background-image:
+      repeating-radial-gradient(circle at 20% 30%, transparent 0, transparent 38px, var(--brass) 39px, transparent 40px),
+      repeating-radial-gradient(circle at 85% 70%, transparent 0, transparent 46px, var(--verdigris) 47px, transparent 48px);
+    background-size:180px 180px, 220px 220px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--brass-bright);
+    margin-bottom:22px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    display:inline-block;
+    width:22px;
+    height:1px;
+    background:var(--brass-bright);
+  }
+  .hero h1{
+    font-size:clamp(32px, 5.2vw, 56px);
+    line-height:1.08;
+    max-width:780px;
+    font-weight:600;
+    position:relative;
+  }
+  .hero-sub{
+    max-width:600px;
+    margin-top:26px;
+    color:var(--bone-dim);
+    font-size:17px;
+    position:relative;
+  }
+  .cta-row{
+    display:flex;
+    gap:16px;
+    margin-top:40px;
+    flex-wrap:wrap;
+    position:relative;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:14px 22px;
+    border-radius:2px;
+    font-size:14.5px;
+    font-weight:500;
+    text-decoration:none;
+    border:1px solid transparent;
+    transition:all 0.2s ease;
+    cursor:pointer;
+  }
+  .btn-primary{
+    background:var(--brass);
+    color:var(--void);
+  }
+  .btn-primary:hover, .btn-primary:focus-visible{ background:var(--brass-bright); }
+  .btn-outline{
+    border-color:var(--verdigris);
+    color:var(--verdigris-bright);
+  }
+  .btn-outline:hover, .btn-outline:focus-visible{
+    background:rgba(111,148,132,0.1);
+    border-color:var(--verdigris-bright);
+  }
+  .btn:focus-visible{ outline:2px solid var(--bone); outline-offset:3px; }
+
+  /* ---------- SECTION generic ---------- */
+  section{ padding:88px 0; border-bottom:1px solid var(--hairline); }
+  .section-head{ max-width:640px; margin-bottom:48px; }
+  .section-head h2{ font-size:clamp(26px,3.4vw,38px); line-height:1.15; }
+  .section-head p{ color:var(--bone-dim); margin-top:16px; font-size:16px; }
+
+  .reveal{
+    opacity:0;
+    transform:translateY(16px);
+    transition:opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.is-visible{ opacity:1; transform:none; }
+
+  /* ---------- WATERFALL SIGNATURE ---------- */
+  .waterfall-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:60px;
+    align-items:center;
+  }
+  @media (max-width:800px){ .waterfall-wrap{ grid-template-columns:1fr; } }
+
+  .tranche-stack{
+    position:relative;
+    padding-left:26px;
+  }
+  .flow-line{
+    position:absolute;
+    left:0;
+    top:6px;
+    bottom:6px;
+    width:2px;
+    background:linear-gradient(var(--brass-bright), var(--verdigris-bright));
+    overflow:hidden;
+  }
+  .flow-line::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; top:-100%;
+    height:60%;
+    background:linear-gradient(var(--bone), transparent);
+    animation:flow 3.2s linear infinite;
+  }
+  @keyframes flow{
+    0%{ top:-60%; }
+    100%{ top:110%; }
+  }
+
+  .tranche{
+    border:1px solid var(--hairline);
+    background:var(--ink);
+    border-radius:2px;
+    padding:20px 22px;
+    margin-bottom:14px;
+    position:relative;
+    transition:border-color 0.2s, background 0.2s;
+  }
+  .tranche:hover{ border-color:var(--brass); background:var(--ink-2); }
+  .tranche.equity:hover{ border-color:var(--verdigris); }
+  .tranche-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+  }
+  .tranche-name{ font-size:15px; font-weight:600; font-family:'Fraunces', serif; }
+  .tranche-name.senior{ color:var(--brass-bright); }
+  .tranche-name.equity{ color:var(--verdigris-bright); }
+  .tranche-figure{ font-family:'IBM Plex Mono', monospace; font-size:15px; }
+  .tranche-meta{
+    display:flex;
+    gap:18px;
+    margin-top:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--bone-dim);
+    flex-wrap:wrap;
+  }
+  .waterfall-caption{
+    color:var(--bone-dim);
+    font-size:15px;
+    max-width:420px;
+  }
+  .waterfall-caption strong{ color:var(--bone); font-weight:500; }
+
+  /* ---------- TWO PATHS ---------- */
+  .path-section h2{ display:flex; align-items:baseline; gap:14px; }
+  .path-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:20px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .tag-invest{ background:rgba(179,137,63,0.15); color:var(--brass-bright); border:1px solid rgba(179,137,63,0.4); }
+  .tag-origin{ background:rgba(111,148,132,0.15); color:var(--verdigris-bright); border:1px solid rgba(111,148,132,0.4); }
+
+  .path-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:48px;
+    margin-top:36px;
+  }
+  @media (max-width:800px){ .path-grid{ grid-template-columns:1fr; } }
+
+  .path-list{ list-style:none; padding:0; margin:0; }
+  .path-list li{
+    padding:16px 0;
+    border-top:1px solid var(--hairline);
+    display:flex;
+    gap:14px;
+    font-size:15px;
+    color:var(--bone-dim);
+  }
+  .path-list li:last-child{ border-bottom:1px solid var(--hairline); }
+  .path-list li .mark{
+    color:var(--bone);
+    flex-shrink:0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    padding-top:2px;
+  }
+  .path-list b{ color:var(--bone); font-weight:600; }
+
+  .path-cta{ margin-top:28px; }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps{
+    display:flex;
+    flex-direction:column;
+  }
+  .step{
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:24px;
+    padding:26px 0;
+    border-top:1px solid var(--hairline);
+  }
+  .step:last-child{ border-bottom:1px solid var(--hairline); }
+  .step-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    color:var(--brass-bright);
+    padding-top:4px;
+  }
+  .step h3{ font-size:19px; font-weight:600; margin-bottom:6px; }
+  .step p{ color:var(--bone-dim); font-size:15px; margin:0; max-width:560px; }
+
+  /* ---------- WHY NOW ---------- */
+  .why-now{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:56px;
+  }
+  @media (max-width:800px){ .why-now{ grid-template-columns:1fr; } }
+  .why-now p{ color:var(--bone-dim); font-size:15.5px; }
+  .why-now .callout{
+    border-left:2px solid var(--brass);
+    padding-left:20px;
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    font-style:italic;
+    color:var(--bone);
+    font-weight:450;
+  }
+
+  /* ---------- CONTACT / ABOUT ---------- */
+  .contact-grid{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:56px;
+  }
+  @media (max-width:800px){ .contact-grid{ grid-template-columns:1fr; } }
+  .contact-card{
+    background:var(--ink);
+    border:1px solid var(--hairline);
+    border-radius:3px;
+    padding:32px;
+  }
+  .contact-card h3{ font-size:19px; margin-bottom:18px; }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:13px;
+    color:var(--bone-dim);
+    margin-bottom:6px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .field select, .field input{
+    width:100%;
+    background:var(--void);
+    border:1px solid var(--hairline);
+    color:var(--bone);
+    padding:11px 12px;
+    border-radius:2px;
+    font-family:'Inter', sans-serif;
+    font-size:14.5px;
+  }
+  .field select:focus-visible, .field input:focus-visible{
+    outline:2px solid var(--brass);
+    outline-offset:1px;
+  }
+  .disclaimer{
+    font-size:13px;
+    color:var(--bone-dim);
+    line-height:1.65;
+    border-top:1px solid var(--hairline);
+    padding-top:18px;
+    margin-top:26px;
+  }
+
+  /* ---------- FOUNDER ---------- */
+  .founder-grid{
+    display:grid;
+    grid-template-columns:0.85fr 1.15fr;
+    gap:56px;
+    align-items:start;
+  }
+  @media (max-width:800px){ .founder-grid{ grid-template-columns:1fr; } }
+
+  .founder-card{
+    border:1px solid var(--hairline);
+    background:var(--ink);
+    border-radius:3px;
+    padding:28px;
+  }
+  .avatar{
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    background:linear-gradient(135deg, var(--brass), var(--verdigris));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:20px;
+    color:var(--void);
+    margin-bottom:18px;
+  }
+  .founder-name{ font-size:21px; margin-bottom:4px; }
+  .founder-role{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--brass-bright);
+    margin-bottom:18px;
+  }
+  .founder-bio{ color:var(--bone-dim); font-size:15px; margin-bottom:20px; }
+  .founder-links{ display:flex; gap:18px; font-size:13.5px; }
+  .founder-links a{
+    color:var(--verdigris-bright);
+    text-decoration:none;
+    border-bottom:1px solid transparent;
+    transition:border-color 0.2s;
+  }
+  .founder-links a:hover, .founder-links a:focus-visible{ border-color:var(--verdigris-bright); }
+
+  .ledger-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    color:var(--bone-dim);
+    margin-bottom:14px;
+  }
+  .ledger{ list-style:none; padding:0; margin:0; }
+  .ledger li{
+    display:grid;
+    grid-template-columns:130px 1fr;
+    gap:16px;
+    padding:13px 0;
+    border-top:1px solid var(--hairline);
+    font-size:14.5px;
+    align-items:baseline;
+  }
+  .ledger li:last-child{ border-bottom:1px solid var(--hairline); }
+  .ledger .period{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--bone-dim);
+  }
+  .ledger .role{ color:var(--bone); }
+  .ledger .org{ color:var(--bone-dim); }
+  .ledger .highlight .org{ color:var(--brass-bright); }
+
+  footer{
+    padding:36px 0;
+    text-align:center;
+    color:var(--bone-dim);
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand">Water<span>line</span></div>
+    <div class="nav-links">
+      <a href="#investors">For investors</a>
+      <a href="#originators">For originators</a>
+      <a href="#how">How it works</a>
+      <a href="#founder">Founder</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-pattern"></div>
+  <div class="wrap">
+    <div class="eyebrow">Structured finance advisory — Lagos</div>
+    <h1>Nigeria's lenders can't grow past their own balance sheets.<br>We're building the bridge to the capital that lets them.</h1>
+    <p class="hero-sub">Fintech and SME lenders originate faster than they can hold loans. Development finance institutions and credit funds have the capital, but no local partner to structure and administer the deal. Waterline sits in between — packaging loan books into asset-backed structures that get built once and priced correctly the first time.</p>
+    <div class="cta-row">
+      <a href="#investors" class="btn btn-primary">I'm a DFI or investor →</a>
+      <a href="#originators" class="btn btn-outline">I'm a lender or originator →</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Every deal is built so incentives point one way</h2>
+      <p>The question every credit committee asks first: once a loan leaves the originator's balance sheet, what stops them from stopping collections? Here's a representative ₦1B pool structure and where each party's return actually comes from.</p>
+    </div>
+
+    <div class="waterfall-wrap reveal">
+      <div class="tranche-stack">
+        <div class="flow-line" aria-hidden="true"></div>
+        <div class="tranche">
+          <div class="tranche-top">
+            <span class="tranche-name senior">Senior Notes</span>
+            <span class="tranche-figure">₦750M</span>
+          </div>
+          <div class="tranche-meta">
+            <span>75% of pool</span>
+            <span>16% coupon</span>
+            <span>Paid first</span>
+          </div>
+        </div>
+        <div class="tranche equity">
+          <div class="tranche-top">
+            <span class="tranche-name equity">Equity / First-loss</span>
+            <span class="tranche-figure">₦250M</span>
+          </div>
+          <div class="tranche-meta">
+            <span>25% of pool</span>
+            <span>Retained by originator</span>
+            <span>Absorbs losses first</span>
+          </div>
+        </div>
+      </div>
+      <p class="waterfall-caption">The originator keeps the first-loss piece and stays on as servicer — so their own capital, and their fee income, depend on the same borrowers actually repaying. <strong>The senior investor gets paid first; the originator only profits if collections hold up.</strong></p>
+    </div>
+  </div>
+</section>
+
+<section id="investors" class="path-section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2><span class="path-tag tag-invest">For DFIs & investors</span></h2>
+      <h2 style="margin-top:14px;">You already fund Nigerian credit. We make it structurable.</h2>
+      <p>Direct lending to individual fintechs doesn't scale past a handful of relationships, and most local originators are too small to justify your own team's structuring time. We do the origination, packaging, and ongoing administration — so your exposure is to a structured cash flow, not a spreadsheet you have to babysit.</p>
+    </div>
+
+    <div class="path-grid reveal">
+      <ul class="path-list">
+        <li><span class="mark">01</span><span><b>Pre-screened deal flow.</b> We review loan tapes and eligibility before anything reaches your desk.</span></li>
+        <li><span class="mark">02</span><span><b>Right-sized transactions.</b> ₦500M–₦5B pools — below your team's usual ticket size, but priced and documented properly.</span></li>
+        <li><span class="mark">03</span><span><b>Risk retention by default.</b> Originators hold the first-loss tranche in every structure we build. No exceptions.</span></li>
+      </ul>
+      <ul class="path-list">
+        <li><span class="mark">04</span><span><b>Full operating layer.</b> SPV formation, servicer oversight, waterfall administration, monthly reporting.</span></li>
+        <li><span class="mark">05</span><span><b>Licensed partners on every deal.</b> We work alongside SEC-registered Issuing Houses and Trustees — we don't replace them.</span></li>
+        <li><span class="mark">06</span><span><b>You see the structure before it's built.</b> We test appetite and terms with you before committing an originator to a live SPV.</span></li>
+      </ul>
+    </div>
+
+    <div class="path-cta reveal">
+      <a href="#contact" class="btn btn-primary">Talk to us about a pilot pool →</a>
+    </div>
+  </div>
+</section>
+
+<section id="originators" class="path-section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2><span class="path-tag tag-origin">For originators & lenders</span></h2>
+      <h2 style="margin-top:14px;">Turn your loan book into fresh lending capital — without giving up equity.</h2>
+      <p>If you're turning away good borrowers because your capital is tied up in loans still on your books, securitization is the way out — and you don't need to build the legal and compliance function in-house to get there.</p>
+    </div>
+
+    <div class="path-grid reveal">
+      <ul class="path-list">
+        <li><span class="mark">01</span><span><b>Keep collecting.</b> You stay on as servicer, earn a fee, and keep your borrower relationships intact.</span></li>
+        <li><span class="mark">02</span><span><b>Keep the upside.</b> You retain the equity tranche — the highest-returning piece of the structure, funded by a fraction of the capital.</span></li>
+        <li><span class="mark">03</span><span><b>No dilution.</b> This is debt capital against your existing performing loans, not an equity raise.</span></li>
+      </ul>
+      <ul class="path-list">
+        <li><span class="mark">04</span><span><b>We handle the paperwork.</b> SEC filings, SPV formation, trustee coordination, investor reporting.</span></li>
+        <li><span class="mark">05</span><span><b>Start small.</b> Your first facility is sized to prove the model — not to securitize your whole book on day one.</span></li>
+        <li><span class="mark">06</span><span><b>A track record for your next raise.</b> A completed securitization makes your next equity or debt round easier to close.</span></li>
+      </ul>
+    </div>
+
+    <div class="path-cta reveal">
+      <a href="#contact" class="btn btn-outline">See if your loan book qualifies →</a>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>How a transaction actually gets built</h2>
+      <p>This is a sequence — each step depends on what was validated in the one before it.</p>
+    </div>
+    <div class="steps reveal">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div>
+          <h3>Discovery</h3>
+          <p>Share an anonymized loan tape. We assess it against what institutional investors actually look for — no commitment, no cost.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div>
+          <h3>Structuring</h3>
+          <p>We model the pool: tranche sizes, servicing terms, waterfall priority, and eligibility criteria for the underlying loans.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div>
+          <h3>Investor validation</h3>
+          <p>We test the structure with DFI and credit-fund partners before either side commits to a live SPV.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div>
+          <h3>Formation & close</h3>
+          <p>The SPV is incorporated, SEC filings go in, a licensed trustee is appointed, and notes are issued to investors.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">05</div>
+        <div>
+          <h3>Administration</h3>
+          <p>We run the waterfall, monitor servicer performance, and report to investors for the life of the transaction.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="why-now reveal">
+      <div>
+        <h2 style="font-size:28px; margin-bottom:20px;">Why this, why now</h2>
+        <p>Nigeria's SEC opened a clearer path for private companies to issue debt securities in April 2025, alongside stricter standards for SPVs and fund structures. The mechanics work. What's missing isn't a rule change — it's someone who does the structuring and administration work well, for deal sizes too small for the big houses and too complex for originators to handle alone.</p>
+        <p>There is no dedicated securitization statute in Nigeria yet, which means every deal has to be built carefully rather than off a template. That's exactly the work we do.</p>
+      </div>
+      <div class="callout">
+        "The gap isn't legal permission. It's execution — someone who shows up, does the structuring properly, and stays on to run it."
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="founder">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Run by someone who's sat inside the institutions on both sides of this</h2>
+      <p>Waterline is built and operated by one person — deliberately. Here's the background behind it.</p>
+    </div>
+
+    <div class="founder-grid reveal">
+      <div class="founder-card">
+        <div class="avatar">RA</div>
+        <div class="founder-name">Richard Awe</div>
+        <div class="founder-role">Founder, Waterline</div>
+        <p class="founder-bio">A decade inside financial institutions as a business analyst, currently at Fitch Ratings — one of the agencies that rates the exact kind of structured credit Waterline builds — followed by roles spanning central banking, retail banking, and government. Alongside that, he builds production software and AI systems as founder of 3d7 Technologies, which is what lets Waterline run lean: the loan-tape ingestion, waterfall calculations, and investor reporting are tools he builds himself, not manual spreadsheet work outsourced to a bigger team.</p>
+        <div class="founder-links">
+          <a href="https://richardawe.github.io/ai-architect-cv" target="_blank" rel="noopener">Full background &amp; projects ↗</a>
+          <a href="https://github.com/richardawe" target="_blank" rel="noopener">GitHub ↗</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="ledger-title">Career ledger</div>
+        <ul class="ledger">
+          <li>
+            <span class="period">2007 — 2010</span>
+            <span class="org">Access Bank</span>
+          </li>
+          <li>
+            <span class="period">2010 — 2014</span>
+            <span class="org">Barclays Bank</span>
+          </li>
+          <li>
+            <span class="period">2015 — 2019</span>
+            <span class="org">HSBC</span>
+          </li>
+          <li>
+            <span class="period">2019 — 2020</span>
+            <span class="org">Lloyds Banking Group</span>
+          </li>
+          <li>
+            <span class="period">2020 — 2021</span>
+            <span class="org">European Central Bank</span>
+          </li>
+          <li>
+            <span class="period">2022 — 2023</span>
+            <span class="org">HMRC</span>
+          </li>
+          <li>
+            <span class="period">2023 — 2024</span>
+            <span class="org">RAC Limited</span>
+          </li>
+          <li>
+            <span class="period">2024 — 2025</span>
+            <span class="org">3d7 Technologies</span>
+          </li>
+          <li class="highlight">
+            <span class="period">2025 — Present</span>
+            <span class="org">Fitch Ratings</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="wrap">
+    <div class="contact-grid">
+      <div class="reveal">
+        <h2 style="font-size:28px; margin-bottom:18px;">Let's talk about a real transaction</h2>
+        <p style="color:var(--bone-dim); font-size:15.5px; max-width:480px;">Whether you're evaluating a pilot pool or trying to figure out if your loan book is a fit — the first conversation is a discovery call, not a pitch. Tell us which side you're on and we'll follow up directly.</p>
+      </div>
+      <div class="contact-card reveal">
+        <h3>Request a call</h3>
+        <form onsubmit="event.preventDefault(); this.querySelector('.submitted').style.display='block'; this.querySelector('button').style.display='none';">
+          <div class="field">
+            <label for="role">I am a</label>
+            <select id="role">
+              <option>DFI / institutional investor</option>
+              <option>Fintech or SME lender</option>
+              <option>Asset finance / leasing company</option>
+              <option>Legal or advisory partner</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="org">Organization</label>
+            <input id="org" type="text" placeholder="Company or fund name">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="you@organization.com">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; border:none; cursor:pointer;">Request a call →</button>
+          <p class="submitted" style="display:none; color:var(--verdigris-bright); font-size:14px; margin-top:14px;">Thanks — this is a template form. Wire it to your email or a form service (e.g. Formspree) before sharing this page live.</p>
+        </form>
+        <div class="disclaimer">
+          Waterline is a structuring and administration advisory. We are not a licensed Issuing House, Trustee, or Investment Adviser under Nigeria's Investments and Securities Act. All regulated capital market functions on any transaction are performed by appropriately licensed Nigerian capital market operators engaged for that purpose.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Waterline — Structured Finance Advisory, Lagos · [your.email@domain.com] · [LinkedIn]
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('is-visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
