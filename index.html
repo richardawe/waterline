@@ -57,14 +57,29 @@
     border-bottom:1px solid var(--border);
   }
   .nav-inner{
-    max-width:1080px; margin:0 auto; padding:20px 32px;
+    max-width:1080px; margin:0 auto; padding:20px 32px; position:relative;
     display:flex; align-items:center; justify-content:space-between;
   }
   .brand{ font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:700; display:flex; align-items:center; gap:8px; }
   .brand-dot{ width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg, var(--indigo), var(--amber)); }
   .nav-links{ display:flex; gap:30px; font-size:14px; }
-  .nav-links a{ text-decoration:none; color:var(--text-dim); transition:color 0.2s; }
+  .nav-links a{ text-decoration:none; color:var(--text-dim); transition:color 0.2s; display:block; }
   .nav-links a:hover, .nav-links a:focus-visible{ color:var(--text); }
+  .nav-toggle{
+    display:none; background:none; border:1px solid var(--border); color:var(--text);
+    width:38px; height:38px; border-radius:8px; font-size:17px; cursor:pointer; line-height:1;
+  }
+  @media (max-width:720px){
+    .nav-toggle{ display:block; }
+    .nav-links{
+      display:none; position:absolute; top:100%; left:0; right:0; flex-direction:column; gap:2px;
+      background:var(--panel); border:1px solid var(--border); border-top:none; padding:8px 24px 14px;
+      border-radius:0 0 12px 12px;
+    }
+    .nav-links.open{ display:flex; }
+    .nav-links a{ padding:11px 0; border-bottom:1px solid var(--border); }
+    .nav-links a:last-child{ border-bottom:none; }
+  }
 
   /* HERO */
   .hero{ position:relative; padding:120px 0 90px; overflow:hidden; }
@@ -256,7 +271,8 @@
 <nav>
   <div class="nav-inner">
     <div class="brand"><span class="brand-dot"></span>Waterline</div>
-    <div class="nav-links">
+    <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <div class="nav-links" id="nav-links">
       <a href="#investors">Investors</a>
       <a href="#originators">Lenders</a>
       <a href="#how">How it works</a>
@@ -487,6 +503,17 @@
     entries.forEach(entry => { if(entry.isIntersecting){ entry.target.classList.add('is-visible'); } });
   }, { threshold: 0.15 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  const navToggle = document.getElementById('nav-toggle');
+  const navLinks = document.getElementById('nav-links');
+  navToggle.addEventListener('click', () => {
+    const open = navLinks.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open);
+  });
+  navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    navLinks.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }));
 </script>
 
 </body>

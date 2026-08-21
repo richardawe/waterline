@@ -14,7 +14,7 @@ is the join key everywhere.
 
 | File | Grain | Status |
 |---|---|---|
-| `institutions.json` | one row per lender | **Seeded** — 51 CBN-licensed DMBs/merchant banks/holdcos plus 9 MFB/fintech lenders (LAPO, AB Microfinance, Moniepoint, FairMoney, Carbon, Renmoney, Kuda, Advans La Fayette, Accion), verified against a CBN circular and per-institution sources. Leasing/asset-finance companies not yet covered. |
+| `institutions.json` | one row per lender | **Seeded** — 61 institutions (52 in a deduped view — see below): 51 CBN-licensed DMBs/merchant banks/holdcos, 9 fintech-operated MFBs (LAPO, AB Microfinance, Moniepoint, FairMoney, Carbon, Renmoney, Kuda, Advans La Fayette, Accion), plus 9 additional fintech lenders researched specifically because fintechs are Waterline's actual target originator segment (OPay/Blue Ridge MFB, PalmPay, PalmCredit/Newedge Finance, Branch International, M-Kopa, Aella, Migo, Payhippo/Rivy, Umba) — several of these came back with thin/no financials but real, useful licensing-structure and operating-status findings (e.g. two "PalmCredit"/"PalmPay" brands are legally separate entities; Migo and Payhippo have pivoted away from Nigerian consumer lending). `sector_tag: "fintech"` marks all fintech-model institutions regardless of underlying license type. Leasing/asset-finance companies (outside device-financing fintechs) not yet covered. |
 | `fccpc_digital_lenders.json` | one row per FCCPC-approved lender/app | **Seeded** — 559 entries (524 full + 35 conditional approval), fetched directly from FCCPC's own published tables. This is the broad digital-lender universe (source #9 in the plan); not yet cross-referenced to `institution_id` in `institutions.json`. |
 | `portfolio_snapshots.json` | institution × period | **Partial** — populated only where a real, cited figure was found. Most institutions are not yet covered; this is expected at this stage, not a bug. |
 | `portfolio_mix.json` | institution × period × dimension | **Empty/pending** — sector/geography/product breakdowns require deeper per-institution annual-report extraction than fits an initial pass. |
@@ -30,7 +30,16 @@ is the join key everywhere.
 the JSON at load time (no build step), so it always reflects whatever is in this directory.
 Requires serving over HTTP(S), not `file://` (browsers block local `fetch()`): run
 `python3 -m http.server` from the repo root and open `http://localhost:8000/database.html`, or
-view it once deployed to a static host.
+view it once deployed to a static host. Mobile-responsive; includes a "Fintech only" filter and
+trend charts (industry NPL ratio, per-institution loan-book growth where ≥2 dated snapshots
+exist, and market-composition bars).
+
+**Grouping:** an operating bank and its listed holdco (e.g. Access Bank Limited / Access Holdings
+Plc) are two distinct legal entities in `institutions.json` — correct for the data, but shown as
+one row in the UI (via `group_holdco_id`) so the table doesn't read as duplicates. The detail view
+lists both and pools their data. If you're consuming this JSON directly rather than through the
+UI, remember `institutions.json` itself still has both rows — grouping is a display-layer concern,
+not a data-layer one.
 
 ## Provenance convention
 

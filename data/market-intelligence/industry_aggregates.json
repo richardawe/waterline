@@ -29,6 +29,48 @@
         "source_url": "https://www.vanguardngr.com/2026/08/withdrawal-of-covid-19-forbearance-pushes-banks-bad-loans-above-cbn-limit/",
         "retrieved_date": "2026-08-21"
       }
+    },
+    {
+      "segment": "deposit_money_banks",
+      "metric": "npl_ratio",
+      "period_end": "2021-12-31",
+      "value": 4.85,
+      "unit": "percent",
+      "confidence": "medium",
+      "notes": "From CBN's Financial Stability Report (Dec 2021), as reported in press coverage citing the primary PDF.",
+      "source": {
+        "source_name": "CBN Financial Stability Report (Dec 2021)",
+        "source_url": "https://www.cbn.gov.ng/Out/2022/FPRD/FSR%20DEC%202021%20-COMPLETE.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "segment": "deposit_money_banks",
+      "metric": "npl_ratio",
+      "period_end": "2024-12-31",
+      "value": 4.5,
+      "unit": "percent",
+      "confidence": "medium",
+      "notes": "Cited to CBN by THISDAY (banks' average NPLs coverage). Note this predates the sharp 2025-2026 rise recorded elsewhere in this file (7.51% Dec 2025 -> 9.94% Q1 2026) as CBN withdrew COVID-19 forbearance -- the gap between 4.50% (Dec 2024) and 7.51% (Dec 2025) is a real and significant one-year jump, not a data error.",
+      "source": {
+        "source_name": "THISDAY, citing CBN ('Amid Improved Loan Quality, Banks' Average NPLs Increase to N2.59trn')",
+        "source_url": "https://www.thisdaylive.com/2025/05/19/amid-improved-loan-quality-banks-average-non-performing-loans-increase-to-n2-59trn/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "segment": "deposit_money_banks",
+      "metric": "total_gross_credit",
+      "period_end": "2022-12-31",
+      "value": 41.8,
+      "unit": "NGN_trillion",
+      "confidence": "medium",
+      "notes": "This is CBN's 'credit to the private sector' series (the figure Nigerian financial press consistently uses as the industry benchmark), which is narrower than 'total DMB gross loans outstanding' since it excludes credit to government/public sector -- not directly comparable to the 2025 total_gross_credit figure elsewhere in this file without accounting for that difference.",
+      "source": {
+        "source_name": "Nairametrics, citing CBN money and credit statistics",
+        "source_url": "https://nairametrics.com/2023/01/30/nigerias-private-sector-receives-n6-61-trillion-new-loans-in-2022-despite-cbn-hawkish-stance",
+        "retrieved_date": "2026-08-21"
+      }
     }
   ]
 }
