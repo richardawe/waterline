@@ -1,0 +1,5 @@
+{
+  "$schema_note": "institution_id x product grain, scraped from lender websites/apps. Timestamp every scrape - never treat as point-in-time-stable. Not yet populated - see README.md known gaps.",
+  "generated_at": "2026-08-21",
+  "product_snapshots": []
+}

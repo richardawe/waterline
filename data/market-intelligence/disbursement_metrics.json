@@ -1,0 +1,5 @@
+{
+  "$schema_note": "institution_id x period grain, self-reported metrics from investor decks/press releases. Always mark self_reported=true. Not yet populated — see README.md known gaps.",
+  "generated_at": "2026-08-21",
+  "disbursement_metrics": []
+}

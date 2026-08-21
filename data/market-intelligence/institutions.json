@@ -1,0 +1,694 @@
+{
+  "$schema_note": "One row per lender/institution. This is the seed 'universe' table — everything else (portfolio_snapshots, rating_actions, etc.) joins to this on institution_id. See data/market-intelligence/README.md for full schema notes and provenance conventions.",
+  "generated_at": "2026-08-21",
+  "institutions": [
+    {
+      "institution_id": "access-bank",
+      "legal_name": "Access Bank Limited",
+      "group_holdco_id": "access-holdings",
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of Access Holdings Plc, which is the NGX-listed entity.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "access-holdings",
+      "legal_name": "Access Holdings Plc",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "ACCESSCORP",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of Access Bank Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fidelity-bank",
+      "legal_name": "Fidelity Bank Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": "FIDELITYBK",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "No separate holdco structure at time of source list.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fcmb",
+      "legal_name": "First City Monument Bank Limited",
+      "group_holdco_id": "fcmb-group",
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of FCMB Group Plc.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fcmb-group",
+      "legal_name": "FCMB Group Plc",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "FCMB",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of First City Monument Bank Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "first-bank-nigeria",
+      "legal_name": "First Bank of Nigeria Limited",
+      "group_holdco_id": "fbn-holdings",
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of FBN Holdings Plc.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fbn-holdings",
+      "legal_name": "FBN Holdings Plc",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "FBNH",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of First Bank of Nigeria Limited and FBN Merchant Bank.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtbank",
+      "legal_name": "Guaranty Trust Bank Limited",
+      "group_holdco_id": "gtco",
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of Guaranty Trust Holding Company Plc.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtco",
+      "legal_name": "Guaranty Trust Holding Company Plc",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "GTCO",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of Guaranty Trust Bank Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "uba",
+      "legal_name": "United Bank for Africa Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": "UBA",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "No separate holdco structure; UBA Plc itself is the listed entity.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "zenith-bank",
+      "legal_name": "Zenith Bank Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "international",
+      "ngx_ticker": "ZENITHBANK",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "No separate holdco structure; Zenith Bank Plc itself is the listed entity.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "citibank-nigeria",
+      "legal_name": "Citibank Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ecobank-nigeria",
+      "legal_name": "Ecobank Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "heritage-bank",
+      "legal_name": "Heritage Bank Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "license_revoked",
+      "notes": "CBN revoked Heritage Bank's operating licence on 2024-06-03 under Section 12 of BOFIA 2020, citing persistent financial instability; NDIC appointed liquidator. NDIC stated over 80% of the bank's loans were non-performing at the time of revocation. Included here for historical/market-context completeness, not as an active origination target.",
+      "source": {
+        "source_name": "CBN Press Release, 'CBN Revokes Heritage Bank's Licence' (2024-06-03); Nairametrics/Vanguard/Channels TV coverage",
+        "source_url": "https://www.cbn.gov.ng/Out/2024/CCD/CBN%20Press%20Release%20Heritage%20030624.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "globus-bank",
+      "legal_name": "Globus Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "keystone-bank",
+      "legal_name": "Keystone Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "polaris-bank",
+      "legal_name": "Polaris Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "stanbic-ibtc-bank",
+      "legal_name": "Stanbic IBTC Bank Limited",
+      "group_holdco_id": "stanbic-ibtc-holdings",
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of Stanbic IBTC Holdings Plc.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "stanbic-ibtc-holdings",
+      "legal_name": "Stanbic IBTC Holdings Plc",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "STANBIC",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of Stanbic IBTC Bank Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "standard-chartered-nigeria",
+      "legal_name": "Standard Chartered Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Nigerian subsidiary of Standard Chartered Group.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "sterling-bank",
+      "legal_name": "Sterling Bank Limited",
+      "group_holdco_id": "sterling-financial-holdings",
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Operating bank subsidiary of Sterling Financial Holdings Company Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "sterling-financial-holdings",
+      "legal_name": "Sterling Financial Holdings Company Limited",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": "STERLINGNG",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Listed parent of Sterling Bank Limited.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "titan-trust-bank",
+      "legal_name": "Titan Trust Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Acquired Union Bank of Nigeria's controlling stake in 2022; group structure not independently verified here.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "union-bank-nigeria",
+      "legal_name": "Union Bank of Nigeria Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Listed on NGX historically under UBN; ownership/listing status changed following Titan Trust acquisition — needs re-verification before treating as actively NGX-traded.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "unity-bank",
+      "legal_name": "Unity Bank Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": "UNITYBNK",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "wema-bank",
+      "legal_name": "Wema Bank Plc",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": "WEMABANK",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "Operates the ALAT digital banking brand.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "premium-trust-bank",
+      "legal_name": "Premium Trust Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "optimus-bank",
+      "legal_name": "Optimus Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "providus-bank",
+      "legal_name": "Providus Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "regional",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "parallex-bank",
+      "legal_name": "Parallex Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "regional",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "suntrust-bank",
+      "legal_name": "Suntrust Bank Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "regional",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "signature-bank",
+      "legal_name": "Signature Bank Limited",
+      "group_holdco_id": null,
+      "type": "commercial_bank",
+      "cbn_authorization": "regional",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "jaiz-bank",
+      "legal_name": "Jaiz Bank Plc",
+      "group_holdco_id": null,
+      "type": "non_interest_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": "JAIZBANK",
+      "ngx_listed": true,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "taj-bank",
+      "legal_name": "Taj Bank Limited",
+      "group_holdco_id": null,
+      "type": "non_interest_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "lotus-bank",
+      "legal_name": "Lotus Bank Limited",
+      "group_holdco_id": null,
+      "type": "non_interest_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "alternative-bank",
+      "legal_name": "Alternative Bank Limited",
+      "group_holdco_id": null,
+      "type": "non_interest_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "coronation-merchant-bank",
+      "legal_name": "Coronation Merchant Bank Limited",
+      "group_holdco_id": null,
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fbn-merchant-bank",
+      "legal_name": "FBN Merchant Bank Limited",
+      "group_holdco_id": "fbn-holdings",
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fsdh-merchant-bank",
+      "legal_name": "FSDH Merchant Bank Limited",
+      "group_holdco_id": "fsdh-holding",
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fsdh-holding",
+      "legal_name": "FSDH Holding Company Limited",
+      "group_holdco_id": null,
+      "type": "financial_holding_company",
+      "cbn_authorization": "holdco",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "greenwich-merchant-bank",
+      "legal_name": "Greenwich Merchant Bank Limited",
+      "group_holdco_id": null,
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "nova-merchant-bank",
+      "legal_name": "Nova Merchant Bank Limited",
+      "group_holdco_id": null,
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "rand-merchant-bank",
+      "legal_name": "Rand Merchant Bank Limited",
+      "group_holdco_id": null,
+      "type": "merchant_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "notes": "Nigerian subsidiary of RMB/FirstRand Group.",
+      "source": {
+        "source_name": "CBN circular 'List of Deposit Money Banks and Other Financial Institutions as of 26th April 2024', as reported",
+        "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
+}

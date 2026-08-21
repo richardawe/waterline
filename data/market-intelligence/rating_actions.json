@@ -1,0 +1,5 @@
+{
+  "$schema_note": "institution_id x date grain, one row per public rating action/affirmation. See README.md provenance convention.",
+  "generated_at": "2026-08-21",
+  "rating_actions": []
+}
