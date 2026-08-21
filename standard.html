@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waterline — WCDS Credit Data Standard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10; --panel:#12151b; --panel-2:#171b23; --border:#1f2430;
+    --text:#f5f6f4; --text-dim:#8b93a3;
+    --indigo:#6c7cff; --indigo-soft:rgba(108,124,255,0.14);
+    --amber:#ffb255; --amber-soft:rgba(255,178,85,0.14);
+    --green:#4ade80; --green-soft:rgba(74,222,128,0.14);
+    --red:#f87171; --red-soft:rgba(248,113,113,0.14);
+    --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3,h4{ font-family:'Space Grotesk',sans-serif; font-weight:600; margin:0; color:var(--text); letter-spacing:-0.01em; }
+  p{ margin:0; }
+  a{ color:inherit; }
+  code, .mono{ font-family:'IBM Plex Mono',monospace; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  nav{ position:sticky; top:0; z-index:50; background:rgba(10,12,16,0.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--border); }
+  .nav-inner{ max-width:1080px; margin:0 auto; padding:16px 24px; position:relative; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand{ font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; text-decoration:none; }
+  .brand-dot{ width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,var(--indigo),var(--amber)); }
+  .nav-links{ display:flex; gap:24px; font-size:13.5px; align-items:center; }
+  .nav-links a{ text-decoration:none; color:var(--text-dim); transition:color .2s; display:block; }
+  .nav-links a:hover{ color:var(--text); }
+  .nav-toggle{ display:none; background:none; border:1px solid var(--border); color:var(--text); width:36px; height:36px; border-radius:8px; font-size:16px; cursor:pointer; }
+  @media (max-width:720px){
+    .nav-toggle{ display:block; }
+    .nav-links{ display:none; position:absolute; top:100%; left:0; right:0; flex-direction:column; gap:2px; background:var(--panel); border:1px solid var(--border); border-top:none; padding:8px 20px 14px; border-radius:0 0 12px 12px; }
+    .nav-links.open{ display:flex; }
+    .nav-links a{ padding:11px 0; border-bottom:1px solid var(--border); }
+    .nav-links a:last-child{ border-bottom:none; }
+  }
+
+  header.page-head{ padding:48px 0 8px; }
+  .kicker{ font-family:'IBM Plex Mono',monospace; font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--indigo); margin-bottom:10px; }
+  header.page-head h1{ font-size:clamp(26px,5vw,40px); line-height:1.12; max-width:760px; }
+  header.page-head p.lede{ color:var(--text-dim); margin-top:16px; max-width:660px; font-size:16px; }
+  .head-cta{ display:flex; gap:12px; flex-wrap:wrap; margin-top:26px; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:9px; font-size:14px; font-weight:600; text-decoration:none; border:1px solid transparent; transition:.2s; cursor:pointer; }
+  .btn-primary{ background:var(--indigo); color:#fff; }
+  .btn-primary:hover{ background:#5a6bf5; }
+  .btn-outline{ border-color:var(--border); color:var(--text); background:var(--panel); }
+  .btn-outline:hover{ border-color:var(--amber); background:var(--panel-2); }
+  .badge-draft{ display:inline-block; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:20px; background:var(--amber-soft); color:var(--amber); margin-left:10px; vertical-align:middle; }
+
+  section{ padding:44px 0; }
+  .divider{ border-top:1px solid var(--border); }
+  section h2{ font-size:23px; margin-bottom:10px; }
+  section > p.section-note{ color:var(--text-dim); font-size:15px; max-width:720px; margin-bottom:24px; }
+
+  /* pipeline */
+  .pipeline{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .pipeline .pnode{ background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--text); max-width:100%; }
+  @media (min-width:640px){ .pipeline .pnode{ white-space:nowrap; } }
+  .pipeline .pnode.hl{ border-color:var(--indigo); color:var(--indigo); background:var(--indigo-soft); }
+  .pipeline .parrow{ color:var(--text-dim); font-size:14px; }
+
+  /* entity grid */
+  .entity-groups{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media (max-width:720px){ .entity-groups{ grid-template-columns:1fr; } }
+  .entity-group{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+  .entity-group h4{ font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--indigo); font-family:'IBM Plex Mono',monospace; font-weight:500; margin-bottom:12px; }
+  .entity-row{ display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; }
+  .entity-row:last-child{ border-bottom:none; }
+  .entity-row .ename{ font-weight:600; width:130px; flex-shrink:0; }
+  .entity-row .edef{ color:var(--text-dim); }
+
+  /* field dictionary tables */
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; margin:0 -24px; padding:0 24px; }
+  @media (min-width:700px){ .table-scroll{ margin:0; padding:0; } }
+  table.fielddict{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; min-width:600px; font-size:13px; }
+  table.fielddict thead th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); padding:10px 12px; border-bottom:1px solid var(--border); background:var(--panel-2); white-space:nowrap; }
+  table.fielddict tbody td{ padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  table.fielddict tbody tr:last-child td{ border-bottom:none; }
+  table.fielddict .fname{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; white-space:nowrap; }
+  .req-R{ color:var(--red); font-weight:700; }
+  .req-C{ color:var(--amber); font-weight:700; }
+  .req-O{ color:var(--text-dim); }
+  .dim{ color:var(--text-dim); }
+
+  /* example cards */
+  .example-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:900px){ .example-grid{ grid-template-columns:1fr; } }
+  .example-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .example-card h4{ font-size:15px; }
+  .example-card .etag{ font-size:11.5px; color:var(--text-dim); margin-top:2px; margin-bottom:14px; }
+  .example-card dl{ margin:0; font-size:12.5px; }
+  .example-card dl div{ display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid var(--border); }
+  .example-card dl div:last-child{ border-bottom:none; }
+  .example-card dt{ color:var(--text-dim); }
+  .example-card dd{ margin:0; font-family:'IBM Plex Mono',monospace; text-align:right; }
+
+  /* steps (process) */
+  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:900px){ .steps{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px){ .steps{ grid-template-columns:1fr; } }
+  .step{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:22px 20px; }
+  .step-num{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--indigo); margin-bottom:12px; }
+  .step h3{ font-size:16px; margin-bottom:8px; }
+  .step p{ color:var(--text-dim); font-size:13.5px; }
+
+  /* service grid */
+  .service-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media (max-width:720px){ .service-grid{ grid-template-columns:1fr; } }
+  .service-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .service-card h3{ font-size:15.5px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .service-card p{ color:var(--text-dim); font-size:13.5px; }
+  .service-icon{ width:8px; height:8px; border-radius:50%; background:var(--amber); flex-shrink:0; }
+
+  /* validator demo */
+  .stats-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .stat .num{ font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700; color:var(--amber); }
+  .stat .lbl{ color:var(--text-dim); font-size:12px; margin-top:4px; }
+  .stat.ok .num{ color:var(--green); }
+  .stat.bad .num{ color:var(--red); }
+  .lender-tabs{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .lender-tab{ background:var(--panel); border:1px solid var(--border); color:var(--text-dim); padding:9px 16px; border-radius:8px; font-size:13px; cursor:pointer; font-family:inherit; }
+  .lender-tab.active{ background:var(--indigo-soft); border-color:var(--indigo); color:var(--indigo); font-weight:600; }
+  .exception-card{ background:var(--panel); border:1px solid var(--red); border-left-width:3px; border-radius:8px; padding:12px 16px; margin-bottom:8px; }
+  .exception-card .exc-top{ display:flex; justify-content:space-between; gap:10px; font-size:12.5px; margin-bottom:4px; }
+  .exception-card .exc-rule{ font-family:'IBM Plex Mono',monospace; color:var(--red); font-weight:600; }
+  .exception-card .exc-facility{ color:var(--text-dim); }
+  .exception-card .exc-msg{ font-size:13px; }
+  #validator-loading{ color:var(--text-dim); font-size:13.5px; padding:20px 0; }
+
+  .rule-list{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px 24px; font-size:13px; }
+  @media (max-width:700px){ .rule-list{ grid-template-columns:1fr; } }
+  .rule-list div{ display:flex; gap:8px; padding:4px 0; }
+  .rule-list .rid{ font-family:'IBM Plex Mono',monospace; color:var(--indigo); flex-shrink:0; }
+
+  /* downloads */
+  .download-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:800px){ .download-grid{ grid-template-columns:1fr; } }
+  .download-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; text-decoration:none; display:block; transition:.15s; }
+  .download-card:hover{ border-color:var(--indigo); }
+  .download-card .dtitle{ font-weight:600; font-size:14px; margin-bottom:4px; }
+  .download-card .dsub{ color:var(--text-dim); font-size:12.5px; }
+
+  footer{ padding:30px 0; text-align:center; color:var(--text-dim); font-size:12.5px; border-top:1px solid var(--border); }
+  footer a{ color:var(--indigo); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="brand"><span class="brand-dot"></span>Waterline</a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html#investors">Investors</a>
+      <a href="index.html#originators">Lenders</a>
+      <a href="database.html">Database</a>
+      <a href="standard.html" style="color:var(--text);">Data Standard</a>
+      <a href="index.html#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap">
+    <div class="kicker">Tier 2 · Loan-Level Data</div>
+    <h1>Waterline Credit Data Standard <span class="badge-draft">WCDS v0.1 · Working Draft</span></h1>
+    <p class="lede">One canonical, auditable representation of loan and financing data that can be ingested once, validated once, and transformed into whatever CRMS, IFRS 9, credit-bureau, investor, or funding output needs it next. WCDS doesn't replace your core banking system, CBN CRMS, or your accounting standard — it's the interoperability layer that sits between your loan tape and everyone who needs a clean copy of it.</p>
+    <div class="head-cta">
+      <a href="#validator" class="btn btn-primary">See live validation on sample data →</a>
+      <a href="#engage" class="btn btn-outline">How to engage with us</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section id="why" class="divider">
+    <h2>Why a standard, not a bigger spreadsheet</h2>
+    <p class="section-note">Every lender's loan management system exports data in its own shape. Every destination — CBN's CRMS, a credit bureau, an IFRS 9 model, an investor's diligence team — wants a different one. Without a canonical middle layer, every new integration is a bespoke mapping project, done from scratch, with no shared audit trail. WCDS is that middle layer.</p>
+    <div class="pipeline">
+      <div class="pnode">Source system</div><span class="parrow">→</span>
+      <div class="pnode">Ingestion</div><span class="parrow">→</span>
+      <div class="pnode">Field mapping</div><span class="parrow">→</span>
+      <div class="pnode hl">WCDS canonical model</div><span class="parrow">→</span>
+      <div class="pnode">Validation</div><span class="parrow">→</span>
+      <div class="pnode">Reconciliation</div><span class="parrow">→</span>
+      <div class="pnode">CRMS / bureau / IFRS 9 / investor tape / funding / analytics</div>
+    </div>
+    <p style="color:var(--text-dim); font-size:13.5px; margin-top:16px;">Built for commercial banks, merchant banks, non-interest banks, microfinance banks, finance companies, fintech lenders, DFIs, private-credit originators, servicers, funders and investors. Informed by CBN's redesigned CRMS guidelines (2017/2018), the CRMS return catalogue (100/200/201/300/301/400/400D), CBN's Credit Bureau Guidelines, and BIS's IFRS 9 summary — full source list in the downloadable spec.</p>
+  </section>
+
+  <section class="divider">
+    <h2>The canonical entity model</h2>
+    <p class="section-note">18 entities cover a credit facility end to end: who's involved, what was lent, what secures it, how it's performing, and a complete audit trail of every transformation applied to get it there.</p>
+    <div class="entity-groups">
+      <div class="entity-group">
+        <h4>Parties & identity</h4>
+        <div class="entity-row"><span class="ename">Institution</span><span class="edef">Reporting/originating legal entity</span></div>
+        <div class="entity-row"><span class="ename">Party</span><span class="edef">Canonical person or organisation involved in credit</span></div>
+        <div class="entity-row"><span class="ename">Person</span><span class="edef">Natural-person extension of Party (BVN, DOB, etc.)</span></div>
+        <div class="entity-row"><span class="ename">Organisation</span><span class="edef">Legal-entity extension of Party (TIN, registration)</span></div>
+        <div class="entity-row"><span class="ename">RelatedParty</span><span class="edef">Director, promoter, beneficial owner</span></div>
+      </div>
+      <div class="entity-group">
+        <h4>Facility & contract</h4>
+        <div class="entity-row"><span class="ename">Facility</span><span class="edef">The contractual credit facility/loan itself</span></div>
+        <div class="entity-row"><span class="ename">FacilityParty</span><span class="edef">Role link — borrower, co-borrower, guarantor</span></div>
+        <div class="entity-row"><span class="ename">Collateral</span><span class="edef">Asset/security supporting a facility</span></div>
+        <div class="entity-row"><span class="ename">Guarantee</span><span class="edef">Guarantee supporting a facility</span></div>
+        <div class="entity-row"><span class="ename">Restructure</span><span class="edef">Contract modification event, old vs. new terms</span></div>
+        <div class="entity-row"><span class="ename">Schedule</span><span class="edef">Contractual instalment/cash-flow obligations</span></div>
+      </div>
+      <div class="entity-group">
+        <h4>Performance & risk</h4>
+        <div class="entity-row"><span class="ename">Payment</span><span class="edef">Cash movement applied to a facility</span></div>
+        <div class="entity-row"><span class="ename">FacilitySnapshot</span><span class="edef">Point-in-time performance state (DPD, exposure, status)</span></div>
+        <div class="entity-row"><span class="ename">CreditRisk</span><span class="edef">IFRS 9 stage / PD / LGD / ECL at a reporting date</span></div>
+      </div>
+      <div class="entity-group">
+        <h4>Governance & audit</h4>
+        <div class="entity-row"><span class="ename">SourceRecord</span><span class="edef">Immutable source-system record, hashed</span></div>
+        <div class="entity-row"><span class="ename">TransformationEvent</span><span class="edef">Every normalisation, versioned and traceable</span></div>
+        <div class="entity-row"><span class="ename">ValidationResult</span><span class="edef">Rule outcome against a record/field</span></div>
+        <div class="entity-row"><span class="ename">ReportingSubmission</span><span class="edef">A regulatory/third-party output batch, hashed</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="divider">
+    <h2>One schema, not a schema per loan type</h2>
+    <p class="section-note">A deliberate design choice: WCDS doesn't define a separate table for consumer loans, SME loans, and MFB loans. It's one <code>Facility</code> entity — loan-type differences show up in a handful of fields (<code>facility_type</code>, <code>product_code</code>, <code>purpose_code</code>, <code>sector_code</code>), not a different shape. That's what makes cross-lender, cross-product comparison possible in the first place. Below: one real (synthetic) example from each of the three sample lender profiles.</p>
+    <div class="example-grid" id="example-cards">
+      <div class="example-card">
+        <h4>Lender A — Consumer/salary</h4>
+        <div class="etag">TERM_LOAN · SALARY_3M · unsecured personal</div>
+        <dl>
+          <div><dt>Principal</dt><dd>₦150,000</dd></div>
+          <div><dt>Tenor</dt><dd>90 days</dd></div>
+          <div><dt>Rate</dt><dd>37.5% (FIXED)</dd></div>
+          <div><dt>Repayment</dt><dd>MONTHLY</dd></div>
+          <div><dt>Purpose / sector</dt><dd>UNSECURED_PERSONAL / HOUSEHOLD</dd></div>
+          <div><dt>Secured</dt><dd>false</dd></div>
+          <div><dt>Status</dt><dd>ACTIVE, CURRENT</dd></div>
+          <div><dt>Party type</dt><dd>PERSON</dd></div>
+        </dl>
+      </div>
+      <div class="example-card">
+        <h4>Lender B — SME working capital</h4>
+        <div class="etag">TERM_LOAN · INVOICE_120D · working capital</div>
+        <dl>
+          <div><dt>Principal</dt><dd>₦750,000</dd></div>
+          <div><dt>Tenor</dt><dd>120 days</dd></div>
+          <div><dt>Rate</dt><dd>21.7% (FIXED)</dd></div>
+          <div><dt>Repayment</dt><dd>MONTHLY</dd></div>
+          <div><dt>Purpose / sector</dt><dd>WORKING_CAPITAL / RETAIL</dd></div>
+          <div><dt>Secured</dt><dd>false</dd></div>
+          <div><dt>Status</dt><dd>ACTIVE, CURRENT</dd></div>
+          <div><dt>Party type</dt><dd>ORGANISATION</dd></div>
+        </dl>
+      </div>
+      <div class="example-card">
+        <h4>Lender C — Mixed microfinance</h4>
+        <div class="etag">TERM_LOAN · STAFF_LOAN · personal</div>
+        <dl>
+          <div><dt>Principal</dt><dd>₦50,000</dd></div>
+          <div><dt>Tenor</dt><dd>365 days</dd></div>
+          <div><dt>Rate</dt><dd>17.3% (FIXED)</dd></div>
+          <div><dt>Repayment</dt><dd>MONTHLY</dd></div>
+          <div><dt>Purpose / sector</dt><dd>PERSONAL / MICROFINANCE</dd></div>
+          <div><dt>Secured</dt><dd>false</dd></div>
+          <div><dt>Status</dt><dd>ACTIVE, CURRENT</dd></div>
+          <div><dt>Party type</dt><dd>PERSON</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p style="color:var(--text-dim); font-size:12.5px; margin-top:14px;">All figures above are from the synthetic sample dataset (see downloads below) — no real borrower, lender, BVN or TIN data. <code>borrower_external_id</code> values are anonymised placeholders by design, not a de-identified copy of anything real.</p>
+  </section>
+
+  <section class="divider">
+    <h2>Core field dictionary — Facility & FacilitySnapshot</h2>
+    <p class="section-note">The two entities every loan tape maps to first. <span class="req-R">R</span> = required, <span class="req-C">C</span> = conditional, <span class="req-O">O</span> = optional. The full spec (download below) covers all 18 entities, including Collateral, Guarantee, Restructure, Payment, Schedule, CreditRisk, Party/Person/Organisation, and the audit-trail entities.</p>
+    <div class="table-scroll">
+      <table class="fielddict">
+        <thead><tr><th>Field</th><th>Type</th><th>Req.</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td class="fname">facility_id</td><td class="dim">UUID</td><td class="req-R">R</td><td>Canonical facility identifier, unique &amp; immutable</td></tr>
+          <tr><td class="fname">institution_id</td><td class="dim">UUID</td><td class="req-R">R</td><td>Originating/reporting institution</td></tr>
+          <tr><td class="fname">source_facility_id</td><td class="dim">String</td><td class="req-R">R</td><td>Originator's own loan/facility ID — preserved, never overwritten</td></tr>
+          <tr><td class="fname">facility_type</td><td class="dim">Enum</td><td class="req-R">R</td><td>TERM_LOAN / OVERDRAFT / CARD / LEASE / MORTGAGE / TRADE_FINANCE / etc.</td></tr>
+          <tr><td class="fname">product_code</td><td class="dim">String</td><td class="req-R">R</td><td>Originator's own product code</td></tr>
+          <tr><td class="fname">currency</td><td class="dim">ISO-4217</td><td class="req-R">R</td><td>Contract currency</td></tr>
+          <tr><td class="fname">original_principal</td><td class="dim">Decimal</td><td class="req-C">C</td><td>Original principal/face amount</td></tr>
+          <tr><td class="fname">amount_disbursed</td><td class="dim">Decimal</td><td class="req-R">R</td><td>Cumulative amount disbursed, ≥0</td></tr>
+          <tr><td class="fname">origination_date</td><td class="dim">Date</td><td class="req-R">R</td><td>Contract/origination date</td></tr>
+          <tr><td class="fname">first_disbursement_date</td><td class="dim">Date</td><td class="req-R">R</td><td>First drawdown date</td></tr>
+          <tr><td class="fname">maturity_date</td><td class="dim">Date</td><td class="req-C">C</td><td>Contractual maturity, ≥ origination date</td></tr>
+          <tr><td class="fname">interest_rate</td><td class="dim">Decimal</td><td class="req-C">C</td><td>Nominal annual rate, decimal form — 24% = <code>0.24</code>, never <code>24</code></td></tr>
+          <tr><td class="fname">rate_type</td><td class="dim">Enum</td><td class="req-C">C</td><td>FIXED / FLOATING / PROFIT_RATE / NONE</td></tr>
+          <tr><td class="fname">repayment_frequency</td><td class="dim">Enum</td><td class="req-C">C</td><td>DAILY / WEEKLY / MONTHLY / etc.</td></tr>
+          <tr><td class="fname">purpose_code / sector_code</td><td class="dim">Code</td><td class="req-O">O</td><td>Loan purpose and economic sector financed — versioned codebook</td></tr>
+          <tr><td class="fname">secured_flag</td><td class="dim">Boolean</td><td class="req-R">R</td><td>Whether facility is secured</td></tr>
+          <tr><td class="fname">facility_status</td><td class="dim">Enum</td><td class="req-R">R</td><td>ACTIVE / CLOSED / DEFAULTED / WRITTEN_OFF / etc.</td></tr>
+          <tr><td class="fname">outstanding_principal</td><td class="dim">Decimal</td><td class="req-R">R</td><td>Principal outstanding at snapshot, ≥0</td></tr>
+          <tr><td class="fname">days_past_due</td><td class="dim">Integer</td><td class="req-R">R</td><td>Days since earliest unpaid contractual amount became due</td></tr>
+          <tr><td class="fname">delinquency_bucket</td><td class="dim">Enum</td><td class="req-R">R</td><td>CURRENT / 1-30 / 31-60 / 61-90 / 90+ — must agree deterministically with DPD</td></tr>
+          <tr><td class="fname">default_flag / default_date</td><td class="dim">Bool / Date</td><td class="req-R">R</td><td>default_flag=true REQUIRES default_date</td></tr>
+          <tr><td class="fname">writeoff_flag / writeoff_amount</td><td class="dim">Bool / Decimal</td><td class="req-R">R</td><td>writeoff_flag=true REQUIRES writeoff_amount (or a documented zero-value policy)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="divider" id="validator">
+    <h2>Live validation, on real (synthetic) sample data</h2>
+    <p class="section-note">This isn't a mockup — the table below loads the actual WCDS v0.1 sample datasets and runs a subset of the deterministic validation rulebook against every row, in your browser, right now. Each sample file was seeded with 5 deliberate exceptions to test against; here's what the validator actually catches.</p>
+
+    <div id="validator-loading">Loading sample datasets and running validation…</div>
+    <div id="validator-app" style="display:none;">
+      <div class="lender-tabs" id="lender-tabs"></div>
+      <div class="stats-row" id="validator-stats"></div>
+      <div id="exception-list"></div>
+    </div>
+
+    <details style="margin-top:20px;">
+      <summary style="cursor:pointer; color:var(--indigo); font-size:13.5px;">Which rules are running in this demo</summary>
+      <div class="rule-list" style="margin-top:14px;">
+        <div><span class="rid">WCDS-R008</span> outstanding_principal must be ≥ 0</div>
+        <div><span class="rid">WCDS-R012</span> CLOSED facility should have ~0 exposure</div>
+        <div><span class="rid">WCDS-R013</span> default_flag=true requires default_date</div>
+        <div><span class="rid">WCDS-R014</span> days_past_due must be integer ≥ 0</div>
+        <div><span class="rid">WCDS-R015</span> delinquency_bucket must agree with DPD</div>
+        <div><span class="rid">WCDS-R021</span> interest_rate must be decimal, not a percentage</div>
+        <div><span class="rid">WCDS-R022</span> currency must be valid ISO-4217</div>
+        <div><span class="rid">Date order</span> origination ≤ first_disbursement ≤ maturity; default_date ≥ origination</div>
+        <div><span class="rid">WCDS-R026</span> no duplicate crms_credit_id within an institution</div>
+      </div>
+      <p style="color:var(--text-dim); font-size:12.5px; margin-top:12px;">This is a subset of the full 30-rule deterministic rulebook (§8 of the spec) — enough to demonstrate the mechanism, not the complete engine. The full rulebook also covers referential integrity (collateral/guarantee/restructure linkage), payment decomposition, schedule reconciliation, and export reproducibility, which need more than a single flat facility file to check.</p>
+    </details>
+  </section>
+
+  <section class="divider" id="engage">
+    <h2>How a lender engages with us</h2>
+    <p class="section-note">You don't need to be doing a deal to get value from this. A clean, WCDS-mapped loan tape improves your own CRMS submissions, credit bureau reporting, and IFRS 9 inputs — whether or not you ever raise funding through Waterline.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">01</div><h3>Discovery &amp; NDA</h3><p>Share a sample extract from your loan management system — a few hundred rows is enough. NDA first, no commitment, no cost.</p></div>
+      <div class="step"><div class="step-num">02</div><h3>Data readiness assessment</h3><p>We profile your sample against WCDS: column coverage, null rates, type mismatches, duplicate keys. You get a gap report and a data-quality score before anything is mapped.</p></div>
+      <div class="step"><div class="step-num">03</div><h3>Mapping &amp; standardisation</h3><p>Our tooling proposes a field-by-field mapping from your source system to WCDS. Every transformation rule is named, versioned, and shown to you — nothing is silently reinterpreted.</p></div>
+      <div class="step"><div class="step-num">04</div><h3>Validation &amp; reconciliation</h3><p>The full rulebook runs against your whole book. Exceptions come back to you with the exact record, field, and rule that failed — not just a rejected file.</p></div>
+      <div class="step"><div class="step-num">05</div><h3>Clean WCDS dataset delivered</h3><p>A versioned, audit-ready canonical loan tape — yours to keep and reuse for CRMS, bureau, or IFRS 9 reporting, independent of anything else you do with us.</p></div>
+      <div class="step"><div class="step-num">06</div><h3>Structuring-ready, if you want it</h3><p>If and when you're ready to raise funding against the book, this is the same dataset that feeds pool structuring and investor diligence — no re-work.</p></div>
+    </div>
+  </section>
+
+  <section class="divider">
+    <h2>Loan book clean-up, as a service</h2>
+    <p class="section-note">Technology-assisted, not a manual spreadsheet exercise. This is what the mapping/validation/reconciliation pipeline above actually does for you.</p>
+    <div class="service-grid">
+      <div class="service-card"><h3><span class="service-icon"></span>Assisted field mapping</h3><p>Deterministic rules for clean exports; assisted column-matching for messy, inconsistently-named source files. You approve every mapping before it's applied — nothing is guessed silently.</p></div>
+      <div class="service-card"><h3><span class="service-icon"></span>Deterministic validation</h3><p>The WCDS rulebook (30 rules and counting) runs against your full book: required fields, domain ranges, date ordering, DPD/bucket consistency, default and write-off integrity, duplicate-key detection.</p></div>
+      <div class="service-card"><h3><span class="service-icon"></span>Reconciliation to your own totals</h3><p>Facility counts and monetary control totals are checked against the source system's own declared totals — so you know nothing was dropped or double-counted in transit.</p></div>
+      <div class="service-card"><h3><span class="service-icon"></span>PII stays yours</h3><p>BVN, NIN, TIN, phone, email, address and DOB are classified and masked in every non-operational export. Raw identifiers never appear in an analytics, investor, or funding dataset.</p></div>
+      <div class="service-card"><h3><span class="service-icon"></span>Full lineage, always</h3><p>Every canonical or derived value traces back to its source record and the exact transformation rule/version that produced it. Corrections create new versions — nothing is silently overwritten.</p></div>
+      <div class="service-card"><h3><span class="service-icon"></span>Multi-destination export</h3><p>One clean WCDS dataset, multiple outputs: CRMS-shaped, credit-bureau-shaped, IFRS 9-shaped, or an investor tape — each hashed and versioned at export.</p></div>
+    </div>
+  </section>
+
+  <section class="divider">
+    <h2>Downloads</h2>
+    <p class="section-note">The full specification, the anonymised sample datasets used in the demo above, and the individual sample files.</p>
+    <div class="download-grid">
+      <a class="download-card" href="standards/wcds/WCDS_v0.1_Full_Specification.docx">
+        <div class="dtitle">Full specification (.docx)</div>
+        <div class="dsub">All 18 entities, full field dictionary, 30-rule validation rulebook, CRMS mapping matrix, versioning &amp; governance</div>
+      </a>
+      <a class="download-card" href="standards/wcds/WCDS_v0.1_Anonymised_Lender_Datasets.zip">
+        <div class="dtitle">Sample datasets (.zip)</div>
+        <div class="dsub">3 synthetic lender loan tapes (3,050 facilities total) with deliberate validation exceptions, plus the dataset manifest</div>
+      </a>
+      <a class="download-card" href="standards/wcds/samples/WCDS_dataset_manifest.json">
+        <div class="dtitle">Dataset manifest (.json)</div>
+        <div class="dsub">What's in each sample file, facility counts, and exception counts per dataset</div>
+      </a>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    WCDS v0.1 is a working draft, not an official CBN standard — see §18 of the spec for what it deliberately does not claim.
+    <a href="index.html#contact">Talk to us about your loan book →</a>
+  </div>
+</footer>
+
+<script>
+const navToggle = document.getElementById('nav-toggle');
+const navLinksEl = document.getElementById('nav-links');
+navToggle.addEventListener('click', () => {
+  const open = navLinksEl.classList.toggle('open');
+  navToggle.setAttribute('aria-expanded', open);
+});
+
+function escapeHtml(s){
+  if(s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function parseCSV(text){
+  const lines = text.replace(/\r\n/g,'\n').split('\n').filter(l => l.length);
+  const headers = lines[0].split(',');
+  return lines.slice(1).map(line => {
+    // simple splitter; WCDS sample fields have no embedded commas
+    const cells = line.split(',');
+    const row = {};
+    headers.forEach((h,i) => row[h] = cells[i] !== undefined ? cells[i] : '');
+    return row;
+  });
+}
+
+const BUCKET_RANGES = {
+  CURRENT: [0,0], DPD_1_30: [1,30], DPD_31_60: [31,60], DPD_61_90: [61,90], DPD_90_PLUS: [90, Infinity]
+};
+const VALID_CURRENCY = new Set(['NGN','USD','GBP','EUR']);
+
+function validateRows(rows){
+  const exceptions = [];
+  const seenKey = new Map(); // crms_credit_id -> facility_id, within institution
+  rows.forEach(r => {
+    const fid = r.facility_id;
+    // R008
+    const op = parseFloat(r.outstanding_principal);
+    if(!isNaN(op) && op < 0) exceptions.push({fid, rule:'WCDS-R008', msg:`outstanding_principal is negative: ${r.outstanding_principal}`});
+    // R012
+    if(r.facility_status === 'CLOSED' && op > 0) exceptions.push({fid, rule:'WCDS-R012', msg:`facility_status is CLOSED but outstanding_principal = ${r.outstanding_principal}`});
+    // R013
+    if(r.default_flag === 'True' && !r.default_date) exceptions.push({fid, rule:'WCDS-R013', msg:'default_flag is true but default_date is missing'});
+    // R014 / R015
+    const dpd = parseInt(r.days_past_due, 10);
+    if(isNaN(dpd) || dpd < 0){
+      exceptions.push({fid, rule:'WCDS-R014', msg:`days_past_due is not a valid non-negative integer: ${r.days_past_due}`});
+    } else {
+      const range = BUCKET_RANGES[r.delinquency_bucket];
+      if(range && (dpd < range[0] || dpd > range[1])) exceptions.push({fid, rule:'WCDS-R015', msg:`delinquency_bucket ${r.delinquency_bucket} is inconsistent with days_past_due = ${dpd}`});
+    }
+    // R021
+    const rate = parseFloat(r.interest_rate);
+    if(!isNaN(rate) && rate > 2) exceptions.push({fid, rule:'WCDS-R021', msg:`interest_rate ${r.interest_rate} looks like a percentage, not a WCDS decimal (24% should be 0.24)`});
+    // R022
+    if(r.currency && !VALID_CURRENCY.has(r.currency)) exceptions.push({fid, rule:'WCDS-R022', msg:`currency code "${r.currency}" is not a recognised ISO-4217 code`});
+    // Date ordering
+    if(r.maturity_date && r.origination_date && r.origination_date > r.maturity_date)
+      exceptions.push({fid, rule:'Date order', msg:`origination_date (${r.origination_date}) is after maturity_date (${r.maturity_date})`});
+    if(r.first_disbursement_date && r.origination_date && r.first_disbursement_date < r.origination_date)
+      exceptions.push({fid, rule:'Date order', msg:`first_disbursement_date (${r.first_disbursement_date}) is before origination_date (${r.origination_date})`});
+    if(r.default_flag === 'True' && r.default_date && r.origination_date && r.default_date < r.origination_date)
+      exceptions.push({fid, rule:'Date order', msg:`default_date (${r.default_date}) is before origination_date (${r.origination_date})`});
+    // R026-style duplicate crms_credit_id
+    if(r.crms_credit_id){
+      const key = r.institution_id + '::' + r.crms_credit_id;
+      if(seenKey.has(key)) exceptions.push({fid, rule:'WCDS-R026', msg:`crms_credit_id "${r.crms_credit_id}" is also used by ${seenKey.get(key)} within the same institution`});
+      else seenKey.set(key, fid);
+    }
+  });
+  return exceptions;
+}
+
+const LENDER_FILES = [
+  { key:'A', label:'Lender A · Consumer', url:'standards/wcds/samples/Lender_A_Consumer.csv' },
+  { key:'B', label:'Lender B · SME', url:'standards/wcds/samples/Lender_B_SME.csv' },
+  { key:'C', label:'Lender C · MFB (mixed)', url:'standards/wcds/samples/Lender_C_MFB.csv' },
+];
+
+let RESULTS = {};
+let activeLender = 'A';
+
+function renderValidator(){
+  const { rows, exceptions } = RESULTS[activeLender];
+  const distinctFacilitiesWithIssues = new Set(exceptions.map(e => e.fid)).size;
+  const clean = rows.length - distinctFacilitiesWithIssues;
+
+  document.getElementById('validator-stats').innerHTML = `
+    <div class="stat"><div class="num">${rows.length}</div><div class="lbl">Facilities checked</div></div>
+    <div class="stat ok"><div class="num">${clean}</div><div class="lbl">Passed all rules</div></div>
+    <div class="stat bad"><div class="num">${distinctFacilitiesWithIssues}</div><div class="lbl">Facilities with an exception</div></div>
+    <div class="stat bad"><div class="num">${exceptions.length}</div><div class="lbl">Total rule violations</div></div>
+  `;
+
+  document.getElementById('exception-list').innerHTML = exceptions.length
+    ? exceptions.map(e => `
+        <div class="exception-card">
+          <div class="exc-top"><span class="exc-rule">${escapeHtml(e.rule)}</span><span class="exc-facility mono">${escapeHtml(e.fid)}</span></div>
+          <div class="exc-msg">${escapeHtml(e.msg)}</div>
+        </div>
+      `).join('')
+    : '<p class="dim">No exceptions found by this rule subset.</p>';
+}
+
+(async function initValidator(){
+  try{
+    const results = await Promise.all(LENDER_FILES.map(f => fetch(f.url).then(r => {
+      if(!r.ok) throw new Error(`${f.url} → HTTP ${r.status}`);
+      return r.text();
+    })));
+    LENDER_FILES.forEach((f,i) => {
+      const rows = parseCSV(results[i]);
+      RESULTS[f.key] = { rows, exceptions: validateRows(rows) };
+    });
+
+    document.getElementById('lender-tabs').innerHTML = LENDER_FILES.map(f => `
+      <button class="lender-tab${f.key===activeLender?' active':''}" data-key="${f.key}">${escapeHtml(f.label)} (${RESULTS[f.key].rows.length})</button>
+    `).join('');
+    document.querySelectorAll('.lender-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeLender = btn.getAttribute('data-key');
+        document.querySelectorAll('.lender-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderValidator();
+      });
+    });
+
+    document.getElementById('validator-loading').style.display = 'none';
+    document.getElementById('validator-app').style.display = 'block';
+    renderValidator();
+  } catch(err){
+    document.getElementById('validator-loading').innerHTML = `Couldn't load the sample datasets (${escapeHtml(err.message)}). This page needs to be served over HTTP(S) — opening it directly as a file blocks the fetch. Run <code>python3 -m http.server</code> from the repo root and open it via <code>http://localhost:8000/standard.html</code>.`;
+  }
+})();
+</script>
+
+</body>
+</html>
