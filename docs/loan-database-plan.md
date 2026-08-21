@@ -49,14 +49,16 @@ Every numeric fact carries a `provenance` foreign key — non-negotiable, becaus
 
 ### 1.2 Tier 2 — Deal Loan-Tape (true loan-level grain)
 
+**Superseded by WCDS.** The sketch below was this plan's original placeholder schema, written before any real loan tape existed. It's since been replaced by the **Waterline Credit Data Standard (WCDS) v0.1** — a full canonical schema (18 entities, field dictionary, 30-rule validation rulebook, CRMS/IFRS9/credit-bureau/investor-tape adapters) published at [`standard.html`](../standard.html) and specified in full in [`standards/wcds/`](../standards/wcds/). Use WCDS's `Facility` + `FacilitySnapshot` entities (§5.6/§5.13 of the spec) as the actual Tier 2 schema — the table below is kept only as a historical note of the original, much thinner design.
+
 | Entity | Grain | Key fields |
 |---|---|---|
 | `deal` | one per transaction | originator_institution_id, deal_stage (discovery/structure/validate/close/live), spv_name, senior_tranche_size, equity_tranche_size |
 | `loan_tape_snapshot` | deal × as-of-date | file_hash, row_count, received_date, NDA_reference |
-| `loan_record` | one per underlying loan | loan_tape_snapshot_id, anonymized_borrower_id (never store PII/BVN directly — see §6), product_type, disbursement_date, original_principal, outstanding_principal, tenor_months, remaining_tenor, interest_rate, repayment_frequency, days_past_due, dpd_bucket, collateral_type, collateral_value, sector, state/geography, restructured_flag |
-| `loan_performance_history` | loan_record × month | month, scheduled_payment, actual_payment, balance, dpd |
+| ~~`loan_record`~~ | ~~one per underlying loan~~ | Replaced by WCDS `Facility` + `FacilitySnapshot` — see above. |
+| ~~`loan_performance_history`~~ | ~~loan_record × month~~ | Replaced by WCDS `Payment` + `Schedule` entities. |
 
-Tier 2 sits behind stricter access control (§6) and is never merged into Tier 1's analytics warehouse without anonymization.
+`deal` and `loan_tape_snapshot` still apply as-is — WCDS doesn't define deal-lifecycle tracking, only the loan data itself. Tier 2 sits behind stricter access control (§6) and is never merged into Tier 1's analytics warehouse without anonymization; WCDS's own PII classification and masking requirements (spec §14) apply on top of that.
 
 ---
 
@@ -128,8 +130,8 @@ Build collectors + extraction pipelines for the source/institution pairs where P
 **Phase 3 (ongoing) — Enrichment + refresh**
 FCCPC registry monthly refresh, lender website/product scraping quarterly, rating action monitoring, investor deck/press-release capture as they appear. Add fintechs/leasing companies as coverage priority 2.
 
-**Phase 4 (per deal) — Tier 2 loan-tape ingestion**
-Build the loan-tape intake path (secure upload, anonymization step, schema validation against `loan_record`) triggered the first time a live deal reaches Discovery. Don't build this speculatively before the first real deal — the schema above is the starting point, but real loan tapes will reveal fields you didn't anticipate (Nigerian lenders' tape formats are not standardized).
+**Phase 4 (per deal, and now for standardization engagements generally) — Tier 2 loan-tape ingestion**
+Build the loan-tape intake path (secure upload, anonymization step, validation against WCDS's deterministic rulebook) — this is no longer gated on the first live deal, since WCDS standardization is now offered as its own service (`standard.html`, "How a lender engages with us"). The reference implementation still needs building: a mapper (source → WCDS field mapping), a validator (the 30-rule rulebook), a reconciler (control-total checks), and destination adapters (CRMS/bureau/IFRS9/investor-tape) — see the spec's §17 "Minimum viable WCDS implementation" for the component list. The 3 synthetic sample datasets in `standards/wcds/samples/` exist specifically to build and test this against before the first real loan tape arrives.
 
 ---
 

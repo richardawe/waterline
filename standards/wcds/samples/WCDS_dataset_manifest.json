@@ -1,0 +1,28 @@
+{
+  "standard": "WCDS v0.1",
+  "status": "synthetic/anonymised",
+  "snapshot_date": "2026-08-21",
+  "datasets": {
+    "Lender_A_Consumer": {
+      "facilities": 1200,
+      "profile": "consumer/salary",
+      "deliberate_exceptions": 5
+    },
+    "Lender_B_SME": {
+      "facilities": 850,
+      "profile": "SME/merchant working capital",
+      "deliberate_exceptions": 5
+    },
+    "Lender_C_MFB": {
+      "facilities": 1000,
+      "profile": "mixed microfinance",
+      "deliberate_exceptions": 5
+    }
+  },
+  "notes": [
+    "No real customer, lender, BVN, TIN or CRMS data is present.",
+    "borrower_external_id values are synthetic placeholders.",
+    "Fields are WCDS v0.1 canonical-style test fields, not verbatim CBN CRMS templates.",
+    "Each dataset contains five deliberate validation exceptions for testing."
+  ]
+}
