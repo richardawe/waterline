@@ -1,0 +1,34 @@
+{
+  "$schema_note": "period x segment grain, CBN industry-wide figures. See README.md provenance convention.",
+  "generated_at": "2026-08-21",
+  "industry_aggregates": [
+    {
+      "segment": "deposit_money_banks",
+      "metric": "total_gross_credit",
+      "period_end": "2025-12-31",
+      "value": 700.31,
+      "unit": "NGN_trillion",
+      "confidence": "medium",
+      "notes": "Reported as 'total credit extended to Nigeria's private sector by Deposit Money Banks' for 2025 (vs. N689.98trn in 2024). Not confirmed whether this is an end-December balance or a full-year flow figure; a differing N730.2trn figure for the same year appeared in a related source, so treat as approximate. Not independently verified against a primary CBN Statistical Bulletin/FSR document.",
+      "source": {
+        "source_name": "Legit.ng, citing CBN statistical bulletin",
+        "source_url": "https://www.legit.ng/business-economy/money/1713535-bank-lending-financial-services-jumps-30-n9984trn/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "segment": "deposit_money_banks",
+      "metric": "npl_ratio",
+      "period_end": "2026-03-31",
+      "value": 9.94,
+      "unit": "percent",
+      "confidence": "medium",
+      "notes": "Part of a fast-moving series through CBN's COVID-19 forbearance withdrawal: 7.51% (Dec 2025) -> 8.03% (Jan 2026) -> 9.85% (Feb 2026) -> 9.94% (Q1 2026), all above the CBN's 5% prudential ceiling. Earlier 2025 figures (~5.6% in April 2025) are now stale and should not be used alongside this one without noting the trend. Secondary-source citation of CBN data, not verified against a primary CBN document.",
+      "source": {
+        "source_name": "Vanguard News, citing CBN Q1 2026 forbearance-withdrawal reporting",
+        "source_url": "https://www.vanguardngr.com/2026/08/withdrawal-of-covid-19-forbearance-pushes-banks-bad-loans-above-cbn-limit/",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
+}

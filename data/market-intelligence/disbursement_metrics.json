@@ -1,0 +1,51 @@
+{
+  "$schema_note": "institution_id x period grain, self-reported metrics from investor decks/press releases. Always mark self_reported=true. Not yet populated — see README.md known gaps.",
+  "generated_at": "2026-08-21",
+  "disbursement_metrics": [
+    {
+      "institution_id": "moniepoint-mfb",
+      "period_end": "2025-12-31",
+      "period_type": "FY",
+      "disbursement_volume": 1000,
+      "unit": "NGN_billion",
+      "metric_description": "Loans disbursed to ~70,000 businesses in 2025",
+      "self_reported": true,
+      "notes": "Company's own year-in-review disclosure via press coverage; not an audited or independently verified figure. Company also reported NGN412 trillion in total transaction value processed in 2025 (payments volume, unrelated to lending).",
+      "source": {
+        "source_name": "Techpoint Africa, Moniepoint 2025 Year in Review coverage",
+        "source_url": "https://techpoint.africa/news/moniepoint-1-trillion-businesses/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fairmoney-mfb",
+      "period_end": "2026-01-31",
+      "period_type": "TTM",
+      "disbursement_volume": 150,
+      "unit": "NGN_billion",
+      "metric_description": "Loans disbursed in the year to January 2026; also disclosed NGN7bn interest paid to savers over the same period",
+      "self_reported": true,
+      "notes": "Company disclosure via press coverage, not independently verified.",
+      "source": {
+        "source_name": "Vanguard, FairMoney disbursement/savings coverage",
+        "source_url": "https://www.vanguardngr.com/2026/01/fairmoney-records-n150bn-loan-disbursement-pays-n7bn-interest-to-savers/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "renmoney-mfb",
+      "period_end": null,
+      "period_type": "cumulative_since_inception",
+      "disbursement_volume": 2000,
+      "unit": "NGN_billion",
+      "metric_description": "Cumulative loans issued to 500,000+ customers since inception (undated marketing claim, not a specific-year figure)",
+      "self_reported": true,
+      "notes": "No as-of date given by the company — treat as a rough scale indicator only, not comparable to annual disbursement figures for other institutions.",
+      "source": {
+        "source_name": "Renmoney company website/marketing material",
+        "source_url": "https://renmoney.com/",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
+}

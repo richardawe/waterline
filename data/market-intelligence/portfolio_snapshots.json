@@ -1,0 +1,100 @@
+{
+  "$schema_note": "institution_id x period_end grain. Only real, cited figures included — see README.md provenance convention. Populated incrementally as research agents return verified data.",
+  "generated_at": "2026-08-21",
+  "portfolio_snapshots": [
+    {
+      "institution_id": "access-holdings",
+      "period_end": "2024-06-30",
+      "period_type": "H1",
+      "gross_loans": 12300,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.0272,
+      "confidence": "low",
+      "notes": "H1 2024 (30 Jun 2024) figures only, from secondary press coverage — gross loans up from ~NGN8,900bn at Dec 2023. Audited FY2024 (31 Dec 2024) figures were not confirmed within research budget; a separate secondary summary mentioned '2.70% NPL in 2024' without clarifying FY-end vs interim, so this snapshot should be re-verified against Access Holdings' FY2024 annual report before use.",
+      "source": {
+        "source_name": "Secondary press coverage of Access Holdings H1 2024 results (exact article not preserved — re-derive via search 'Access Holdings H1 2024 gross loans NPL ratio')",
+        "source_url": null,
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "lapo-mfb",
+      "period_end": "2025-12-31",
+      "period_type": "FY",
+      "gross_loans": 118,
+      "unit": "NGN_billion",
+      "npl_ratio": null,
+      "confidence": "medium",
+      "notes": "Loan portfolio grew from NGN75bn (2021) to NGN118bn (2025). Total assets NGN143bn, equity NGN42bn, CAR 29% disclosed in the same article, in connection with LAPO's NGN10bn 5-year bond launch. No NPL ratio disclosed in this source.",
+      "source": {
+        "source_name": "Nairametrics coverage of LAPO's NGN10bn bond issuance",
+        "source_url": "https://nairametrics.com/2026/03/24/lapo-microfinance-bank-launches-n10-billion-5-year-bond-key-takeaways-for-investors/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtco",
+      "period_end": "2024-12-31",
+      "period_type": "FY",
+      "gross_loans": null,
+      "net_loans": 2786,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.052,
+      "npl_ratio_basis": "IFRS9_stage3_group",
+      "confidence": "medium",
+      "notes": "GTCO does not disclose a conventional 'NPL ratio' in the sources found; net loans (Group) were NGN2,786bn (+12.32% YoY) at 31 Dec 2024. Used IFRS 9 Stage 3 loans as % of Group loan book (5.2%, up from 4.2% FY2023; Bank-only was 3.5%, up from 2.5%) as an NPL-ratio proxy — flagged via npl_ratio_basis rather than treated as a like-for-like NPL ratio with other institutions. Gross loans figure not found; left null rather than derived/estimated. Sourced from secondary press coverage of GTCO's FY2024 results, not the primary filing.",
+      "source": {
+        "source_name": "Nairametrics, citing GTCO FY2024 audited results / GTCO press release",
+        "source_url": "https://nairametrics.com/2025/03/28/gtco-plc-releases-2024-full-year-audited-results-pays-shareholders-record-dividend-of-n8-03k-for-2024-financial-year/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "zenith-bank",
+      "period_end": "2024-12-31",
+      "period_type": "FY",
+      "gross_loans": 10990,
+      "net_loans": 9965,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.047,
+      "npl_coverage_ratio": 2.23,
+      "confidence": "medium",
+      "notes": "Net loans (NGN9,965bn, +51.99% YoY, per Nairametrics) and gross loans (NGN10,990bn) come from different secondary sources referencing Zenith's FY2024 results/investor presentation — not cross-checked against the primary NGX filing or annual report within research budget. NPL coverage ratio reported at 223%.",
+      "source": {
+        "source_name": "PM News Nigeria / Nairametrics coverage of Zenith Bank FY2024 results",
+        "source_url": "https://pmnewsnigeria.com/2025/03/27/zenith-bank-hits-n3-97-trillion-in-2024-profit-surges-by-67%1011465/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "uba",
+      "period_end": "2024-12-31",
+      "period_type": "FY",
+      "gross_loans": 7510,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.0558,
+      "confidence": "medium",
+      "notes": "Gross loans +35% YoY; NPL ratio down from 5.85% in FY2023. Sourced from secondary press coverage of UBA's audited FY2024 results, not the primary NGX filing directly — recommend cross-checking against UBA's FY2024 annual report PDF for a precise figure before using in investor-facing material.",
+      "source": {
+        "source_name": "Proshare coverage of UBA Plc FY2024 audited results",
+        "source_url": "https://www.proshare.co/articles/uba-plc-fy-2024-audited-result-weakening-non-interest-income-slows-profit-growth-to-6.08",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fbn-holdings",
+      "period_end": "2024-12-31",
+      "period_type": "FY",
+      "gross_loans": 12070,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.102,
+      "confidence": "medium",
+      "notes": "Reported under the FirstHoldCo Plc name (FBN Holdings Plc's renamed listed entity). NPL ratio reportedly rose further to ~12% in FY2025 amid CBN forbearance withdrawal — this snapshot is specifically FY2024, not FY2025. Sourced from secondary press coverage, not the primary NGX filing.",
+      "source": {
+        "source_name": "Proshare / Western Post coverage of FirstHoldCo Plc FY2024 results",
+        "source_url": "https://proshare.co/articles/firstholdco-full-year-2024-report-interest-income-rally-raises-pbt-by-123.63",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
+}
