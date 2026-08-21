@@ -18,6 +18,8 @@
     --indigo-soft:rgba(108,124,255,0.14);
     --amber:#ffb255;
     --amber-soft:rgba(255,178,85,0.14);
+    --green:#4ade80;
+    --green-soft:rgba(74,222,128,0.14);
   }
 
   *{box-sizing:border-box;}
@@ -188,6 +190,30 @@
   .feature-card p{ font-size:14.5px; color:var(--text-dim); margin:0; }
   .path-cta{ margin-top:28px; }
 
+  /* FUNNEL */
+  .funnel-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-top:32px; position:relative; }
+  @media (max-width:900px){ .funnel-grid{ grid-template-columns:1fr; } }
+  .funnel-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:26px 24px; display:flex; flex-direction:column; position:relative;
+  }
+  .funnel-card.is-paid{ border-color:rgba(255,178,85,0.35); }
+  .funnel-step{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim); margin-bottom:10px; }
+  .funnel-badge{
+    display:inline-block; font-size:11.5px; font-weight:700; padding:4px 11px; border-radius:20px;
+    margin-bottom:14px; width:fit-content; letter-spacing:0.03em;
+  }
+  .funnel-badge.free{ background:var(--green-soft); color:var(--green); }
+  .funnel-badge.paid{ background:var(--amber-soft); color:var(--amber); }
+  .funnel-card h4{ font-size:18px; margin-bottom:8px; font-family:'Space Grotesk', sans-serif; }
+  .funnel-card p{ font-size:14px; color:var(--text-dim); margin:0 0 18px; flex-grow:1; }
+  .funnel-card .btn{ align-self:flex-start; }
+  .funnel-arrow{
+    display:none; position:absolute; top:50%; right:-14px; transform:translateY(-50%);
+    color:var(--text-dim); font-size:20px; z-index:1;
+  }
+  @media (min-width:901px){ .funnel-arrow{ display:block; } }
+
   /* HOW IT WORKS */
   .steps{ display:grid; grid-template-columns:repeat(5,1fr); gap:16px; }
   @media (max-width:900px){ .steps{ grid-template-columns:1fr 1fr; } }
@@ -330,6 +356,41 @@
   </div>
 </section>
 
+<section class="divider">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="kicker">How to start</div>
+      <h2>Start free. Pay only when we structure a deal.</h2>
+      <p>You don't need to commit to anything to get value from working with us. Most lenders start with one of the first two steps — long before there's any conversation about funding.</p>
+    </div>
+    <div class="funnel-grid reveal">
+      <div class="funnel-card">
+        <div class="funnel-step">Step 1</div>
+        <span class="funnel-badge free">Free</span>
+        <h4>See where you stand</h4>
+        <p>Browse loan-book data, ratings, and capital-markets activity for 60+ Nigerian banks, MFBs, fintechs and leasing companies — including the full FCCPC digital-lender registry. No login, no form.</p>
+        <a href="database.html" class="btn btn-outline">Explore the database →</a>
+        <span class="funnel-arrow">→</span>
+      </div>
+      <div class="funnel-card">
+        <div class="funnel-step">Step 2</div>
+        <span class="funnel-badge free">Free</span>
+        <h4>Get your loan book investor-ready</h4>
+        <p>We'll map your loan tape to WCDS, our canonical credit data standard, and validate it against a deterministic rulebook — at no cost, whether or not you ever raise funding with us.</p>
+        <a href="standard.html" class="btn btn-outline">See the data standard →</a>
+        <span class="funnel-arrow">→</span>
+      </div>
+      <div class="funnel-card is-paid">
+        <div class="funnel-step">Step 3</div>
+        <span class="funnel-badge paid">Success fee</span>
+        <h4>Structure funding, when you're ready</h4>
+        <p>The same clean dataset becomes the loan tape we structure into a funded deal — pool sizing, SPV, investor placement, and ongoing servicing. This is the only step that costs anything.</p>
+        <a href="#originators" class="btn btn-primary">See how structuring works →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="investors" class="divider">
   <div class="wrap">
     <span class="path-tag tag-invest">For investors</span>
@@ -364,7 +425,10 @@
       <div class="feature-card"><h4>Start small</h4><p>Your first deal proves the model. It's not your whole book.</p></div>
       <div class="feature-card"><h4>A track record that compounds</h4><p>One clean deal makes your next raise easier.</p></div>
     </div>
-    <div class="path-cta reveal"><a href="#contact" class="btn btn-outline">See if your loan book qualifies →</a></div>
+    <div class="path-cta reveal" style="display:flex; gap:14px; flex-wrap:wrap;">
+      <a href="#contact" class="btn btn-outline">See if your loan book qualifies →</a>
+      <a href="standard.html" class="btn btn-primary">Get your loan book standardized free →</a>
+    </div>
   </div>
 </section>
 
@@ -375,7 +439,7 @@
       <h2>Five steps, in order.</h2>
     </div>
     <div class="steps reveal">
-      <div class="step"><div class="step-num">01</div><h3>Discovery</h3><p>Share a loan tape. We check it against what investors want — free, no commitment.</p></div>
+      <div class="step"><div class="step-num">01</div><h3>Discovery</h3><p>Share a loan tape — often already standardized via <a href="standard.html" style="color:var(--indigo);">WCDS</a> if you've done step 2 above. We check it against what investors want — free, no commitment.</p></div>
       <div class="step"><div class="step-num">02</div><h3>Structure</h3><p>We build the pool: sizes, terms, and who gets paid when.</p></div>
       <div class="step"><div class="step-num">03</div><h3>Validate</h3><p>We test the deal with investors before anyone commits.</p></div>
       <div class="step"><div class="step-num">04</div><h3>Close</h3><p>SPV formed, filings in, trustee appointed, notes issued.</p></div>
