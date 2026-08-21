@@ -689,6 +689,168 @@
         "source_url": "https://leadership.ng/cbn-releases-list-of-licensed-deposit-money-banks-in-nigeria/",
         "retrieved_date": "2026-08-21"
       }
+    },
+    {
+      "institution_id": "lapo-mfb",
+      "legal_name": "LAPO Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Benin City, Edo State",
+      "website": "https://lapo-nigeria.org/",
+      "notes": "State MFB license since 2010, upgraded to National in 2012. Issued a NGN10bn 5-year bond (2026). One of Nigeria's largest MFBs by scale.",
+      "source": {
+        "source_name": "Nairametrics coverage of LAPO's NGN10bn bond issuance",
+        "source_url": "https://nairametrics.com/2026/03/24/lapo-microfinance-bank-launches-n10-billion-5-year-bond-key-takeaways-for-investors/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "legal_name": "AB Microfinance Bank Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Ikeja, Lagos",
+      "website": "https://www.ab-mfbnigeria.com/",
+      "notes": "International shareholder base. Agusto downgraded from A- to Bbb+ citing rising FCY-denominated expenses/liabilities to parent.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-downgrades-the-rating-assigned-to-ab-microfinance-bank-limited-to-bbb-with-a-stable-outlook/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "moniepoint-mfb",
+      "legal_name": "Moniepoint Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lekki Phase 1, Lagos",
+      "website": "https://moniepoint.com/ng",
+      "notes": "CBN-licensed MFB since Feb 2022; CBN reportedly granted a national fintech/MFB-status upgrade in Jan 2026 (alongside OPay, PalmPay, Kuda) — status upgrade not independently verified against a CBN primary source. Disclosed NGN1 trillion disbursed in 2025 (flow figure, not a loan-book balance).",
+      "source": {
+        "source_name": "Techpoint Africa, Moniepoint 2025 Year in Review coverage",
+        "source_url": "https://techpoint.africa/news/moniepoint-1-trillion-businesses/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fairmoney-mfb",
+      "legal_name": "FairMoney Microfinance Bank",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Ikeja, Lagos",
+      "website": "https://fairmoney.io/",
+      "notes": "GCR Ratings' upgrade (27 Nov 2025) was issued to 'MyCredit Investments Limited', which press coverage equates to FairMoney Nigeria — this may be a related lending/holding entity rather than the deposit-taking MFB itself; confirm legal-entity match before relying on the rating for FairMoney MFB specifically. NDIC insured per company disclosures.",
+      "source": {
+        "source_name": "Business Post Nigeria, GCR Ratings upgrade coverage",
+        "source_url": "https://businesspost.ng/banking/gcr-upgrades-fairmoney-ratings-on-strong-cash-flow-generation-others/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "carbon-mfb",
+      "legal_name": "Carbon Microfinance Bank (One Finance and Investments Limited, RC 1642222)",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos",
+      "website": "https://www.getcarbon.co/",
+      "notes": "CBN microfinance banking licence obtained 2019. No current Agusto/GCR/DataPro rating found. Only located disbursement figure was FY2020 (NGN25.21bn) — too stale to use as a current loan-book indicator.",
+      "source": {
+        "source_name": "Carbon company website (About page)",
+        "source_url": "https://www.getcarbon.co/about",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "renmoney-mfb",
+      "legal_name": "Renmoney Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "23 Awolowo Rd, Ikoyi, Lagos",
+      "website": "https://renmoney.com/",
+      "notes": "Agusto assigned SR 3 (Loan Servicer Rating — 'adequate servicing capacity', not a standard issuer/credit rating), expiry 11 Sept 2024. Company marketing claims NGN2 trillion cumulative loans issued to 500,000+ customers (undated, cumulative — not a current loan-book balance).",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-assigns-an-sr-3-rating-to-renmoney-microfinance-bank-limited/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "kuda-mfb",
+      "legal_name": "Kuda Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Yaba, Lagos",
+      "website": "https://kuda.com/",
+      "notes": "Held a Unit MFB license restricted to Lagos until Dec 2025, then upgraded by CBN to National MFB license. No Agusto/GCR/DataPro rating or loan-book/NPL figures found.",
+      "source": {
+        "source_name": "BusinessDay coverage of Kuda's national MFB licence",
+        "source_url": "https://businessday.ng/technology/article/kuda-mfb-secures-national-microfinance-banking-licence-sets-stage-for-nationwide-growth/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "advans-la-fayette-mfb",
+      "legal_name": "Advans La Fayette Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "national",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Ibadan, Oyo State",
+      "website": "https://advanslafayette-mfb.com/",
+      "notes": "National MFB license since 2019. Owned by Advans SA (88.5%) and KfW (11.5%). Agusto's Oct 2025 affirmation cited 'increased NPL ratio attributable to aggressive loan book growth' without publishing a numeric NPL figure.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-the-bbb-long-term-and-a3-short-term-ratings-of-advans-la-fayette-microfinance-bank-limited-with-a-stable-outlook/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "accion-mfb",
+      "legal_name": "Accion Microfinance Bank Limited",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos (address inconsistently reported across sources — not reconciled)",
+      "website": "https://www.accionmfb.com/",
+      "notes": "Incorporated May 2006, CBN licensed April 2007. NPL described qualitatively by Agusto as 'elevated' with no numeric figure disclosed.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-the-bbb-rating-assigned-to-accion-microfinance-bank-limited/",
+        "retrieved_date": "2026-08-21"
+      }
     }
   ]
 }

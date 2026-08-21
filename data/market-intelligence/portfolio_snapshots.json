@@ -18,6 +18,21 @@
       }
     },
     {
+      "institution_id": "lapo-mfb",
+      "period_end": "2025-12-31",
+      "period_type": "FY",
+      "gross_loans": 118,
+      "unit": "NGN_billion",
+      "npl_ratio": null,
+      "confidence": "medium",
+      "notes": "Loan portfolio grew from NGN75bn (2021) to NGN118bn (2025). Total assets NGN143bn, equity NGN42bn, CAR 29% disclosed in the same article, in connection with LAPO's NGN10bn 5-year bond launch. No NPL ratio disclosed in this source.",
+      "source": {
+        "source_name": "Nairametrics coverage of LAPO's NGN10bn bond issuance",
+        "source_url": "https://nairametrics.com/2026/03/24/lapo-microfinance-bank-launches-n10-billion-5-year-bond-key-takeaways-for-investors/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
       "institution_id": "gtco",
       "period_end": "2024-12-31",
       "period_type": "FY",

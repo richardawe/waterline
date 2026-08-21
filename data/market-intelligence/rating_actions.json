@@ -1,5 +1,96 @@
 {
   "$schema_note": "institution_id x date grain, one row per public rating action/affirmation. See README.md provenance convention.",
   "generated_at": "2026-08-21",
-  "rating_actions": []
+  "rating_actions": [
+    {
+      "institution_id": "lapo-mfb",
+      "agency": "Agusto & Co",
+      "rating": "Bbb-",
+      "rating_type": "issuer",
+      "outlook": "Stable",
+      "action_date_estimated": "2025-07-01",
+      "rating_expiry": "2026-06-30",
+      "notes": "Exact action date not published on the Agusto release page — only the 30 June 2026 expiry was shown; date above is estimated assuming a standard 1-year cycle. Rating history shows fluctuation between Bbb+ and Bbb- since a 2022 downgrade (delayed CBN approval of audited financials/board changes) and recurring asset-quality constraints.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-bbb-rating-assigned-to-lapo-microfinance-bank-limited-with-a-stable-outlook/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "agency": "Agusto & Co",
+      "rating": "Bbb+",
+      "rating_type": "issuer",
+      "outlook": "Stable",
+      "action_date_estimated": null,
+      "rating_expiry": "2025-06-30",
+      "notes": "Downgrade from prior A- rating, driven by rising FCY-denominated expenses/liabilities to the parent entity.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-downgrades-the-rating-assigned-to-ab-microfinance-bank-limited-to-bbb-with-a-stable-outlook/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fairmoney-mfb",
+      "agency": "GCR Ratings",
+      "rating": "BBB+(NG) long-term / A2(NG) short-term",
+      "rating_type": "issuer",
+      "outlook": "Stable",
+      "action_date_estimated": "2025-11-27",
+      "rating_expiry": null,
+      "notes": "Upgrade from BBB(NG)/A3(NG). Issued to 'MyCredit Investments Limited' — press coverage equates this to FairMoney Nigeria, but legal-entity match to the CBN-licensed FairMoney MFB is not confirmed. 2024 operating revenue NGN112.3bn disclosed alongside the rating.",
+      "source": {
+        "source_name": "Business Post Nigeria, GCR Ratings upgrade coverage",
+        "source_url": "https://businesspost.ng/banking/gcr-upgrades-fairmoney-ratings-on-strong-cash-flow-generation-others/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "renmoney-mfb",
+      "agency": "Agusto & Co",
+      "rating": "SR 3",
+      "rating_type": "loan_servicer",
+      "outlook": null,
+      "action_date_estimated": null,
+      "rating_expiry": "2024-09-11",
+      "notes": "This is a Loan Servicer Rating ('adequate servicing capacity'), not a standard issuer/credit rating — do not compare directly against the issuer-rating scale used for other institutions in this file. Rating has lapsed (expiry Sept 2024) — treat as stale, not current.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-assigns-an-sr-3-rating-to-renmoney-microfinance-bank-limited/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "advans-la-fayette-mfb",
+      "agency": "Agusto & Co",
+      "rating": "Bbb- long-term / A3 short-term",
+      "rating_type": "issuer",
+      "outlook": "Stable",
+      "action_date_estimated": "2025-10-01",
+      "rating_expiry": "2026-06-30",
+      "notes": "Affirmation. Agusto's rationale cited 'increased NPL ratio attributable to aggressive loan book growth' without publishing a numeric NPL figure. Exact action date approximated from search summary, not confirmed on-page.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-the-bbb-long-term-and-a3-short-term-ratings-of-advans-la-fayette-microfinance-bank-limited-with-a-stable-outlook/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "accion-mfb",
+      "agency": "Agusto & Co",
+      "rating": "Bbb+",
+      "rating_type": "issuer",
+      "outlook": null,
+      "action_date_estimated": null,
+      "rating_expiry": "2024-06-30",
+      "notes": "Affirmation. Rating history includes an earlier A- rating (date unconfirmed) later revised. NPL described only qualitatively as 'elevated', no numeric figure published. Expiry has passed (June 2024) — treat as stale, likely superseded by a later action not captured here.",
+      "source": {
+        "source_name": "Agusto & Co rating release",
+        "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-the-bbb-rating-assigned-to-accion-microfinance-bank-limited/",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
 }
