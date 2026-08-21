@@ -14,15 +14,15 @@ is the join key everywhere.
 
 | File | Grain | Status |
 |---|---|---|
-| `institutions.json` | one row per lender | **Seeded** — 61 institutions (52 in a deduped view — see below): 51 CBN-licensed DMBs/merchant banks/holdcos, 9 fintech-operated MFBs (LAPO, AB Microfinance, Moniepoint, FairMoney, Carbon, Renmoney, Kuda, Advans La Fayette, Accion), plus 9 additional fintech lenders researched specifically because fintechs are Waterline's actual target originator segment (OPay/Blue Ridge MFB, PalmPay, PalmCredit/Newedge Finance, Branch International, M-Kopa, Aella, Migo, Payhippo/Rivy, Umba) — several of these came back with thin/no financials but real, useful licensing-structure and operating-status findings (e.g. two "PalmCredit"/"PalmPay" brands are legally separate entities; Migo and Payhippo have pivoted away from Nigerian consumer lending). `sector_tag: "fintech"` marks all fintech-model institutions regardless of underlying license type. Leasing/asset-finance companies (outside device-financing fintechs) not yet covered. |
+| `institutions.json` | one row per lender | **Seeded** — 68 institutions (60 in a deduped view — see below): 51 CBN-licensed DMBs/merchant banks/holdcos, 9 fintech-operated MFBs (LAPO, AB Microfinance, Moniepoint, FairMoney, Carbon, Renmoney, Kuda, Advans La Fayette, Accion), 9 additional fintech lenders (OPay/Blue Ridge MFB, PalmPay, PalmCredit/Newedge Finance, Branch International, M-Kopa, Aella, Migo, Payhippo/Rivy, Umba), and 7 leasing/asset-finance companies (C&I Leasing — NGX-listed, plus Aquila, VT, Emerald, PicPlus, Tamseed, Nowerox Leasing). `sector_tag: "fintech"` marks all fintech-model institutions regardless of underlying license type; `type: "leasing_company"` marks the leasing/asset-finance segment. Several fintech and leasing entries came back with thin/no financials but real, useful licensing-structure findings (e.g. two "PalmCredit"/"PalmPay" brands are legally separate entities; Migo and Payhippo have pivoted away from Nigerian consumer lending; most named leasing companies' CBN licensing status is unconfirmed). |
 | `fccpc_digital_lenders.json` | one row per FCCPC-approved lender/app | **Seeded** — 559 entries (524 full + 35 conditional approval), fetched directly from FCCPC's own published tables. This is the broad digital-lender universe (source #9 in the plan); not yet cross-referenced to `institution_id` in `institutions.json`. |
-| `portfolio_snapshots.json` | institution × period | **Partial** — populated only where a real, cited figure was found. Most institutions are not yet covered; this is expected at this stage, not a bug. |
-| `portfolio_mix.json` | institution × period × dimension | **Empty/pending** — sector/geography/product breakdowns require deeper per-institution annual-report extraction than fits an initial pass. |
-| `industry_aggregates.json` | period × segment | **Partial** — CBN sector-wide figures (total credit, NPL ratio). |
+| `portfolio_snapshots.json` | institution × period | **Partial** — populated only where a real, cited figure was found, including some multi-year series (Zenith, UBA, GTCO, Access) for trend charts. Most institutions are not yet covered; this is expected at this stage, not a bug. |
+| `portfolio_mix.json` | institution × period × dimension | **Partial** — sector breakdowns for Zenith (2 sectors, partial), GTCO (top 3, partial), and Access Holdings (18 sectors, ~97% complete but with an unresolved period ambiguity — see the record's own notes). None of the three are independently confirmed against the primary document; all `confidence: "low"`. Geography/product dimensions not started. |
+| `industry_aggregates.json` | period × segment | **Partial** — CBN sector-wide figures (total credit, NPL ratio) with a sparse 2021–2026 trend. |
 | `rating_actions.json` | institution × date | **Partial** — 6 Agusto & Co / GCR Ratings public rating summaries for MFB/fintech institutions; large banks not yet covered. No DataPro summaries found yet. |
-| `capital_market_instruments.json` | one row per bond/CP/note | **Not started** — SEC prospectus/bond-filing research not yet run. |
+| `capital_market_instruments.json` | one row per bond/CP series | **Seeded** — 7 real issuances (LAPO bond, 4 AB Microfinance CP series, Accion CP, FairMoney CP), mostly sourced directly from FMDQ Exchange listing/programme pages. None disclose loan-portfolio collateral — all are unsecured against the issuer's general credit. SEC prospectus research (as opposed to FMDQ CP/bond listings) not yet run. |
 | `disbursement_metrics.json` | institution × period | **Partial** — self-reported disbursement volumes for Moniepoint, FairMoney, Renmoney (all flagged `self_reported: true`). |
-| `product_snapshots.json` | institution × product | **Not started** — lender website/app scraping not yet run. |
+| `product_snapshots.json` | institution × product | **Just started** — 1 entry (Carbon, medium confidence). Most lender sites either blocked the scrape (Renmoney 403) or the product-page URL guessed was wrong (Moniepoint 404, LAPO/Branch returned no substantive content) — this needs either a higher per-institution research budget or manual capture, not a bulk automated pass. |
 
 ## Interactive browser
 
@@ -64,15 +64,19 @@ primary citation, or a figure with unit/period ambiguity worth double-checking b
 
 ## Known gaps / next steps
 
-- Coverage today is the ~7 largest NGX-listed banking groups (with financials) plus the full
-  CBN-licensed bank universe (names only for most), 9 MFB/fintech lenders with rating/portfolio
-  data, and the full FCCPC digital-lender registry (names/approval status only). Leasing/asset
-  finance companies — also part of Waterline's target originator segment — are not yet covered.
-  The 559-entry FCCPC list has not been cross-referenced against `institutions.json` — several
-  of the 9 MFB/fintech entries almost certainly also appear there under their app name(s).
-- `portfolio_mix`, `capital_market_instruments`, `disbursement_metrics`, and `product_snapshots`
-  are unstarted. Per the build plan, these are lower-priority "enrichment" sources — sequence
-  them after core coverage of target-segment institutions is solid.
+- The 559-entry FCCPC list has not been cross-referenced against `institutions.json` — several
+  of the fintech entries almost certainly also appear there under their app name(s).
+- `product_snapshots.json` is the thinnest file relative to effort spent — most lender websites
+  either blocked automated fetches or the guessed URL was wrong. Getting real coverage here needs
+  either manual capture per lender or a much higher per-institution search/fetch budget, not
+  another bulk automated pass.
+- `portfolio_mix.json`'s three entries are all `confidence: "low"` — none were independently
+  confirmed by directly reading the source PDF (all came from search-result synthesis). The Access
+  Holdings entry in particular has an unresolved period ambiguity (may be H1 2024 or HY 2025).
+  Treat all three as "worth having, needs verification" rather than final.
+- `capital_market_instruments.json` covers FMDQ-listed bonds/CP only — SEC prospectus research
+  (a distinct source in the build plan, and the more likely place to find loan-portfolio-backed
+  structures rather than plain unsecured corporate CP/bonds) has not been run.
 - Every record here should be treated as **as-of the `retrieved_date`**, not live. Before using
   any figure in an investor-facing document, re-check it against the cited source if more than a
   few months old.

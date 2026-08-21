@@ -1026,6 +1026,132 @@
         "source_url": "https://techweez.com/2023/02/10/online-lender-umba-relaunches-in-kenya/",
         "retrieved_date": "2026-08-21"
       }
+    },
+    {
+      "institution_id": "ci-leasing",
+      "legal_name": "C&I Leasing Plc",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": "CILEASING",
+      "ngx_listed": true,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria",
+      "website": "https://www.cileasing.com",
+      "notes": "NGX-listed fleet management/leasing/marine-outsourcing group; subsidiaries LeaseAfric (Ghana) and EPIC International FZE (UAE). FY2025: gross earnings NGN50.15bn, PBT NGN2.98bn. FY2024: gross earnings NGN36.7bn (lease rentals NGN31.1bn, up from NGN18.7bn in 2023), PBT NGN2.7bn, PAT NGN1.6bn, shareholders' funds NGN48.2bn. These are revenue/profit figures, not a disclosed lease-receivables book balance -- no loan/lease book size found. CBN Finance Company licensing status not confirmed in sources checked.",
+      "source": {
+        "source_name": "Nairametrics, C&I Leasing FY2025 results coverage",
+        "source_url": "http://nairametrics.com/2026/05/07/ci-leasing-grows-2025-pretax-profit-to-n2-98-billion-on-stronger-revenue/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "aquila-leasing",
+      "legal_name": "Aquila Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "finance_house_license",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "12 Samuel Manuwa Street, Victoria Island, Lagos, Nigeria",
+      "website": "https://aquilagroupng.com",
+      "notes": "Established 2007; equipment leasing, operating/finance lease and fleet management. Company's own material states CBN supervises its leasing activities under a Finance House License -- not independently cross-checked against a CBN-published list. No loan/lease book figures found.",
+      "source": {
+        "source_name": "Aquila Group corporate site",
+        "source_url": "https://aquilagroupng.com/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "vt-leasing",
+      "legal_name": "VT Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "PC 1230B Ahmadu Bello Way, Victoria Island, Lagos, Nigeria",
+      "website": "https://vtleasing.com",
+      "notes": "Incorporated June 1989, one of Nigeria's older equipment leasing firms. CBN licensing status not explicitly confirmed in retrieved sources. No loan/lease book figures found.",
+      "source": {
+        "source_name": "VT Leasing corporate site",
+        "source_url": "https://vtleasing.com/about/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "emerald-leasing",
+      "legal_name": "Emerald Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": null,
+      "notes": "Described as a Nigerian leasing company offering fleet management and leasing solutions across manufacturing, oil & gas, telecoms, and finance sectors. Headquarters, website, and CBN status not confirmed within research budget -- needs direct verification before further use.",
+      "source": {
+        "source_name": "Search snippet aggregation (ensun.io vendor directory)",
+        "source_url": "https://ensun.io/search/vendor-leasing/nigeria",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "picplus-leasing",
+      "legal_name": "PicPlus Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://picplusleasing.com.ng",
+      "notes": "Office equipment, industrial machinery, IT equipment and specialized asset financing. Listed on the Equipment Leasing Registration Authority (ELRA) directory -- ELRA is a separate, non-CBN Nigerian regulator for equipment-lease registration, so listing there does not imply CBN Finance Company status. CBN licensing status unconfirmed.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "tamseed-nigeria",
+      "legal_name": "Tamseed Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://tamseed.org",
+      "notes": "Construction-equipment leasing for infrastructure/engineering projects. Listed on the ELRA directory (not a CBN list). CBN licensing status unconfirmed; the .org domain is unusual for a commercial lessor -- recommend direct verification.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "nowerox-nigeria",
+      "legal_name": "Nowerox Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://nowerox.com",
+      "notes": "Leasing of cranes, forklifts, lifting equipment and heavy-duty industrial machinery. Listed on the ELRA directory (not a CBN list). CBN licensing status unconfirmed.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
     }
   ]
 }

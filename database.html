@@ -65,7 +65,7 @@
   header.page-head h1{ font-size:clamp(24px,5.5vw,36px); line-height:1.15; max-width:720px; }
   header.page-head p{ color:var(--text-dim); margin-top:14px; max-width:640px; font-size:15px; }
 
-  .stats-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:24px 0 8px; }
+  .stats-row{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin:24px 0 8px; }
   @media (max-width:700px){ .stats-row{ grid-template-columns:1fr 1fr; } }
   .stat{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
   .stat .num{ font-family:'Space Grotesk', sans-serif; font-size:24px; font-weight:700; color:var(--amber); }
@@ -284,6 +284,12 @@
       <div class="card-grid" id="industry-cards"></div>
     </section>
 
+    <section class="divider" id="capital-markets-section">
+      <h2>Capital market instruments</h2>
+      <p class="section-note">Real bond and commercial-paper issuances by MFB/fintech originators, mostly sourced directly from FMDQ Exchange listing notices — the closest thing to a public precedent for what Waterline is trying to do (structured funding against a lender's balance sheet), even though none of these are disclosed as loan-portfolio-backed.</p>
+      <div id="capital-markets-cards"></div>
+    </section>
+
     <section class="divider" id="fccpc-section">
       <h2>FCCPC-registered digital lenders</h2>
       <p class="section-note">
@@ -333,10 +339,13 @@ const FILES = {
   disbursement_metrics: { url: 'data/market-intelligence/disbursement_metrics.json', key: 'disbursement_metrics' },
   industry_aggregates: { url: 'data/market-intelligence/industry_aggregates.json', key: 'industry_aggregates' },
   fccpc_digital_lenders: { url: 'data/market-intelligence/fccpc_digital_lenders.json', key: 'digital_lenders' },
+  capital_market_instruments: { url: 'data/market-intelligence/capital_market_instruments.json', key: 'capital_market_instruments' },
+  portfolio_mix: { url: 'data/market-intelligence/portfolio_mix.json', key: 'portfolio_mix' },
+  product_snapshots: { url: 'data/market-intelligence/product_snapshots.json', key: 'product_snapshots' },
 };
 const CATEGORICAL = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)','var(--c7)','var(--c8)'];
 
-let DB = { institutions: [], portfolio_snapshots: [], rating_actions: [], disbursement_metrics: [], industry_aggregates: [], fccpc_digital_lenders: [] };
+let DB = { institutions: [], portfolio_snapshots: [], rating_actions: [], disbursement_metrics: [], industry_aggregates: [], fccpc_digital_lenders: [], capital_market_instruments: [], portfolio_mix: [], product_snapshots: [] };
 let sortKey = '_gross_loans', sortDir = 'desc';
 
 function fmtNumber(n){
@@ -447,6 +456,8 @@ function renderStats(groups){
     <div class="stat"><div class="num">${withData}</div><div class="lbl">With portfolio/rating data</div></div>
     <div class="stat"><div class="num">${DB.rating_actions.length}</div><div class="lbl">Rating actions</div></div>
     <div class="stat"><div class="num">${DB.industry_aggregates.length}</div><div class="lbl">Industry benchmarks</div></div>
+    <div class="stat"><div class="num">${DB.capital_market_instruments.length}</div><div class="lbl">Bond/CP issuances</div></div>
+    <div class="stat"><div class="num">${DB.portfolio_mix.length}</div><div class="lbl">Sector-mix breakdowns</div></div>
   `;
   document.getElementById('fccpc-count').textContent = DB.fccpc_digital_lenders.length;
 }
@@ -465,6 +476,30 @@ function renderIndustry(){
         <div class="fact-source"><a href="${escapeHtml(a.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(a.source.source_name)} ↗</a></div>
       </div>
     `).join('');
+}
+
+function renderCapitalMarkets(){
+  const el = document.getElementById('capital-markets-cards');
+  const rows = DB.capital_market_instruments.slice().sort((a,b) => (b.issue_date||'').localeCompare(a.issue_date||''));
+  if(!rows.length){ el.innerHTML = '<p class="empty-note">No capital market instruments loaded yet.</p>'; return; }
+  el.innerHTML = `<div class="card-grid">` + rows.map(r => {
+    const inst = DB.institutions.find(i => i.institution_id === r.institution_id);
+    return `
+      <div class="fact-card">
+        <div class="fact-top">
+          <span class="fact-figure">${confDot(r.confidence)}${fmtNumber(r.issue_size)} ${(r.unit||'').replace('NGN_','NGN ')}</span>
+          <span class="fact-period mono">${escapeHtml(r.issue_date||'date unknown')}</span>
+        </div>
+        <div style="font-weight:600; font-size:13.5px;">${escapeHtml(inst ? inst.legal_name : r.issuer_name)}</div>
+        <div class="dim" style="font-size:12px; margin-top:2px;">${escapeHtml(r.instrument_type.replace(/_/g,' '))}${r.series ? ' · '+escapeHtml(r.series) : ''}${r.coupon_rate!=null ? ' · '+fmtPct(r.coupon_rate)+' rate' : ''}${r.tenor_years ? ' · '+r.tenor_years+'yr' : ''}${r.tenor_days ? ' · '+r.tenor_days+'d' : ''}</div>
+        ${r.use_of_proceeds ? `<div class="fact-notes"><strong>Use of proceeds:</strong> ${escapeHtml(r.use_of_proceeds)}</div>` : ''}
+        ${r.issuing_house ? `<div class="fact-notes"><strong>Sponsor/issuing house:</strong> ${escapeHtml(r.issuing_house)}</div>` : ''}
+        <div class="fact-notes">${escapeHtml(r.collateral_description || 'No collateral/loan-portfolio security disclosed.')}</div>
+        ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
+        <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
+      </div>
+    `;
+  }).join('') + `</div>`;
 }
 
 // ---------- Charts ----------
@@ -707,6 +742,76 @@ function openDetail(groupId){
     </div>
 
     <div class="detail-block">
+      <h3>Sector mix</h3>
+      ${(() => {
+        const mixRows = DB.portfolio_mix.filter(m => memberIds.includes(m.institution_id)).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
+        if(!mixRows.length) return '<p class="empty-note">No sector/geography breakdown found yet for this institution.</p>';
+        return mixRows.map(m => {
+          const entries = Object.entries(m.sector_mix).sort((a,b)=>b[1]-a[1]);
+          const max = Math.max(...entries.map(e=>e[1]));
+          return `
+            <div class="fact-card">
+              <div class="fact-top">
+                <span class="fact-figure">${confDot(m.confidence)}Sector mix</span>
+                <span class="fact-period mono">${escapeHtml(m.period_end||'')}</span>
+              </div>
+              ${entries.map(([label,val]) => `
+                <div class="bar-row" style="margin-bottom:6px;">
+                  <div class="bar-label" style="width:160px;">${escapeHtml(label)}</div>
+                  <div class="bar-track" style="height:14px;"><div class="bar-fill" style="width:${(val/max*100).toFixed(1)}%; background:var(--c1); height:100%;"></div></div>
+                  <div class="bar-value" style="width:50px;">${fmtPct(val)}</div>
+                </div>
+              `).join('')}
+              ${m.notes ? `<div class="fact-notes">${escapeHtml(m.notes)}</div>` : ''}
+              <div class="fact-source"><a href="${escapeHtml(m.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(m.source.source_name)} ↗</a></div>
+            </div>
+          `;
+        }).join('');
+      })()}
+    </div>
+
+    <div class="detail-block">
+      <h3>Product terms</h3>
+      ${(() => {
+        const prodRows = DB.product_snapshots.filter(p => memberIds.includes(p.institution_id));
+        if(!prodRows.length) return '<p class="empty-note">No live product terms captured yet for this institution.</p>';
+        return prodRows.map(p => `
+          <div class="fact-card">
+            <div class="fact-top">
+              <span class="fact-figure">${confDot(p.confidence)}${p.min_ticket!=null||p.max_ticket!=null ? `${p.ticket_currency||''} ${p.min_ticket!=null?fmtNumber(p.min_ticket):'?'}–${p.max_ticket!=null?fmtNumber(p.max_ticket):'?'}` : 'Ticket size not confirmed'}</span>
+              <span class="fact-period mono">${escapeHtml(p.scrape_date||'')}</span>
+            </div>
+            ${p.min_tenor_days!=null||p.max_tenor_days!=null ? `<div>Tenor: <strong>${p.min_tenor_days??'?'}–${p.max_tenor_days??'?'} days</strong></div>` : ''}
+            ${p.interest_rate_description ? `<div>Rate: <strong>${escapeHtml(p.interest_rate_description)}</strong></div>` : ''}
+            ${p.collateral_required ? `<div>Collateral: <strong>${escapeHtml(p.collateral_required)}</strong></div>` : ''}
+            ${p.eligibility_notes ? `<div class="fact-notes">${escapeHtml(p.eligibility_notes)}</div>` : ''}
+            ${p.notes ? `<div class="fact-notes">${escapeHtml(p.notes)}</div>` : ''}
+            <div class="fact-source"><a href="${escapeHtml(p.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(p.source.source_name)} ↗</a></div>
+          </div>
+        `).join('');
+      })()}
+    </div>
+
+    <div class="detail-block">
+      <h3>Capital market instruments</h3>
+      ${(() => {
+        const cmRows = DB.capital_market_instruments.filter(c => memberIds.includes(c.institution_id)).sort((a,b)=>(b.issue_date||'').localeCompare(a.issue_date||''));
+        if(!cmRows.length) return '<p class="empty-note">No bond/CP issuances found yet for this institution.</p>';
+        return cmRows.map(r => `
+          <div class="fact-card">
+            <div class="fact-top">
+              <span class="fact-figure">${confDot(r.confidence)}${fmtNumber(r.issue_size)} ${(r.unit||'').replace('NGN_','NGN ')} ${escapeHtml(r.instrument_type.replace(/_/g,' '))}</span>
+              <span class="fact-period mono">${escapeHtml(r.issue_date||'')}</span>
+            </div>
+            <div class="dim" style="font-size:12px;">${r.series ? escapeHtml(r.series) : ''}${r.coupon_rate!=null ? ' · '+fmtPct(r.coupon_rate)+' rate' : ''}</div>
+            ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
+            <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
+          </div>
+        `).join('');
+      })()}
+    </div>
+
+    <div class="detail-block">
       <h3>Disbursement / self-reported metrics</h3>
       ${disb.length ? disb.map(d => `
         <div class="fact-card">
@@ -791,6 +896,7 @@ navToggle.addEventListener('click', () => {
     populateFilters(window.ALL_GROUPS);
     renderStats(window.ALL_GROUPS);
     renderIndustry();
+    renderCapitalMarkets();
     renderNplChart();
     renderBankTrends();
     renderCompositionCharts(window.ALL_GROUPS);
