@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waterline — Market Intelligence Database</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10;
+    --panel:#12151b;
+    --panel-2:#171b23;
+    --border:#1f2430;
+    --text:#f5f6f4;
+    --text-dim:#8b93a3;
+    --indigo:#6c7cff;
+    --indigo-soft:rgba(108,124,255,0.14);
+    --amber:#ffb255;
+    --amber-soft:rgba(255,178,85,0.14);
+    --green:#4ade80;
+    --green-soft:rgba(74,222,128,0.14);
+    --red:#f87171;
+    --red-soft:rgba(248,113,113,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter', sans-serif; font-size:15px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{ font-family:'Space Grotesk', sans-serif; font-weight:600; margin:0; color:var(--text); letter-spacing:-0.01em; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{ color:inherit; }
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 32px; }
+
+  nav{ position:sticky; top:0; z-index:50; background:rgba(10,12,16,0.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--border); }
+  .nav-inner{ max-width:1240px; margin:0 auto; padding:18px 32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .brand{ font-family:'Space Grotesk', sans-serif; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; text-decoration:none; }
+  .brand-dot{ width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg, var(--indigo), var(--amber)); }
+  .nav-links{ display:flex; gap:24px; font-size:13.5px; align-items:center; }
+  .nav-links a{ text-decoration:none; color:var(--text-dim); transition:color 0.2s; }
+  .nav-links a:hover{ color:var(--text); }
+
+  header.page-head{ padding:52px 0 32px; }
+  .kicker{ font-family:'IBM Plex Mono', monospace; font-size:12px; text-transform:uppercase; letter-spacing:0.1em; color:var(--indigo); margin-bottom:10px; }
+  header.page-head h1{ font-size:clamp(26px,4vw,36px); line-height:1.15; max-width:720px; }
+  header.page-head p{ color:var(--text-dim); margin-top:14px; max-width:640px; font-size:15.5px; }
+
+  .stats-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:28px 0 8px; }
+  @media (max-width:800px){ .stats-row{ grid-template-columns:1fr 1fr; } }
+  .stat{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .stat .num{ font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; color:var(--amber); }
+  .stat .lbl{ color:var(--text-dim); font-size:12.5px; margin-top:4px; }
+
+  .controls{ display:flex; gap:10px; flex-wrap:wrap; margin:28px 0 18px; align-items:center; }
+  .controls input[type=text]{
+    flex:1; min-width:220px; background:var(--panel); border:1px solid var(--border); color:var(--text);
+    padding:11px 14px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;
+  }
+  .controls select{
+    background:var(--panel); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;
+  }
+  .controls input:focus-visible, .controls select:focus-visible{ outline:2px solid var(--indigo); outline-offset:1px; }
+  .chip-toggle{
+    display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim);
+    background:var(--panel); border:1px solid var(--border); padding:10px 14px; border-radius:8px; cursor:pointer; user-select:none;
+  }
+  .chip-toggle input{ accent-color:var(--indigo); }
+  .result-count{ color:var(--text-dim); font-size:13px; margin-bottom:12px; }
+
+  table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  thead th{
+    text-align:left; font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
+    letter-spacing:0.06em; color:var(--text-dim); padding:12px 14px; border-bottom:1px solid var(--border);
+    background:var(--panel-2); cursor:pointer; white-space:nowrap;
+  }
+  thead th:hover{ color:var(--text); }
+  thead th.sorted::after{ content:" ▾"; color:var(--indigo); }
+  thead th.sorted-asc::after{ content:" ▴"; color:var(--indigo); }
+  tbody tr{ border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; }
+  tbody tr:last-child{ border-bottom:none; }
+  tbody tr:hover{ background:var(--panel-2); }
+  tbody td{ padding:13px 14px; font-size:13.5px; vertical-align:middle; }
+  .inst-name{ font-weight:600; }
+  .inst-legal{ color:var(--text-dim); font-size:12px; margin-top:1px; }
+  .badge{ display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+  .badge-active{ background:var(--green-soft); color:var(--green); }
+  .badge-revoked{ background:var(--red-soft); color:var(--red); }
+  .badge-type{ background:var(--indigo-soft); color:var(--indigo); }
+  .num-cell{ font-family:'IBM Plex Mono', monospace; }
+  .dim{ color:var(--text-dim); }
+  .conf-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; }
+  .conf-high{ background:var(--green); }
+  .conf-medium{ background:var(--amber); }
+  .conf-low{ background:var(--red); }
+
+  .table-scroll{ overflow-x:auto; border-radius:12px; }
+
+  section{ padding:40px 0; }
+  .divider{ border-top:1px solid var(--border); }
+
+  /* Detail overlay */
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,7,10,0.7); backdrop-filter:blur(2px);
+    display:none; align-items:flex-start; justify-content:center; z-index:100; padding:40px 20px; overflow-y:auto;
+  }
+  .overlay.open{ display:flex; }
+  .detail-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:32px;
+    max-width:760px; width:100%; margin-top:20px;
+  }
+  .detail-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:6px; }
+  .detail-head h2{ font-size:22px; }
+  .close-btn{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); width:32px; height:32px;
+    border-radius:8px; cursor:pointer; font-size:16px; line-height:1; flex-shrink:0;
+  }
+  .close-btn:hover{ color:var(--text); border-color:var(--amber); }
+  .detail-meta{ color:var(--text-dim); font-size:13.5px; margin-bottom:24px; }
+  .detail-meta .mono{ color:var(--text); }
+  .detail-block{ margin-bottom:24px; }
+  .detail-block h3{ font-size:13px; text-transform:uppercase; letter-spacing:0.06em; color:var(--indigo); margin-bottom:12px; font-family:'IBM Plex Mono',monospace; font-weight:500; }
+  .fact-card{ background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .fact-top{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
+  .fact-figure{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; }
+  .fact-period{ color:var(--text-dim); font-size:12px; }
+  .fact-notes{ color:var(--text-dim); font-size:12.5px; margin-top:6px; line-height:1.5; }
+  .fact-source{ margin-top:8px; font-size:12px; }
+  .fact-source a{ color:var(--indigo); text-decoration:none; word-break:break-all; }
+  .fact-source a:hover{ text-decoration:underline; }
+  .empty-note{ color:var(--text-dim); font-size:13px; font-style:italic; }
+
+  #load-state{ padding:80px 0; text-align:center; color:var(--text-dim); }
+  #load-error{ display:none; padding:20px; background:var(--red-soft); border:1px solid rgba(248,113,113,0.3); border-radius:10px; color:var(--red); font-size:14px; margin-bottom:20px; }
+  #load-error code{ background:rgba(0,0,0,0.25); padding:2px 6px; border-radius:4px; }
+
+  footer{ padding:36px 0; text-align:center; color:var(--text-dim); font-size:13px; border-top:1px solid var(--border); }
+  footer a{ color:var(--indigo); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="brand"><span class="brand-dot"></span>Waterline</a>
+    <div class="nav-links">
+      <a href="index.html#investors">Investors</a>
+      <a href="index.html#originators">Lenders</a>
+      <a href="database.html" style="color:var(--text);">Database</a>
+      <a href="index.html#contact">Contact</a>
+    </div>
+  </div>
+</nav>
+
+<header class="page-head">
+  <div class="wrap">
+    <div class="kicker">Tier 1 · Market Intelligence</div>
+    <h1>Nigerian lender loan-book database.</h1>
+    <p>Institution and portfolio-level data pulled from annual reports, NGX/CBN filings, rating agency summaries, and press releases — every figure carries a source link and a confidence rating. This is not loan-level data (that comes from originators directly, under NDA, once a deal starts) — see the <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md" style="color:var(--indigo);">build plan</a> for the full picture.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="load-error"></div>
+  <div id="load-state">Loading database…</div>
+
+  <div id="app" style="display:none;">
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="controls">
+      <input type="text" id="search" placeholder="Search institution name…">
+      <select id="type-filter"><option value="">All types</option></select>
+      <select id="status-filter"><option value="">All statuses</option></select>
+      <label class="chip-toggle"><input type="checkbox" id="data-only"> Has financial data only</label>
+    </div>
+
+    <div class="result-count" id="result-count"></div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th data-sort="legal_name">Institution</th>
+            <th data-sort="type">Type</th>
+            <th data-sort="cbn_authorization">CBN auth.</th>
+            <th data-sort="_gross_loans">Gross loans</th>
+            <th data-sort="_npl">NPL ratio</th>
+            <th data-sort="_rating">Rating</th>
+            <th data-sort="status">Status</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <section class="divider" id="industry-section">
+      <h2 style="font-size:20px; margin-bottom:16px;">Industry benchmarks (CBN)</h2>
+      <div id="industry-cards"></div>
+    </section>
+
+    <section class="divider" id="fccpc-section">
+      <h2 style="font-size:20px; margin-bottom:6px;">FCCPC-registered digital lenders</h2>
+      <p style="color:var(--text-dim); font-size:14px; margin:0 0 18px;">
+        <span class="mono" id="fccpc-count">0</span> approved digital money lenders, fetched directly from FCCPC's own registry
+        (<a href="https://fccpc.gov.ng/approvals-of-dmls/" target="_blank" rel="noopener" style="color:var(--indigo);">fccpc.gov.ng</a>,
+        list dated 2026-03-03). This is the broad universe of licensed lending apps — separate from the CBN-licensed institutions
+        table above; a company may appear in both if it also holds a bank/MFB license.
+      </p>
+      <div class="controls" style="margin-top:0;">
+        <input type="text" id="fccpc-search" placeholder="Search lender or app name…">
+        <select id="fccpc-status-filter">
+          <option value="">All statuses</option>
+          <option value="full">Full approval</option>
+          <option value="conditional">Conditional approval</option>
+        </select>
+      </div>
+      <div class="result-count" id="fccpc-result-count"></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Lender / company</th><th>App(s)</th><th>Status</th></tr>
+          </thead>
+          <tbody id="fccpc-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="detail-panel" id="detail-panel"></div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Data: <code class="mono">data/market-intelligence/*.json</code> ·
+    <a href="https://github.com/richardawe/waterline/tree/main/data/market-intelligence">view on GitHub</a> ·
+    <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md">build plan</a>
+  </div>
+</footer>
+
+<script>
+const FILES = {
+  institutions: { url: 'data/market-intelligence/institutions.json', key: 'institutions' },
+  portfolio_snapshots: { url: 'data/market-intelligence/portfolio_snapshots.json', key: 'portfolio_snapshots' },
+  rating_actions: { url: 'data/market-intelligence/rating_actions.json', key: 'rating_actions' },
+  disbursement_metrics: { url: 'data/market-intelligence/disbursement_metrics.json', key: 'disbursement_metrics' },
+  industry_aggregates: { url: 'data/market-intelligence/industry_aggregates.json', key: 'industry_aggregates' },
+  fccpc_digital_lenders: { url: 'data/market-intelligence/fccpc_digital_lenders.json', key: 'digital_lenders' },
+};
+
+let DB = { institutions: [], portfolio_snapshots: [], rating_actions: [], disbursement_metrics: [], industry_aggregates: [], fccpc_digital_lenders: [] };
+let sortKey = '_gross_loans', sortDir = 'desc';
+
+function fmtNumber(n){
+  if(n === null || n === undefined) return null;
+  return new Intl.NumberFormat('en-US', {maximumFractionDigits:1}).format(n);
+}
+function fmtPct(n){
+  if(n === null || n === undefined) return null;
+  return (n*100).toFixed(1) + '%';
+}
+function escapeHtml(s){
+  if(s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function confDot(conf){
+  if(!conf) return '';
+  return `<span class="conf-dot conf-${conf}"></span>`;
+}
+
+async function loadAll(){
+  const entries = Object.entries(FILES);
+  const results = await Promise.all(entries.map(([k,{url}]) => fetch(url).then(r => {
+    if(!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
+    return r.json();
+  })));
+  entries.forEach(([k,{key}], i) => { DB[k] = results[i][key] || []; });
+}
+
+function latestSnapshot(instId){
+  const rows = DB.portfolio_snapshots.filter(r => r.institution_id === instId);
+  if(!rows.length) return null;
+  return rows.slice().sort((a,b) => (b.period_end||'').localeCompare(a.period_end||''))[0];
+}
+function latestRating(instId){
+  const rows = DB.rating_actions.filter(r => r.institution_id === instId);
+  if(!rows.length) return null;
+  return rows.slice().sort((a,b) => (b.action_date_estimated||'').localeCompare(a.action_date_estimated||''))[0];
+}
+
+function buildRows(){
+  return DB.institutions.map(inst => {
+    const snap = latestSnapshot(inst.institution_id);
+    const rating = latestRating(inst.institution_id);
+    return {
+      ...inst,
+      _gross_loans: snap ? (snap.gross_loans ?? snap.net_loans ?? null) : null,
+      _gross_loans_unit: snap ? snap.unit : null,
+      _npl: snap ? snap.npl_ratio : null,
+      _rating: rating ? rating.rating : null,
+      _snap: snap,
+      _rating_obj: rating,
+    };
+  });
+}
+
+function populateFilters(rows){
+  const typeSel = document.getElementById('type-filter');
+  const statusSel = document.getElementById('status-filter');
+  const types = [...new Set(rows.map(r => r.type))].sort();
+  const statuses = [...new Set(rows.map(r => r.status))].sort();
+  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t.replace(/_/g,' '); typeSel.appendChild(o); });
+  statuses.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s.replace(/_/g,' '); statusSel.appendChild(o); });
+}
+
+function renderStats(rows){
+  const withData = rows.filter(r => r._gross_loans !== null || r._rating !== null).length;
+  const el = document.getElementById('stats-row');
+  el.innerHTML = `
+    <div class="stat"><div class="num">${rows.length}</div><div class="lbl">Institutions tracked</div></div>
+    <div class="stat"><div class="num">${withData}</div><div class="lbl">With portfolio/rating data</div></div>
+    <div class="stat"><div class="num">${DB.rating_actions.length}</div><div class="lbl">Rating actions</div></div>
+    <div class="stat"><div class="num">${DB.industry_aggregates.length}</div><div class="lbl">Industry benchmarks</div></div>
+  `;
+  document.getElementById('fccpc-count').textContent = DB.fccpc_digital_lenders.length;
+}
+
+function renderIndustry(){
+  const el = document.getElementById('industry-cards');
+  if(!DB.industry_aggregates.length){ el.innerHTML = '<p class="empty-note">No industry aggregates loaded yet.</p>'; return; }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">` +
+    DB.industry_aggregates.map(a => `
+      <div class="fact-card">
+        <div class="fact-top">
+          <span>${escapeHtml(a.segment.replace(/_/g,' '))} · ${escapeHtml(a.metric.replace(/_/g,' '))}</span>
+          <span class="fact-period mono">${escapeHtml(a.period_end||'')}</span>
+        </div>
+        <div class="fact-figure">${confDot(a.confidence)}${a.unit==='percent' ? a.value.toFixed(2) + '%' : fmtNumber(a.value) + ' ' + a.unit.replace(/_/g,' ')}</div>
+        <div class="fact-notes">${escapeHtml(a.notes||'')}</div>
+        <div class="fact-source"><a href="${escapeHtml(a.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(a.source.source_name)} ↗</a></div>
+      </div>
+    `).join('') + `</div>`;
+}
+
+function applyFiltersAndRender(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const type = document.getElementById('type-filter').value;
+  const status = document.getElementById('status-filter').value;
+  const dataOnly = document.getElementById('data-only').checked;
+
+  let rows = window.ALL_ROWS.filter(r => {
+    if(q && !r.legal_name.toLowerCase().includes(q) && !r.institution_id.includes(q)) return false;
+    if(type && r.type !== type) return false;
+    if(status && r.status !== status) return false;
+    if(dataOnly && r._gross_loans === null && r._rating === null) return false;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if(av === null || av === undefined) av = sortDir === 'desc' ? -Infinity : Infinity;
+    if(bv === null || bv === undefined) bv = sortDir === 'desc' ? -Infinity : Infinity;
+    if(typeof av === 'string') av = av.toLowerCase();
+    if(typeof bv === 'string') bv = bv.toLowerCase();
+    if(av < bv) return sortDir === 'asc' ? -1 : 1;
+    if(av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  document.getElementById('result-count').textContent = `${rows.length} of ${window.ALL_ROWS.length} institutions`;
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${escapeHtml(r.institution_id)}">
+      <td>
+        <div class="inst-name">${escapeHtml(r.legal_name)}</div>
+        ${r.headquarters ? `<div class="inst-legal">${escapeHtml(r.headquarters)}</div>` : ''}
+      </td>
+      <td><span class="badge badge-type">${escapeHtml((r.type||'').replace(/_/g,' '))}</span></td>
+      <td class="dim">${escapeHtml((r.cbn_authorization||'').replace(/_/g,' '))}</td>
+      <td class="num-cell">${r._gross_loans !== null ? confDot(r._snap.confidence) + fmtNumber(r._gross_loans) + ' <span class="dim">' + (r._gross_loans_unit||'').replace('NGN_','NGN ') + '</span>' : '<span class="dim">—</span>'}</td>
+      <td class="num-cell">${r._npl !== null && r._npl !== undefined ? fmtPct(r._npl) : '<span class="dim">—</span>'}</td>
+      <td>${r._rating ? confDot(r._rating_obj.rating_type==='issuer'?'high':'medium') + escapeHtml(r._rating) : '<span class="dim">—</span>'}</td>
+      <td>${r.status === 'active' ? '<span class="badge badge-active">active</span>' : `<span class="badge badge-revoked">${escapeHtml(r.status.replace(/_/g,' '))}</span>`}</td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.addEventListener('click', () => openDetail(tr.getAttribute('data-id')));
+  });
+}
+
+function openDetail(id){
+  const inst = DB.institutions.find(i => i.institution_id === id);
+  if(!inst) return;
+  const snaps = DB.portfolio_snapshots.filter(r => r.institution_id === id).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
+  const ratings = DB.rating_actions.filter(r => r.institution_id === id).sort((a,b)=>(b.action_date_estimated||'').localeCompare(a.action_date_estimated||''));
+  const disb = DB.disbursement_metrics.filter(r => r.institution_id === id).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
+
+  const panel = document.getElementById('detail-panel');
+  panel.innerHTML = `
+    <div class="detail-head">
+      <h2>${escapeHtml(inst.legal_name)}</h2>
+      <button class="close-btn" id="close-btn">✕</button>
+    </div>
+    <div class="detail-meta">
+      <span class="badge badge-type">${escapeHtml((inst.type||'').replace(/_/g,' '))}</span>
+      &nbsp; CBN authorization: <span class="mono">${escapeHtml((inst.cbn_authorization||'—').replace(/_/g,' '))}</span>
+      ${inst.ngx_listed ? ` &nbsp; NGX: <span class="mono">${escapeHtml(inst.ngx_ticker||'')}</span>` : ''}
+      ${inst.headquarters ? ` &nbsp; HQ: ${escapeHtml(inst.headquarters)}` : ''}
+      ${inst.website ? ` &nbsp; <a href="${escapeHtml(inst.website)}" target="_blank" rel="noopener" style="color:var(--indigo);">website ↗</a>` : ''}
+      ${inst.notes ? `<div style="margin-top:10px;">${escapeHtml(inst.notes)}</div>` : ''}
+    </div>
+
+    <div class="detail-block">
+      <h3>Portfolio snapshots</h3>
+      ${snaps.length ? snaps.map(s => `
+        <div class="fact-card">
+          <div class="fact-top">
+            <span class="fact-figure">${confDot(s.confidence)}${s.gross_loans!=null ? 'Gross loans: '+fmtNumber(s.gross_loans)+' '+s.unit.replace('NGN_','NGN ') : (s.net_loans!=null ? 'Net loans: '+fmtNumber(s.net_loans)+' '+s.unit.replace('NGN_','NGN ') : 'No balance figure')}</span>
+            <span class="fact-period mono">${escapeHtml(s.period_end||'')} (${escapeHtml(s.period_type||'')})</span>
+          </div>
+          ${s.npl_ratio!=null ? `<div>NPL ratio: <strong>${fmtPct(s.npl_ratio)}</strong>${s.npl_ratio_basis ? ' <span class="dim">('+escapeHtml(s.npl_ratio_basis.replace(/_/g,' '))+')</span>' : ''}</div>` : ''}
+          ${s.npl_coverage_ratio!=null ? `<div>NPL coverage: <strong>${(s.npl_coverage_ratio*100).toFixed(0)}%</strong></div>` : ''}
+          ${s.notes ? `<div class="fact-notes">${escapeHtml(s.notes)}</div>` : ''}
+          <div class="fact-source">${s.source && s.source.source_url ? `<a href="${escapeHtml(s.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(s.source.source_name)} ↗</a>` : `<span class="dim">${escapeHtml((s.source&&s.source.source_name)||'source unlinked')}</span>`}</div>
+        </div>
+      `).join('') : '<p class="empty-note">No verified portfolio figures found yet for this institution.</p>'}
+    </div>
+
+    <div class="detail-block">
+      <h3>Rating actions</h3>
+      ${ratings.length ? ratings.map(r => `
+        <div class="fact-card">
+          <div class="fact-top">
+            <span class="fact-figure">${escapeHtml(r.agency)}: <strong>${escapeHtml(r.rating)}</strong>${r.outlook ? ' ('+escapeHtml(r.outlook)+')' : ''}</span>
+            <span class="fact-period mono">${escapeHtml(r.rating_type||'')}</span>
+          </div>
+          <div class="dim" style="font-size:12px;">${r.action_date_estimated ? 'Action ~'+escapeHtml(r.action_date_estimated)+' · ' : ''}${r.rating_expiry ? 'Expires '+escapeHtml(r.rating_expiry) : ''}</div>
+          ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
+          <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
+        </div>
+      `).join('') : '<p class="empty-note">No public rating action found yet for this institution.</p>'}
+    </div>
+
+    <div class="detail-block">
+      <h3>Disbursement / self-reported metrics</h3>
+      ${disb.length ? disb.map(d => `
+        <div class="fact-card">
+          <div class="fact-top">
+            <span class="fact-figure">${fmtNumber(d.disbursement_volume)} ${d.unit.replace('NGN_','NGN ')}</span>
+            <span class="fact-period mono">${escapeHtml(d.period_end||'undated')}</span>
+          </div>
+          <div class="fact-notes">${escapeHtml(d.metric_description||'')} ${d.self_reported ? '<span class="dim">(self-reported, not independently verified)</span>' : ''}</div>
+          ${d.notes ? `<div class="fact-notes">${escapeHtml(d.notes)}</div>` : ''}
+          <div class="fact-source"><a href="${escapeHtml(d.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(d.source.source_name)} ↗</a></div>
+        </div>
+      `).join('') : '<p class="empty-note">No disbursement metrics found yet for this institution.</p>'}
+    </div>
+
+    <div class="detail-block" style="margin-bottom:0;">
+      <h3>Institution source</h3>
+      <div class="fact-card" style="margin-bottom:0;">
+        <div class="fact-source"><a href="${escapeHtml(inst.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(inst.source.source_name)} ↗</a></div>
+        <div class="dim" style="font-size:12px; margin-top:4px;">Retrieved ${escapeHtml(inst.source.retrieved_date)}</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('close-btn').addEventListener('click', closeDetail);
+  document.getElementById('overlay').classList.add('open');
+}
+function closeDetail(){ document.getElementById('overlay').classList.remove('open'); }
+
+document.getElementById('overlay').addEventListener('click', e => { if(e.target.id === 'overlay') closeDetail(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
+
+function applyFccpcFilters(){
+  const q = document.getElementById('fccpc-search').value.trim().toLowerCase();
+  const status = document.getElementById('fccpc-status-filter').value;
+  const rows = DB.fccpc_digital_lenders.filter(r => {
+    if(status && r.approval_status !== status) return false;
+    if(q){
+      const hay = (r.lender_name + ' ' + (r.app_name||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  document.getElementById('fccpc-result-count').textContent = `${rows.length} of ${DB.fccpc_digital_lenders.length} lenders`;
+  document.getElementById('fccpc-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="inst-name">${escapeHtml(r.lender_name)}</td>
+      <td class="dim">${escapeHtml(r.app_name||'—')}</td>
+      <td>${r.approval_status === 'full' ? '<span class="badge badge-active">full</span>' : '<span class="badge" style="background:var(--amber-soft);color:var(--amber);">conditional</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.getAttribute('data-sort');
+    if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = 'desc'; }
+    document.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted','sorted-asc'));
+    th.classList.add(sortDir === 'desc' ? 'sorted' : 'sorted-asc');
+    applyFiltersAndRender();
+  });
+});
+
+['search','type-filter','status-filter','data-only'].forEach(id => {
+  document.getElementById(id).addEventListener('input', applyFiltersAndRender);
+});
+['fccpc-search','fccpc-status-filter'].forEach(id => {
+  document.getElementById(id).addEventListener('input', applyFccpcFilters);
+});
+
+(async function init(){
+  try{
+    await loadAll();
+    window.ALL_ROWS = buildRows();
+    populateFilters(window.ALL_ROWS);
+    renderStats(window.ALL_ROWS);
+    renderIndustry();
+    document.getElementById('load-state').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.querySelector('thead th[data-sort="_gross_loans"]').classList.add('sorted');
+    applyFiltersAndRender();
+    applyFccpcFilters();
+  } catch(err){
+    document.getElementById('load-state').style.display = 'none';
+    const errEl = document.getElementById('load-error');
+    errEl.style.display = 'block';
+    errEl.innerHTML = `Couldn't load the database files (${escapeHtml(err.message)}).<br><br>
+      If you opened this file directly (<code>file://</code>), browsers block JSON fetches from local files.
+      Serve it over HTTP instead, e.g. from the repo root run <code>python3 -m http.server</code> and open
+      <code>http://localhost:8000/database.html</code> — or view it once this branch is deployed (GitHub Pages / any static host).`;
+  }
+})();
+</script>
+
+</body>
+</html>
