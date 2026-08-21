@@ -14,14 +14,23 @@ is the join key everywhere.
 
 | File | Grain | Status |
 |---|---|---|
-| `institutions.json` | one row per lender | **Seeded** — 42 CBN-licensed DMBs/merchant banks/holdcos, verified against a CBN circular. MFBs, fintech lenders, and FCCPC-registered digital lenders are being added as research completes. |
+| `institutions.json` | one row per lender | **Seeded** — 51 CBN-licensed DMBs/merchant banks/holdcos plus 9 MFB/fintech lenders (LAPO, AB Microfinance, Moniepoint, FairMoney, Carbon, Renmoney, Kuda, Advans La Fayette, Accion), verified against a CBN circular and per-institution sources. Leasing/asset-finance companies not yet covered. |
+| `fccpc_digital_lenders.json` | one row per FCCPC-approved lender/app | **Seeded** — 559 entries (524 full + 35 conditional approval), fetched directly from FCCPC's own published tables. This is the broad digital-lender universe (source #9 in the plan); not yet cross-referenced to `institution_id` in `institutions.json`. |
 | `portfolio_snapshots.json` | institution × period | **Partial** — populated only where a real, cited figure was found. Most institutions are not yet covered; this is expected at this stage, not a bug. |
 | `portfolio_mix.json` | institution × period × dimension | **Empty/pending** — sector/geography/product breakdowns require deeper per-institution annual-report extraction than fits an initial pass. |
 | `industry_aggregates.json` | period × segment | **Partial** — CBN sector-wide figures (total credit, NPL ratio). |
-| `rating_actions.json` | institution × date | **Pending/partial** — Agusto & Co / GCR / DataPro public rating summaries. |
+| `rating_actions.json` | institution × date | **Partial** — 6 Agusto & Co / GCR Ratings public rating summaries for MFB/fintech institutions; large banks not yet covered. No DataPro summaries found yet. |
 | `capital_market_instruments.json` | one row per bond/CP/note | **Not started** — SEC prospectus/bond-filing research not yet run. |
-| `disbursement_metrics.json` | institution × period | **Not started** — investor deck/press-release volumes not yet run. |
+| `disbursement_metrics.json` | institution × period | **Partial** — self-reported disbursement volumes for Moniepoint, FairMoney, Renmoney (all flagged `self_reported: true`). |
 | `product_snapshots.json` | institution × product | **Not started** — lender website/app scraping not yet run. |
+
+## Interactive browser
+
+`database.html` (repo root) is a searchable/sortable/filterable UI over these files — it fetches
+the JSON at load time (no build step), so it always reflects whatever is in this directory.
+Requires serving over HTTP(S), not `file://` (browsers block local `fetch()`): run
+`python3 -m http.server` from the repo root and open `http://localhost:8000/database.html`, or
+view it once deployed to a static host.
 
 ## Provenance convention
 
@@ -46,11 +55,12 @@ primary citation, or a figure with unit/period ambiguity worth double-checking b
 
 ## Known gaps / next steps
 
-- Coverage today is the ~7 largest NGX-listed banking groups plus the full CBN-licensed bank
-  universe (names only, no financials yet for most). MFBs, fintech lenders, and leasing/asset
-  finance companies — Waterline's actual target originator segment — are the priority to extend
-  next, not the large banks (large banks are useful as market benchmarks, but are not likely
-  Waterline deal counterparties).
+- Coverage today is the ~7 largest NGX-listed banking groups (with financials) plus the full
+  CBN-licensed bank universe (names only for most), 9 MFB/fintech lenders with rating/portfolio
+  data, and the full FCCPC digital-lender registry (names/approval status only). Leasing/asset
+  finance companies — also part of Waterline's target originator segment — are not yet covered.
+  The 559-entry FCCPC list has not been cross-referenced against `institutions.json` — several
+  of the 9 MFB/fintech entries almost certainly also appear there under their app name(s).
 - `portfolio_mix`, `capital_market_instruments`, `disbursement_metrics`, and `product_snapshots`
   are unstarted. Per the build plan, these are lower-priority "enrichment" sources — sequence
   them after core coverage of target-segment institutions is solid.
