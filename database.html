@@ -71,33 +71,12 @@
   .stat .num{ font-family:'Space Grotesk', sans-serif; font-size:24px; font-weight:700; color:var(--amber); }
   .stat .lbl{ color:var(--text-dim); font-size:12px; margin-top:4px; }
 
-  .controls{ display:flex; gap:10px; flex-wrap:wrap; margin:24px 0 16px; align-items:center; }
-  .controls input[type=text]{
-    flex:1; min-width:180px; background:var(--panel); border:1px solid var(--border); color:var(--text);
-    padding:11px 14px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; width:100%;
-  }
-  .controls select{
-    background:var(--panel); border:1px solid var(--border); color:var(--text);
-    padding:11px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;
-  }
-  .controls input:focus-visible, .controls select:focus-visible{ outline:2px solid var(--indigo); outline-offset:1px; }
-  .chip-toggle{
-    display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim);
-    background:var(--panel); border:1px solid var(--border); padding:10px 14px; border-radius:8px; cursor:pointer; user-select:none;
-    white-space:nowrap;
-  }
-  .chip-toggle input{ accent-color:var(--indigo); flex-shrink:0; }
-  .result-count{ color:var(--text-dim); font-size:13px; margin-bottom:12px; }
-
   table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; min-width:640px; }
   thead th{
     text-align:left; font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase;
     letter-spacing:0.06em; color:var(--text-dim); padding:12px 14px; border-bottom:1px solid var(--border);
-    background:var(--panel-2); cursor:pointer; white-space:nowrap;
+    background:var(--panel-2); white-space:nowrap;
   }
-  thead th:hover{ color:var(--text); }
-  thead th.sorted::after{ content:" ▾"; color:var(--indigo); }
-  thead th.sorted-asc::after{ content:" ▴"; color:var(--indigo); }
   tbody tr{ border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.15s; }
   tbody tr:last-child{ border-bottom:none; }
   tbody tr:hover{ background:var(--panel-2); }
@@ -118,15 +97,6 @@
 
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:12px; margin:0 -24px; padding:0 24px; }
   @media (min-width:700px){ .table-scroll{ margin:0; padding:0; } }
-  .scroll-hint{ display:none; color:var(--text-dim); font-size:11.5px; margin:6px 2px 0; }
-  @media (max-width:700px){ .scroll-hint{ display:block; } }
-
-  section{ padding:32px 0; }
-  .divider{ border-top:1px solid var(--border); }
-  section h2{ font-size:20px; margin-bottom:6px; }
-  section > p.section-note{ color:var(--text-dim); font-size:14px; margin:0 0 18px; max-width:760px; }
-
-  .card-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
   .fact-card{ background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
   .fact-top{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:6px; }
   .fact-figure{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; }
@@ -137,17 +107,6 @@
   .fact-source a:hover{ text-decoration:underline; }
   .empty-note{ color:var(--text-dim); font-size:13px; font-style:italic; }
 
-  /* Charts */
-  .chart-panel{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; }
-  .chart-panel h3{ font-size:14.5px; margin-bottom:2px; }
-  .chart-sub{ color:var(--text-dim); font-size:12px; margin-bottom:14px; }
-  .mini-chart-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
-  .mini-chart-card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
-  .mini-chart-card .mc-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; gap:8px; }
-  .mini-chart-card .mc-name{ font-weight:600; font-size:13.5px; }
-  .mini-chart-card .mc-basis{ font-size:11px; color:var(--text-dim); white-space:nowrap; }
-  .mini-chart-card .mc-latest{ font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--amber); margin-top:2px; }
-  .mini-chart-card .mc-growth{ font-size:12px; margin-top:2px; }
   .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
   .bar-row:last-child{ margin-bottom:0; }
   .bar-label{ width:150px; flex-shrink:0; font-size:12.5px; color:var(--text-dim); }
@@ -155,8 +114,6 @@
   .bar-fill{ height:100%; border-radius:4px; }
   .bar-value{ width:64px; flex-shrink:0; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:12.5px; }
   @media (max-width:560px){ .bar-label{ width:100px; font-size:11.5px; } .bar-value{ width:52px; font-size:11.5px; } }
-  svg.trend-svg{ display:block; overflow:visible; }
-  svg.trend-svg circle{ cursor:pointer; }
 
   /* Detail overlay */
   .overlay{
@@ -186,9 +143,11 @@
   #load-state{ padding:80px 0; text-align:center; color:var(--text-dim); }
   #load-error{ display:none; padding:20px; background:var(--red-soft); border:1px solid rgba(248,113,113,0.3); border-radius:10px; color:var(--red); font-size:14px; margin-bottom:20px; }
 
-  .btn{ display:inline-flex; align-items:center; gap:8px; padding:11px 18px; border-radius:9px; font-size:13.5px; font-weight:600; text-decoration:none; border:1px solid transparent; }
+  .btn{ display:inline-flex; align-items:center; gap:8px; padding:11px 18px; border-radius:9px; font-size:13.5px; font-weight:600; text-decoration:none; border:1px solid transparent; cursor:pointer; }
   .btn-primary{ background:var(--indigo); color:#fff; }
   .btn-primary:hover{ background:#5a6bf5; }
+  .btn-outline{ border-color:var(--border); color:var(--text); background:var(--panel-2); }
+  .btn-outline:hover{ border-color:var(--amber); }
 
   .cta-banner{
     display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
@@ -199,6 +158,35 @@
   .cta-banner .cta-text strong{ color:var(--text); }
   .cta-banner .cta-text span{ color:var(--text-dim); display:block; margin-top:2px; font-size:13px; }
   #load-error code{ background:rgba(0,0,0,0.25); padding:2px 6px; border-radius:4px; }
+
+  /* Gate + access request */
+  .preview-note{ color:var(--text-dim); font-size:12.5px; margin:8px 2px 0; }
+  .gate-card{
+    margin-top:32px; background:linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+    border:1px solid var(--border); border-radius:16px; padding:32px; position:relative; overflow:hidden;
+  }
+  .gate-card::before{
+    content:""; position:absolute; top:-40%; right:-10%; width:320px; height:320px; border-radius:50%;
+    background:radial-gradient(circle, var(--indigo-soft) 0%, transparent 70%); pointer-events:none;
+  }
+  .gate-card h2{ font-size:22px; margin-bottom:10px; }
+  .gate-card > p{ color:var(--text-dim); font-size:14.5px; max-width:600px; margin:0 0 20px; }
+  .gate-list{ list-style:none; margin:0 0 26px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; }
+  @media (max-width:700px){ .gate-list{ grid-template-columns:1fr; } }
+  .gate-list li{ font-size:13.5px; color:var(--text-dim); padding-left:22px; position:relative; }
+  .gate-list li::before{ content:"→"; position:absolute; left:0; color:var(--indigo); }
+  .gate-list li strong{ color:var(--text); }
+  .access-form{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:26px; max-width:560px; position:relative; }
+  .access-form h3{ font-size:16px; margin-bottom:18px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px; }
+  .field select, .field input, .field textarea{
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:11px 14px; border-radius:8px; font-family:'Inter', sans-serif; font-size:14px; box-sizing:border-box;
+  }
+  .field textarea{ resize:vertical; min-height:60px; }
+  .field select:focus-visible, .field input:focus-visible, .field textarea:focus-visible{ outline:2px solid var(--indigo); outline-offset:1px; }
+  .access-submitted{ display:none; color:var(--green); font-size:14px; margin-top:14px; }
 
   footer{ padding:30px 0; text-align:center; color:var(--text-dim); font-size:12.5px; border-top:1px solid var(--border); }
   footer a{ color:var(--indigo); text-decoration:none; }
@@ -239,101 +227,66 @@
   <div id="app" style="display:none;">
     <div class="stats-row" id="stats-row"></div>
 
-    <div class="controls">
-      <input type="text" id="search" placeholder="Search institution name…">
-      <select id="type-filter"><option value="">All types</option></select>
-      <select id="status-filter"><option value="">All statuses</option></select>
-      <label class="chip-toggle"><input type="checkbox" id="fintech-only"> Fintech only</label>
-      <label class="chip-toggle"><input type="checkbox" id="data-only"> Has financial data only</label>
-    </div>
-
-    <div class="result-count" id="result-count"></div>
-
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th data-sort="legal_name">Institution</th>
-            <th data-sort="type">Type</th>
-            <th data-sort="cbn_authorization">CBN auth.</th>
-            <th data-sort="_gross_loans">Gross loans</th>
-            <th data-sort="_npl">NPL ratio</th>
-            <th data-sort="_rating">Rating</th>
-            <th data-sort="status">Status</th>
+            <th>Institution</th>
+            <th>Type</th>
+            <th>CBN auth.</th>
+            <th>Gross loans</th>
+            <th>NPL ratio</th>
+            <th>Rating</th>
+            <th>Status</th>
           </tr>
         </thead>
-        <tbody id="table-body"></tbody>
+        <tbody id="preview-table-body"></tbody>
       </table>
     </div>
-    <div class="scroll-hint">Scroll table sideways to see all columns →</div>
+    <div class="preview-note">Click a row for the full source-cited detail — ratings, filings, capital markets activity. Ranked by disclosed gross loans — the full table (<span id="preview-total-count">60+</span> tracked institutions) is behind the request below.</div>
 
-    <section class="divider" id="charts-section">
-      <h2>Trends</h2>
-      <p class="section-note">Multi-year trends from the sparse-but-real data points available so far — gaps between points are real gaps in public disclosure, not interpolated. Hover a point for its exact value and source confidence.</p>
+    <div class="gate-card">
+      <h2>That's a preview. There's a lot more behind it.</h2>
+      <p>The full database is free — we just ask who's asking, so we know who to follow up with.</p>
+      <ul class="gate-list">
+        <li><strong>The complete institution table</strong> — every tracked lender, searchable and filterable by type, status, and fintech tag</li>
+        <li><strong>5-year trend charts</strong> — industry-wide NPL ratio and per-institution loan-book growth</li>
+        <li><strong>The full FCCPC digital-lender registry</strong> — all 559 approved lending apps, searchable</li>
+        <li><strong>Capital markets activity</strong> — real bond/CP issuances with sponsor, rate, and use-of-proceeds detail</li>
+        <li><strong>Sector &amp; geography breakdowns</strong> where disclosed, per institution</li>
+        <li><strong>Full rating history</strong> and source citations for every figure in the database</li>
+      </ul>
 
-      <div class="chart-panel" style="margin-bottom:14px;">
-        <h3>Industry-wide NPL ratio (deposit money banks)</h3>
-        <div class="chart-sub" id="npl-chart-sub"></div>
-        <div id="npl-chart"></div>
+      <div class="access-form">
+        <h3>Request full access</h3>
+        <form id="access-request-form" onsubmit="event.preventDefault(); document.getElementById('access-request-form').style.display='none'; document.getElementById('access-submitted').style.display='block';">
+          <div class="field">
+            <label for="acc-name">Name</label>
+            <input id="acc-name" type="text" placeholder="Your name" required>
+          </div>
+          <div class="field">
+            <label for="acc-org">Organization</label>
+            <input id="acc-org" type="text" placeholder="Company or fund name" required>
+          </div>
+          <div class="field">
+            <label for="acc-email">Email</label>
+            <input id="acc-email" type="email" placeholder="you@organization.com" required>
+          </div>
+          <div class="field">
+            <label for="acc-role">I am a</label>
+            <select id="acc-role">
+              <option>DFI / institutional investor</option>
+              <option>Bank, MFB, or fintech lender</option>
+              <option>Leasing / asset finance company</option>
+              <option>Researcher / journalist</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; border:none;">Request full access →</button>
+        </form>
+        <p class="access-submitted" id="access-submitted">Thanks — we'll follow up by email shortly with access.</p>
       </div>
-
-      <div class="mini-chart-grid" id="bank-trend-grid"></div>
-    </section>
-
-    <section class="divider" id="composition-section">
-      <h2>Market composition</h2>
-      <p class="section-note">What the tracked universe is actually made of — real counts, not a sample.</p>
-      <div class="card-grid">
-        <div class="chart-panel">
-          <h3>Institutions by type</h3>
-          <div class="chart-sub">By CBN license category / entity type, across the tracked universe</div>
-          <div id="type-bar-chart"></div>
-        </div>
-        <div class="chart-panel">
-          <h3>FCCPC digital-lender approval status</h3>
-          <div class="chart-sub" id="fccpc-bar-sub"></div>
-          <div id="fccpc-bar-chart"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="divider" id="industry-section">
-      <h2>Industry benchmarks (CBN)</h2>
-      <div class="card-grid" id="industry-cards"></div>
-    </section>
-
-    <section class="divider" id="capital-markets-section">
-      <h2>Capital market instruments</h2>
-      <p class="section-note">Real bond and commercial-paper issuances by MFB/fintech originators, mostly sourced directly from FMDQ Exchange listing notices — the closest thing to a public precedent for what Waterline is trying to do (structured funding against a lender's balance sheet), even though none of these are disclosed as loan-portfolio-backed.</p>
-      <div id="capital-markets-cards"></div>
-    </section>
-
-    <section class="divider" id="fccpc-section">
-      <h2>FCCPC-registered digital lenders</h2>
-      <p class="section-note">
-        <span class="mono" id="fccpc-count">0</span> approved digital money lenders, fetched directly from FCCPC's own registry
-        (<a href="https://fccpc.gov.ng/approvals-of-dmls/" target="_blank" rel="noopener" style="color:var(--indigo);">fccpc.gov.ng</a>,
-        list dated 2026-03-03). This is the broad universe of licensed lending apps — separate from the CBN-licensed institutions
-        table above; a company may appear in both if it also holds a bank/MFB license.
-      </p>
-      <div class="controls" style="margin-top:0;">
-        <input type="text" id="fccpc-search" placeholder="Search lender or app name…">
-        <select id="fccpc-status-filter">
-          <option value="">All statuses</option>
-          <option value="full">Full approval</option>
-          <option value="conditional">Conditional approval</option>
-        </select>
-      </div>
-      <div class="result-count" id="fccpc-result-count"></div>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Lender / company</th><th>App(s)</th><th>Status</th></tr>
-          </thead>
-          <tbody id="fccpc-table-body"></tbody>
-        </table>
-      </div>
-    </section>
+    </div>
   </div>
 </div>
 
@@ -343,9 +296,8 @@
 
 <footer>
   <div class="wrap">
-    Data: <code class="mono">data/market-intelligence/*.json</code> ·
-    <a href="https://github.com/richardawe/waterline/tree/main/data/market-intelligence">view on GitHub</a> ·
-    <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md">build plan</a>
+    Every figure above carries a source citation, visible when you open an institution's detail view ·
+    <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md">how this database is built</a>
   </div>
 </footer>
 
@@ -361,10 +313,8 @@ const FILES = {
   portfolio_mix: { url: 'data/market-intelligence/portfolio_mix.json', key: 'portfolio_mix' },
   product_snapshots: { url: 'data/market-intelligence/product_snapshots.json', key: 'product_snapshots' },
 };
-const CATEGORICAL = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)','var(--c7)','var(--c8)'];
-
 let DB = { institutions: [], portfolio_snapshots: [], rating_actions: [], disbursement_metrics: [], industry_aggregates: [], fccpc_digital_lenders: [], capital_market_instruments: [], portfolio_mix: [], product_snapshots: [] };
-let sortKey = '_gross_loans', sortDir = 'desc';
+const PREVIEW_SIZE = 8;
 
 function fmtNumber(n){
   if(n === null || n === undefined) return null;
@@ -457,229 +407,23 @@ function buildGroups(rows){
   return groups;
 }
 
-function populateFilters(groups){
-  const typeSel = document.getElementById('type-filter');
-  const statusSel = document.getElementById('status-filter');
-  const types = [...new Set(groups.map(g => g.display.type))].sort();
-  const statuses = [...new Set(groups.map(g => g.display.status))].sort();
-  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t.replace(/_/g,' '); typeSel.appendChild(o); });
-  statuses.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s.replace(/_/g,' '); statusSel.appendChild(o); });
-}
-
 function renderStats(groups){
-  const withData = groups.filter(g => g.display._gross_loans !== null || g.display._rating !== null).length;
   const el = document.getElementById('stats-row');
   el.innerHTML = `
     <div class="stat"><div class="num">${groups.length}</div><div class="lbl">Institutions tracked</div></div>
-    <div class="stat"><div class="num">${withData}</div><div class="lbl">With portfolio/rating data</div></div>
+    <div class="stat"><div class="num">${DB.fccpc_digital_lenders.length}</div><div class="lbl">FCCPC-registered lenders</div></div>
     <div class="stat"><div class="num">${DB.rating_actions.length}</div><div class="lbl">Rating actions</div></div>
-    <div class="stat"><div class="num">${DB.industry_aggregates.length}</div><div class="lbl">Industry benchmarks</div></div>
     <div class="stat"><div class="num">${DB.capital_market_instruments.length}</div><div class="lbl">Bond/CP issuances</div></div>
-    <div class="stat"><div class="num">${DB.portfolio_mix.length}</div><div class="lbl">Sector-mix breakdowns</div></div>
   `;
-  document.getElementById('fccpc-count').textContent = DB.fccpc_digital_lenders.length;
+  document.getElementById('preview-total-count').textContent = groups.length;
 }
 
-function renderIndustry(){
-  const el = document.getElementById('industry-cards');
-  if(!DB.industry_aggregates.length){ el.innerHTML = '<p class="empty-note">No industry aggregates loaded yet.</p>'; return; }
-  el.innerHTML = DB.industry_aggregates.map(a => `
-      <div class="fact-card">
-        <div class="fact-top">
-          <span>${escapeHtml(a.segment.replace(/_/g,' '))} · ${escapeHtml(a.metric.replace(/_/g,' '))}</span>
-          <span class="fact-period mono">${escapeHtml(a.period_end||'')}</span>
-        </div>
-        <div class="fact-figure">${confDot(a.confidence)}${a.unit==='percent' ? a.value.toFixed(2) + '%' : fmtNumber(a.value) + ' ' + a.unit.replace(/_/g,' ')}</div>
-        <div class="fact-notes">${escapeHtml(a.notes||'')}</div>
-        <div class="fact-source"><a href="${escapeHtml(a.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(a.source.source_name)} ↗</a></div>
-      </div>
-    `).join('');
-}
+// ---------- Preview table (top institutions by loan book size; full table is gated) ----------
 
-function renderCapitalMarkets(){
-  const el = document.getElementById('capital-markets-cards');
-  const rows = DB.capital_market_instruments.slice().sort((a,b) => (b.issue_date||'').localeCompare(a.issue_date||''));
-  if(!rows.length){ el.innerHTML = '<p class="empty-note">No capital market instruments loaded yet.</p>'; return; }
-  el.innerHTML = `<div class="card-grid">` + rows.map(r => {
-    const inst = DB.institutions.find(i => i.institution_id === r.institution_id);
-    return `
-      <div class="fact-card">
-        <div class="fact-top">
-          <span class="fact-figure">${confDot(r.confidence)}${fmtNumber(r.issue_size)} ${(r.unit||'').replace('NGN_','NGN ')}</span>
-          <span class="fact-period mono">${escapeHtml(r.issue_date||'date unknown')}</span>
-        </div>
-        <div style="font-weight:600; font-size:13.5px;">${escapeHtml(inst ? inst.legal_name : r.issuer_name)}</div>
-        <div class="dim" style="font-size:12px; margin-top:2px;">${escapeHtml(r.instrument_type.replace(/_/g,' '))}${r.series ? ' · '+escapeHtml(r.series) : ''}${r.coupon_rate!=null ? ' · '+fmtPct(r.coupon_rate)+' rate' : ''}${r.tenor_years ? ' · '+r.tenor_years+'yr' : ''}${r.tenor_days ? ' · '+r.tenor_days+'d' : ''}</div>
-        ${r.use_of_proceeds ? `<div class="fact-notes"><strong>Use of proceeds:</strong> ${escapeHtml(r.use_of_proceeds)}</div>` : ''}
-        ${r.issuing_house ? `<div class="fact-notes"><strong>Sponsor/issuing house:</strong> ${escapeHtml(r.issuing_house)}</div>` : ''}
-        <div class="fact-notes">${escapeHtml(r.collateral_description || 'No collateral/loan-portfolio security disclosed.')}</div>
-        ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
-        <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
-      </div>
-    `;
-  }).join('') + `</div>`;
-}
-
-// ---------- Charts ----------
-
-function svgLineChart(points, {color='var(--c1)', width=680, height=180, valueFmt=v=>v, unit=''} = {}){
-  const padL=36, padR=16, padT=18, padB=26;
-  const xs = points.map(p => new Date(p.x).getTime());
-  const ys = points.map(p => p.y);
-  const xMin=Math.min(...xs), xMax=Math.max(...xs);
-  const yMin=Math.min(...ys), yMax=Math.max(...ys);
-  const yPad = (yMax-yMin)*0.2 || Math.abs(yMax)*0.1 || 1;
-  const yLo = yMin-yPad, yHi = yMax+yPad;
-  const sx = x => padL + (xMax===xMin ? (width-padL-padR)/2 : (x-xMin)/(xMax-xMin))*(width-padL-padR);
-  const sy = y => padT + (1-(y-yLo)/(yHi-yLo))*(height-padT-padB);
-
-  const gridLines = [yLo, (yLo+yHi)/2, yHi].map(v => `
-    <line x1="${padL}" y1="${sy(v).toFixed(1)}" x2="${width-padR}" y2="${sy(v).toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
-    <text x="${padL-8}" y="${(sy(v)+3).toFixed(1)}" font-size="10" fill="var(--text-dim)" text-anchor="end">${valueFmt(v)}</text>
-  `).join('');
-
-  const path = points.map((p,i) => `${i===0?'M':'L'} ${sx(new Date(p.x).getTime()).toFixed(1)} ${sy(p.y).toFixed(1)}`).join(' ');
-
-  const dots = points.map(p => {
-    const cx = sx(new Date(p.x).getTime()).toFixed(1), cy = sy(p.y).toFixed(1);
-    return `<circle cx="${cx}" cy="${cy}" r="4.5" fill="${color}" stroke="var(--panel)" stroke-width="2"><title>${escapeHtml(p.x)}: ${escapeHtml(valueFmt(p.y))}${unit} (confidence: ${escapeHtml(p.confidence||'n/a')})</title></circle>`;
-  }).join('');
-
-  const xLabels = points.map(p => `<text x="${sx(new Date(p.x).getTime()).toFixed(1)}" y="${height-6}" font-size="10" fill="var(--text-dim)" text-anchor="middle">${new Date(p.x).getFullYear()}</text>`).join('');
-
-  const first = points[0], last = points[points.length-1];
-  const endLabels = `
-    <text x="${sx(new Date(first.x).getTime()).toFixed(1)}" y="${(sy(first.y)-10).toFixed(1)}" font-size="11" fill="var(--text)" text-anchor="middle" font-family="'IBM Plex Mono',monospace">${escapeHtml(valueFmt(first.y))}${unit}</text>
-    <text x="${sx(new Date(last.x).getTime()).toFixed(1)}" y="${(sy(last.y)-10).toFixed(1)}" font-size="11" fill="var(--amber)" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-weight="600">${escapeHtml(valueFmt(last.y))}${unit}</text>
-  `;
-
-  return `<svg class="trend-svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="xMinYMin meet">
-    ${gridLines}
-    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-    ${dots}
-    ${xLabels}
-    ${endLabels}
-  </svg>`;
-}
-
-function renderNplChart(){
-  const points = DB.industry_aggregates
-    .filter(a => a.segment === 'deposit_money_banks' && a.metric === 'npl_ratio')
-    .map(a => ({ x: a.period_end, y: a.value, confidence: a.confidence }))
-    .sort((a,b) => a.x.localeCompare(b.x));
-
-  const chartEl = document.getElementById('npl-chart');
-  const subEl = document.getElementById('npl-chart-sub');
-  if(points.length < 2){
-    chartEl.innerHTML = '<p class="empty-note">Not enough dated data points yet for a trend line.</p>';
-    subEl.textContent = '';
-    return;
-  }
-  subEl.textContent = `${points.length} data points, ${new Date(points[0].x).getFullYear()}–${new Date(points[points.length-1].x).getFullYear()} · CBN's 5% prudential ceiling for reference · hover a point for its source confidence`;
-  chartEl.innerHTML = svgLineChart(points, { color: 'var(--c8)', valueFmt: v => v.toFixed(1), unit: '%' });
-}
-
-function renderBankTrends(){
-  const grid = document.getElementById('bank-trend-grid');
-  const byInst = {};
-  DB.portfolio_snapshots.forEach(s => {
-    const val = s.gross_loans ?? s.net_loans;
-    if(val == null || !s.period_end) return;
-    (byInst[s.institution_id] ||= []).push({ x: s.period_end, y: val, confidence: s.confidence, basis: s.gross_loans != null ? 'gross' : 'net', unit: s.unit });
-  });
-
-  const cards = Object.entries(byInst)
-    .filter(([id, pts]) => pts.length >= 2)
-    .map(([id, pts]) => {
-      pts.sort((a,b) => a.x.localeCompare(b.x));
-      const inst = DB.institutions.find(i => i.institution_id === id);
-      const name = inst ? inst.legal_name : id;
-      const basis = pts[pts.length-1].basis;
-      const unit = (pts[pts.length-1].unit || '').replace('NGN_','NGN ');
-      const first = pts[0], last = pts[pts.length-1];
-      const growthPct = first.y ? (((last.y-first.y)/first.y)*100).toFixed(0) : null;
-      const color = CATEGORICAL[Object.keys(byInst).indexOf(id) % CATEGORICAL.length];
-      return `
-        <div class="mini-chart-card">
-          <div class="mc-head">
-            <span class="mc-name">${escapeHtml(name)}</span>
-            <span class="mc-basis">${basis} loans · ${escapeHtml(unit)}</span>
-          </div>
-          <div class="mc-latest">${fmtNumber(last.y)}</div>
-          ${growthPct !== null ? `<div class="mc-growth" style="color:${growthPct>=0?'var(--green)':'var(--red)'};">${growthPct>=0?'+':''}${growthPct}% since ${new Date(first.x).getFullYear()}</div>` : ''}
-          ${svgLineChart(pts, { color, width:280, height:100, valueFmt: v=>fmtNumber(v) })}
-        </div>
-      `;
-    });
-
-  grid.innerHTML = cards.length ? cards.join('') : '<p class="empty-note">No institution has 2+ dated portfolio snapshots yet — trend charts need at least two points per institution.</p>';
-}
-
-function renderBarChart(containerId, data, {colors=CATEGORICAL, valueFmt=v=>fmtNumber(v)} = {}){
-  const max = Math.max(...data.map(d => d.value), 1);
-  document.getElementById(containerId).innerHTML = data.map((d,i) => `
-    <div class="bar-row">
-      <div class="bar-label">${escapeHtml(d.label)}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${(d.value/max*100).toFixed(1)}%; background:${colors[i % colors.length]};"></div></div>
-      <div class="bar-value">${valueFmt(d.value)}</div>
-    </div>
-  `).join('');
-}
-
-function renderCompositionCharts(groups){
-  const typeCounts = {};
-  groups.forEach(g => { const t = g.display.type || 'unknown'; typeCounts[t] = (typeCounts[t]||0)+1; });
-  const typeData = Object.entries(typeCounts).sort((a,b) => b[1]-a[1]).map(([label,value]) => ({ label: label.replace(/_/g,' '), value }));
-  renderBarChart('type-bar-chart', typeData);
-
-  const full = DB.fccpc_digital_lenders.filter(r => r.approval_status === 'full').length;
-  const conditional = DB.fccpc_digital_lenders.filter(r => r.approval_status === 'conditional').length;
-  document.getElementById('fccpc-bar-sub').textContent = `${DB.fccpc_digital_lenders.length} total registered lenders`;
-  renderBarChart('fccpc-bar-chart', [
-    { label: 'Full approval', value: full },
-    { label: 'Conditional approval', value: conditional },
-  ], { colors: ['var(--green)','var(--amber)'] });
-}
-
-// ---------- Institutions table ----------
-
-function applyFiltersAndRender(){
-  const q = document.getElementById('search').value.trim().toLowerCase();
-  const type = document.getElementById('type-filter').value;
-  const status = document.getElementById('status-filter').value;
-  const fintechOnly = document.getElementById('fintech-only').checked;
-  const dataOnly = document.getElementById('data-only').checked;
-
-  let groups = window.ALL_GROUPS.filter(g => {
-    if(q){
-      const hay = g.members.map(m => m.legal_name.toLowerCase() + ' ' + m.institution_id).join(' ');
-      if(!hay.includes(q)) return false;
-    }
-    if(type && g.display.type !== type) return false;
-    if(status && g.display.status !== status) return false;
-    if(fintechOnly && g.display.sector_tag !== 'fintech') return false;
-    if(dataOnly && g.display._gross_loans === null && g.display._rating === null) return false;
-    return true;
-  });
-
-  groups.sort((a,b) => {
-    let av = a.display[sortKey], bv = b.display[sortKey];
-    if(av === null || av === undefined) av = sortDir === 'desc' ? -Infinity : Infinity;
-    if(bv === null || bv === undefined) bv = sortDir === 'desc' ? -Infinity : Infinity;
-    if(typeof av === 'string') av = av.toLowerCase();
-    if(typeof bv === 'string') bv = bv.toLowerCase();
-    if(av < bv) return sortDir === 'asc' ? -1 : 1;
-    if(av > bv) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  document.getElementById('result-count').textContent = `${groups.length} of ${window.ALL_GROUPS.length} institutions`;
-
-  const tbody = document.getElementById('table-body');
-  tbody.innerHTML = groups.map(g => {
-    const r = g.display;
-    const subCount = g.subsidiaries.length;
-    return `
+function rowHtml(g){
+  const r = g.display;
+  const subCount = g.subsidiaries.length;
+  return `
     <tr data-id="${escapeHtml(g.group_id)}">
       <td>
         <div class="inst-name">${escapeHtml(r.legal_name)}${r.sector_tag==='fintech' ? ' <span class="badge badge-fintech">fintech</span>' : ''}</div>
@@ -694,8 +438,15 @@ function applyFiltersAndRender(){
       <td>${r.status === 'active' ? '<span class="badge badge-active">active</span>' : `<span class="badge badge-revoked">${escapeHtml(r.status.replace(/_/g,' '))}</span>`}</td>
     </tr>
   `;
-  }).join('');
+}
 
+function renderPreviewTable(groups){
+  const ranked = groups
+    .filter(g => g.display._gross_loans !== null)
+    .sort((a,b) => b.display._gross_loans - a.display._gross_loans);
+  const preview = ranked.slice(0, PREVIEW_SIZE);
+  const tbody = document.getElementById('preview-table-body');
+  tbody.innerHTML = preview.map(rowHtml).join('');
   tbody.querySelectorAll('tr').forEach(tr => {
     tr.addEventListener('click', () => openDetail(tr.getAttribute('data-id')));
   });
@@ -860,45 +611,6 @@ function closeDetail(){ document.getElementById('overlay').classList.remove('ope
 document.getElementById('overlay').addEventListener('click', e => { if(e.target.id === 'overlay') closeDetail(); });
 document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
 
-function applyFccpcFilters(){
-  const q = document.getElementById('fccpc-search').value.trim().toLowerCase();
-  const status = document.getElementById('fccpc-status-filter').value;
-  const rows = DB.fccpc_digital_lenders.filter(r => {
-    if(status && r.approval_status !== status) return false;
-    if(q){
-      const hay = (r.lender_name + ' ' + (r.app_name||'')).toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
-    return true;
-  });
-  document.getElementById('fccpc-result-count').textContent = `${rows.length} of ${DB.fccpc_digital_lenders.length} lenders`;
-  document.getElementById('fccpc-table-body').innerHTML = rows.map(r => `
-    <tr>
-      <td class="inst-name">${escapeHtml(r.lender_name)}</td>
-      <td class="dim">${escapeHtml(r.app_name||'—')}</td>
-      <td>${r.approval_status === 'full' ? '<span class="badge badge-active">full</span>' : '<span class="badge" style="background:var(--amber-soft);color:var(--amber);">conditional</span>'}</td>
-    </tr>
-  `).join('');
-}
-
-document.querySelectorAll('thead th[data-sort]').forEach(th => {
-  th.addEventListener('click', () => {
-    const key = th.getAttribute('data-sort');
-    if(sortKey === key){ sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
-    else { sortKey = key; sortDir = 'desc'; }
-    document.querySelectorAll('thead th').forEach(h => h.classList.remove('sorted','sorted-asc'));
-    th.classList.add(sortDir === 'desc' ? 'sorted' : 'sorted-asc');
-    applyFiltersAndRender();
-  });
-});
-
-['search','type-filter','status-filter','fintech-only','data-only'].forEach(id => {
-  document.getElementById(id).addEventListener('input', applyFiltersAndRender);
-});
-['fccpc-search','fccpc-status-filter'].forEach(id => {
-  document.getElementById(id).addEventListener('input', applyFccpcFilters);
-});
-
 const navToggle = document.getElementById('nav-toggle');
 const navLinksEl = document.getElementById('nav-links');
 navToggle.addEventListener('click', () => {
@@ -911,18 +623,10 @@ navToggle.addEventListener('click', () => {
     await loadAll();
     const rows = buildRows();
     window.ALL_GROUPS = buildGroups(rows);
-    populateFilters(window.ALL_GROUPS);
     renderStats(window.ALL_GROUPS);
-    renderIndustry();
-    renderCapitalMarkets();
-    renderNplChart();
-    renderBankTrends();
-    renderCompositionCharts(window.ALL_GROUPS);
+    renderPreviewTable(window.ALL_GROUPS);
     document.getElementById('load-state').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    document.querySelector('thead th[data-sort="_gross_loans"]').classList.add('sorted');
-    applyFiltersAndRender();
-    applyFccpcFilters();
   } catch(err){
     document.getElementById('load-state').style.display = 'none';
     const errEl = document.getElementById('load-error');
