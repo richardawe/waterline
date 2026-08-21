@@ -742,7 +742,8 @@
         "source_name": "Techpoint Africa, Moniepoint 2025 Year in Review coverage",
         "source_url": "https://techpoint.africa/news/moniepoint-1-trillion-businesses/",
         "retrieved_date": "2026-08-21"
-      }
+      },
+      "sector_tag": "fintech"
     },
     {
       "institution_id": "fairmoney-mfb",
@@ -760,7 +761,8 @@
         "source_name": "Business Post Nigeria, GCR Ratings upgrade coverage",
         "source_url": "https://businesspost.ng/banking/gcr-upgrades-fairmoney-ratings-on-strong-cash-flow-generation-others/",
         "retrieved_date": "2026-08-21"
-      }
+      },
+      "sector_tag": "fintech"
     },
     {
       "institution_id": "carbon-mfb",
@@ -778,7 +780,8 @@
         "source_name": "Carbon company website (About page)",
         "source_url": "https://www.getcarbon.co/about",
         "retrieved_date": "2026-08-21"
-      }
+      },
+      "sector_tag": "fintech"
     },
     {
       "institution_id": "renmoney-mfb",
@@ -814,7 +817,8 @@
         "source_name": "BusinessDay coverage of Kuda's national MFB licence",
         "source_url": "https://businessday.ng/technology/article/kuda-mfb-secures-national-microfinance-banking-licence-sets-stage-for-nationwide-growth/",
         "retrieved_date": "2026-08-21"
-      }
+      },
+      "sector_tag": "fintech"
     },
     {
       "institution_id": "advans-la-fayette-mfb",
@@ -849,6 +853,303 @@
       "source": {
         "source_name": "Agusto & Co rating release",
         "source_url": "https://www.agusto.com/ratings/agusto-co-hereby-affirms-the-bbb-rating-assigned-to-accion-microfinance-bank-limited/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "opay-blue-ridge-mfb",
+      "legal_name": "Blue Ridge Microfinance Bank Limited (operates OPay's 'Okash' loan product)",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria",
+      "website": "https://www.opayweb.com",
+      "notes": "OPay itself (Paycom Nigeria Limited / OPay Digital Services Limited) does not appear to hold a lending licence -- its in-app loan product 'Okash' is reportedly operated by Blue Ridge Microfinance Bank Limited, which holds the CBN MFB licence and is separately FCCPC-registered under the 2025 DEON Consumer Lending Regulations. This licensing structure is sourced from a secondary blog, not a primary CBN/Blue Ridge disclosure -- treat as medium-low confidence and re-verify before relying on it. No loan book, NPL, disbursement, or rating figures found.",
+      "source": {
+        "source_name": "androidpols.com.ng (secondary source describing OPay/Blue Ridge lending structure)",
+        "source_url": "https://www.androidpols.com.ng/2025/07/is-opay-microfinance-bank-2025-guide.html",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "palmpay",
+      "legal_name": "PalmPay Limited",
+      "group_holdco_id": null,
+      "type": "mobile_money_operator",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria",
+      "website": "https://www.palmpay.com",
+      "notes": "CBN-licensed Mobile Money Operator (MMO); one low-tier source claims an upgrade to 'National' MMO status effective Jan 2026 (unverified). Its lending brand 'PalmCredit' is reportedly a SEPARATE legal entity operated by Newedge Finance Limited -- see the 'palmcredit-newedge-finance' record -- do not conflate the two. Whether PalmPay Limited itself extends loans directly, versus only via PalmCredit, is unresolved. No loan book, NPL, disbursement, or rating figures found.",
+      "source": {
+        "source_name": "Nairametrics, list of CBN-licensed Mobile Money Operators",
+        "source_url": "https://nairametrics.com/2025/10/26/meet-10-owners-of-cbn-licensed-mobile-money-operators-in-nigeria/5/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "palmcredit-newedge-finance",
+      "legal_name": "Newedge Finance Limited (operates the 'PalmCredit' lending app)",
+      "group_holdco_id": null,
+      "type": "digital_lender",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria",
+      "website": null,
+      "notes": "Digital lending platform operated by Newedge Finance Limited, distinct from PalmPay Limited despite the similar 'Palm' branding. Listed among FCCPC-approved digital lenders (likely present in fccpc_digital_lenders.json under 'Newedge Finance Limited' -- not yet cross-referenced). No loan book, NPL, disbursement, or rating figures found.",
+      "source": {
+        "source_name": "Secondary loan-app review aggregator (Lendsqr)",
+        "source_url": "https://lendsqr.com/lenders/palmcredit",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "branch-international",
+      "legal_name": "Branch International Finance Company Limited",
+      "group_holdco_id": null,
+      "type": "finance_company",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria (Nigeria operations); global HQ San Francisco, US",
+      "website": "https://branch.co",
+      "notes": "One secondary source describes it as incorporated/licensed as a Finance Company under Nigerian law (not a deposit-taking MFB) -- not verified against a primary CBN licensee list. Only located volume figure is an undated cumulative disclosure of ~NGN1bn facilitated, 100,000+ loans, 200,000+ users (pre-2024, stale) -- not usable as a current loan-book indicator. No NPL, current disbursement, or rating figures found.",
+      "source": {
+        "source_name": "The Guardian Nigeria",
+        "source_url": "https://guardian.ng/business-services/branch-international-facilitates-n1-billion-loan-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "m-kopa-nigeria",
+      "legal_name": "M-Kopa Nigeria",
+      "group_holdco_id": null,
+      "type": "asset_finance",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Nairobi, Kenya (group HQ); Nigeria operations based in Lagos",
+      "website": "https://www.m-kopa.com",
+      "notes": "Complete research gap: no licensing, loan book, NPL, disbursement, or rating information could be verified in initial research. M-Kopa's core model is asset financing / BNPL for phones and solar devices, which likely carries a different licence type than pure-play digital cash lenders -- flagged for dedicated follow-up research rather than guessed at.",
+      "source": {
+        "source_name": "None found -- institution seeded from Waterline's target-market list, not yet independently verified",
+        "source_url": null,
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "aella-mfb",
+      "legal_name": "Aella Microfinance Bank (formerly Aella Credit; acquired Flourish Microfinance Bank)",
+      "group_holdco_id": null,
+      "type": "microfinance_bank",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria (commonly reported; not independently verified)",
+      "website": "https://aellaapp.com",
+      "notes": "Moved from an unlicensed/partner-bank lending model to holding its own CBN MFB licence via acquisition of Flourish Microfinance Bank (2023) and rebrand to 'Aella Microfinance Bank' (March 2024); deposits stated as NDIC-insured. This licensing change is well-corroborated. No loan book size, NPL/PAR ratio, disbursement volume, or credit rating found.",
+      "source": {
+        "source_name": "Nairametrics",
+        "source_url": "https://nairametrics.com/2024/03/29/aella-rebrands-to-aella-microfinance-bank-pledges-enhanced-financial-solutions-for-nigerians/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "migo",
+      "legal_name": "Migo (formerly Kwikmoni/Kwikcash; originally Mines.io)",
+      "group_holdco_id": null,
+      "type": "digital_lender",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "scaled_down",
+      "headquarters": "San Francisco, USA (parent company); Nigeria was an operating market",
+      "website": "https://www.migo.ng",
+      "notes": "No CBN MFB licence found. Search-engine synthesis (not independently confirmed against a single dated primary source) indicates Migo discontinued direct-to-consumer lending in Nigeria and pivoted the San Francisco parent to a B2B 'embedded lending infrastructure' model, including expansion to Brazil off a $20M Series B (independently confirmed via TechCrunch/Crunchbase). Treat the Nigeria-exit claim as needing follow-up verification. No loan book, NPL, disbursement, or rating data found.",
+      "source": {
+        "source_name": "Search-engine synthesis; $20M Series B confirmed by TechCrunch",
+        "source_url": "https://techcrunch.com/?p=1918887",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "payhippo-rivy",
+      "legal_name": "Payhippo (rebranded 'Rivy' in 2025)",
+      "group_holdco_id": null,
+      "type": "digital_lender",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "scaled_down",
+      "headquarters": "Lagos, Nigeria (not directly confirmed in the fetched article)",
+      "website": "https://payhippo.com",
+      "notes": "No CBN MFB licence found -- appears to be a non-deposit-taking SME lender, licensing structure unclear. Rebranded to 'Rivy' and pivoted to clean-energy asset financing in March 2025 (raised $4M), effectively an exit from the original Payhippo SME-lending line; CEO changed in 2023. Company-sourced (undated, unaudited) claims: NPL ratio 'below 1%', 2024 disbursements of $2M to businesses (flow, USD, not NGN), lifetime cumulative 34,000+ business loans with >97% collections. Treat all figures as unaudited self-reported claims, not verified balances.",
+      "source": {
+        "source_name": "TechCabal",
+        "source_url": "https://techcabal.com/2025/03/26/payhippo-rebrands-as-rivy-raises-4-million/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "umba-nigeria",
+      "legal_name": "Umba Nigeria",
+      "group_holdco_id": null,
+      "type": "digital_lender",
+      "sector_tag": "fintech",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "unclear",
+      "headquarters": "Reported inconsistently across sources (Nairobi HQ claimed by one source; commonly reported elsewhere as US/UK-founded with African operations) -- not reconciled",
+      "website": "https://umba.com",
+      "notes": "Licensing status for Nigeria operations unclear -- no CBN MFB licence confirmed; loan terms suggest a possible partner-bank or unlicensed-lender model. Loan amount ranges conflict between sources (NGN2,000-30,000 vs NGN3,000-300,000). A $5M debt-financing round was reported only by a lower-tier aggregator, not independently corroborated. No loan book, NPL/PAR, disbursement volume, or rating verifiable.",
+      "source": {
+        "source_name": "Techweez (secondary source; HQ and licensing claims not independently corroborated)",
+        "source_url": "https://techweez.com/2023/02/10/online-lender-umba-relaunches-in-kenya/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ci-leasing",
+      "legal_name": "C&I Leasing Plc",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": "CILEASING",
+      "ngx_listed": true,
+      "status": "active",
+      "headquarters": "Lagos, Nigeria",
+      "website": "https://www.cileasing.com",
+      "notes": "NGX-listed fleet management/leasing/marine-outsourcing group; subsidiaries LeaseAfric (Ghana) and EPIC International FZE (UAE). FY2025: gross earnings NGN50.15bn, PBT NGN2.98bn. FY2024: gross earnings NGN36.7bn (lease rentals NGN31.1bn, up from NGN18.7bn in 2023), PBT NGN2.7bn, PAT NGN1.6bn, shareholders' funds NGN48.2bn. These are revenue/profit figures, not a disclosed lease-receivables book balance -- no loan/lease book size found. CBN Finance Company licensing status not confirmed in sources checked.",
+      "source": {
+        "source_name": "Nairametrics, C&I Leasing FY2025 results coverage",
+        "source_url": "http://nairametrics.com/2026/05/07/ci-leasing-grows-2025-pretax-profit-to-n2-98-billion-on-stronger-revenue/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "aquila-leasing",
+      "legal_name": "Aquila Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "finance_house_license",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "12 Samuel Manuwa Street, Victoria Island, Lagos, Nigeria",
+      "website": "https://aquilagroupng.com",
+      "notes": "Established 2007; equipment leasing, operating/finance lease and fleet management. Company's own material states CBN supervises its leasing activities under a Finance House License -- not independently cross-checked against a CBN-published list. No loan/lease book figures found.",
+      "source": {
+        "source_name": "Aquila Group corporate site",
+        "source_url": "https://aquilagroupng.com/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "vt-leasing",
+      "legal_name": "VT Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": "PC 1230B Ahmadu Bello Way, Victoria Island, Lagos, Nigeria",
+      "website": "https://vtleasing.com",
+      "notes": "Incorporated June 1989, one of Nigeria's older equipment leasing firms. CBN licensing status not explicitly confirmed in retrieved sources. No loan/lease book figures found.",
+      "source": {
+        "source_name": "VT Leasing corporate site",
+        "source_url": "https://vtleasing.com/about/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "emerald-leasing",
+      "legal_name": "Emerald Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": null,
+      "notes": "Described as a Nigerian leasing company offering fleet management and leasing solutions across manufacturing, oil & gas, telecoms, and finance sectors. Headquarters, website, and CBN status not confirmed within research budget -- needs direct verification before further use.",
+      "source": {
+        "source_name": "Search snippet aggregation (ensun.io vendor directory)",
+        "source_url": "https://ensun.io/search/vendor-leasing/nigeria",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "picplus-leasing",
+      "legal_name": "PicPlus Leasing Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://picplusleasing.com.ng",
+      "notes": "Office equipment, industrial machinery, IT equipment and specialized asset financing. Listed on the Equipment Leasing Registration Authority (ELRA) directory -- ELRA is a separate, non-CBN Nigerian regulator for equipment-lease registration, so listing there does not imply CBN Finance Company status. CBN licensing status unconfirmed.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "tamseed-nigeria",
+      "legal_name": "Tamseed Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://tamseed.org",
+      "notes": "Construction-equipment leasing for infrastructure/engineering projects. Listed on the ELRA directory (not a CBN list). CBN licensing status unconfirmed; the .org domain is unusual for a commercial lessor -- recommend direct verification.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "nowerox-nigeria",
+      "legal_name": "Nowerox Nigeria Limited",
+      "group_holdco_id": null,
+      "type": "leasing_company",
+      "cbn_authorization": "unknown",
+      "ngx_ticker": null,
+      "ngx_listed": false,
+      "status": "active",
+      "headquarters": null,
+      "website": "https://nowerox.com",
+      "notes": "Leasing of cranes, forklifts, lifting equipment and heavy-duty industrial machinery. Listed on the ELRA directory (not a CBN list). CBN licensing status unconfirmed.",
+      "source": {
+        "source_name": "ELRA - Equipment Leasing Companies in Nigeria",
+        "source_url": "https://elra.gov.ng/equipment-leasing-companies-in-nigeria/",
         "retrieved_date": "2026-08-21"
       }
     }

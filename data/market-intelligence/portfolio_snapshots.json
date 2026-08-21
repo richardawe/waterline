@@ -95,6 +95,113 @@
         "source_url": "https://proshare.co/articles/firstholdco-full-year-2024-report-interest-income-rally-raises-pbt-by-123.63",
         "retrieved_date": "2026-08-21"
       }
+    },
+    {
+      "institution_id": "zenith-bank",
+      "period_end": "2020-12-31",
+      "period_type": "FY",
+      "gross_loans": null,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.043,
+      "confidence": "low",
+      "notes": "NPL ratio only -- from a roundup article on banks sustaining NPL ratios below the CBN's 5% requirement; gross loans figure not found for this year. Not independently verified against Zenith's own FY2020 annual report.",
+      "source": {
+        "source_name": "THISDAY Live, banking-sector NPL roundup",
+        "source_url": "https://www.thisdaylive.com/2022/04/04/zenith-access-bank-others-sustain-npl-ratio-below-cbns-requirement/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "zenith-bank",
+      "period_end": "2023-12-31",
+      "period_type": "FY",
+      "gross_loans": 7100,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.044,
+      "confidence": "medium",
+      "notes": "From Zenith's own FY2023 results announcement (primary source domain), but the exact figures were read via a search-aggregated summary rather than the audited annual report table directly -- recommend re-verifying gross-vs-net and Group-vs-Bank basis before using in investor-facing material.",
+      "source": {
+        "source_name": "Zenith Bank Plc, FY2023 results announcement",
+        "source_url": "https://www.zenithbank.com/media/news/zenith-bank-achieves-historic-milestones-in-2023-with-stellar-triple-digit-topline-and-bottom-line-growth/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "uba",
+      "period_end": "2021-12-31",
+      "period_type": "FY",
+      "gross_loans": 2800,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.036,
+      "confidence": "low",
+      "notes": "Sourced as a prior-year comparative figure inside UBA's FY2022 investor presentation, not the original FY2021 filing itself -- treat as needing cross-check.",
+      "source": {
+        "source_name": "UBA Plc, FY2022 Investor Presentation (prior-year comparative)",
+        "source_url": "https://www.ubagroup.com/wp-content/uploads/2022/03/UBA-Plc-Investor-Presentation-2021-Full-Year-Results.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "uba",
+      "period_end": "2022-12-31",
+      "period_type": "FY",
+      "gross_loans": 3400,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.031,
+      "confidence": "medium",
+      "notes": "From UBA's own FY2022 audited results earnings press release (primary source domain).",
+      "source": {
+        "source_name": "UBA Plc, FY2022 Audited Results Earnings Press Release",
+        "source_url": "https://www.ubagroup.com/wp-content/uploads/2023/03/UBA-Plc-FY2022-Audited-Results-Earnings-Press-Release.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtco",
+      "period_end": "2022-12-31",
+      "period_type": "FY",
+      "gross_loans": null,
+      "net_loans": 1890,
+      "unit": "NGN_billion",
+      "npl_ratio": null,
+      "confidence": "low",
+      "notes": "Net loans only (Group), not gross -- GTCO does not appear to consistently disclose a discrete gross-loans figure in the sources checked. Do not compare directly against other institutions' gross_loans figures.",
+      "source": {
+        "source_name": "Nairametrics, GTCO FY2023 results coverage (FY2022 comparative)",
+        "source_url": "https://nairametrics.com/2024/04/09/gtco-reports-record-n539-6-billion-profit-in-2023-bolstered-by-revaluation-gains/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtco",
+      "period_end": "2023-12-31",
+      "period_type": "FY",
+      "gross_loans": null,
+      "net_loans": 2480,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.042,
+      "confidence": "medium",
+      "notes": "Net loans only (Group), not gross. Primary source (gtbank.com press release).",
+      "source": {
+        "source_name": "GTCO Plc, FY2023 audited results press release",
+        "source_url": "https://www.gtbank.com/media-centre/press-releases/gtco-plc-releases-2023-full-year-audited-result-reports-profit-before-tax-of-609-3billion",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "access-holdings",
+      "period_end": "2023-12-31",
+      "period_type": "FY",
+      "gross_loans": 8900,
+      "unit": "NGN_billion",
+      "npl_ratio": 0.028,
+      "confidence": "medium",
+      "notes": "From Access Holdings' own FY2023 abridged press release (primary source).",
+      "source": {
+        "source_name": "Access Holdings Plc, FY2023 Press Release (abridged)",
+        "source_url": "https://accessholdingsplc.com/wp-content/uploads/2024/03/Access-Holdings-Full-Year-2023-Press-Release-abridged.pdf",
+        "retrieved_date": "2026-08-21"
+      }
     }
   ]
 }

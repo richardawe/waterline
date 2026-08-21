@@ -1,5 +1,24 @@
 {
   "$schema_note": "institution_id x product grain, scraped from lender websites/apps. Timestamp every scrape - never treat as point-in-time-stable. Not yet populated - see README.md known gaps.",
   "generated_at": "2026-08-21",
-  "product_snapshots": []
+  "product_snapshots": [
+    {
+      "institution_id": "carbon-mfb",
+      "min_ticket": 2500,
+      "max_ticket": 1000000,
+      "ticket_currency": "NGN",
+      "min_tenor_days": 61,
+      "max_tenor_days": 365,
+      "interest_rate_description": "5% - 30% per month depending on credit profile/repayment history; cited max APR ~195% per annum",
+      "collateral_required": "none",
+      "eligibility_notes": "No collateral or guarantor required per aggregated sources; first-time borrowers land at the higher end of the rate range.",
+      "confidence": "medium",
+      "notes": "Sourced via search aggregation blending Carbon's own site content with third-party loan-comparison sites (creditnigeria.com, ebills.africa) -- not read directly from a single live page, so treat as needing a direct re-check against getcarbon.co before quoting externally.",
+      "source": {
+        "source_name": "Search aggregation of Carbon (getcarbon.co) loan terms",
+        "source_url": "https://www.getcarbon.co/loans",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
 }

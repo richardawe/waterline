@@ -1,5 +1,72 @@
 {
   "$schema_note": "institution_id x period_end x dimension_type grain (sector/geography/product/currency/tenor_band breakdowns). Not yet populated - see README.md known gaps.",
   "generated_at": "2026-08-21",
-  "portfolio_mix": []
+  "portfolio_mix": [
+    {
+      "institution_id": "zenith-bank",
+      "period_end": "2024-12-31",
+      "dimension_type": "sector",
+      "sector_mix": {
+        "Oil & Gas": 0.374,
+        "Manufacturing": 0.241
+      },
+      "confidence": "low",
+      "notes": "Only 2 of presumably a full sector table were recoverable -- source article could not be directly fetched (403), figures came from search snippets of a specific named article. Computed as sector amount / total gross loan disbursement of NGN10.99trn. Remaining sectors (Consumer, Government, Real Estate, ICT, Power, Agriculture, etc.) not verified and omitted -- these two do NOT sum to 100%.",
+      "source": {
+        "source_name": "Tribune Online, citing Zenith Bank FY2024 disclosures",
+        "source_url": "https://tribuneonlineng.com/how-zenith-bank-distributed-n10-99trn-loans-across-sectors-of-nigerian-economy/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "gtco",
+      "period_end": "2024-12-31",
+      "dimension_type": "sector",
+      "sector_mix": {
+        "Oil & Gas - Upstream": 0.263,
+        "Oil & Gas - Natural Gas": 0.149,
+        "Manufacturing": 0.14
+      },
+      "confidence": "low",
+      "notes": "Only top-3 sectors recovered via search synthesis, not a direct read of the source PDF -- exact reporting period is our best estimate (likely the FY2024 Annual Report's sector-concentration note) but not independently confirmed, and remaining sectors are omitted. Does NOT sum to 100%.",
+      "source": {
+        "source_name": "GTCO 2024 Annual Report (specific page/table not independently confirmed)",
+        "source_url": "https://gtbank-plc.files.svdcdn.com/production/annual-reports/2024-annual-report/2024-Annual-Report-GTCO.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "access-holdings",
+      "period_end": "2024-06-30",
+      "period_end_confidence": "low -- may actually be mid-2025, not mid-2024, see notes",
+      "dimension_type": "sector",
+      "sector_mix": {
+        "Finance and Insurance": 0.122,
+        "General Commerce": 0.1388,
+        "General": 0.0897,
+        "Manufacturing - Others": 0.0872,
+        "Construction": 0.0642,
+        "Government": 0.0685,
+        "Oil and Gas - Upstream": 0.0777,
+        "Oil and Gas - Services": 0.0464,
+        "Oil and Gas - Downstream": 0.0339,
+        "Oil and Gas - Refinery": 0.0034,
+        "Agriculture": 0.0041,
+        "Transportation and Storage": 0.0377,
+        "Real Estate Activities": 0.0359,
+        "Food Manufacturing": 0.0259,
+        "Information and Communication": 0.0613,
+        "Power and Energy": 0.0128,
+        "Cement": 0.0332,
+        "Conglomerate": 0.0246
+      },
+      "confidence": "low",
+      "notes": "The most complete sector table found (sums to ~96.7%, residual likely 'Other'), but PERIOD IS UNCERTAIN: search results labeled this 'H1 2024' but the only matching source document locatable by title is Access Holdings' HY and 9M 2025 Investors and Analyst Presentation -- it may actually be mid-2025 data, not mid-2024. The PDF could not be directly read to confirm either the table or the true period. Re-verify against the primary presentation before using in investor-facing material.",
+      "source": {
+        "source_name": "Access Holdings investor/analyst presentation (period unconfirmed -- possibly HY/9M 2025 rather than H1 2024)",
+        "source_url": "https://theaccesscorporation.com/wp-content/uploads/2025/11/Access-Holdings-HY-and-9M-2025-Investors-and-Analyst-Presentation.pdf",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
 }

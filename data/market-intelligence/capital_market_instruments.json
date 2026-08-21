@@ -1,5 +1,172 @@
 {
   "$schema_note": "one row per bond/commercial-paper/note issuance (SEC prospectuses, bond filings). Not yet populated — see README.md known gaps.",
   "generated_at": "2026-08-21",
-  "capital_market_instruments": []
+  "capital_market_instruments": [
+    {
+      "institution_id": "lapo-mfb",
+      "issuer_name": "LAPO Microfinance Bank Limited (via LAPO MFB SPV PLC)",
+      "instrument_type": "bond",
+      "series": "Series 1 (of a NGN30bn Bond Issuance Programme)",
+      "issue_size": 4.46,
+      "unit": "NGN_billion",
+      "tenor_years": 5,
+      "coupon_rate": 0.2,
+      "issue_date": "2026-07-28",
+      "use_of_proceeds": "Expanding financing opportunities for SMEs, improving access to renewable energy solutions, and strengthening delivery of digital financial services to MSMEs across Nigeria",
+      "trustee": null,
+      "issuing_house": "FirstCap Limited (Lead Sponsor); AVA Capital Partners Limited (Co-Sponsor)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "An earlier Nairametrics article (2026-03-24) reported the offer being marketed up to NGN10bn with a 19-20% coupon range and an April 1, 2026 target close -- the FMDQ listing notice confirms only NGN4.46bn at 20.00% fixed actually listed as Series 1. Treat NGN10bn as the marketed ceiling, not the amount raised. No trustee named; unsecured -- no collateral/loan-portfolio security disclosed. Credit ratings per Nairametrics: BBB- (Agusto & Co.) / BBB- (GCR). Minimum subscription NGN20m; semi-annual coupon, bullet principal repayment.",
+      "source": {
+        "source_name": "FMDQ Group listing notice",
+        "source_url": "https://fmdqgroup.com/fmdq-exchange-lists-lapo-mfb-spv-plc-%E2%82%A64-46-billion-bond-for-microfinance-sector-expansion/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "issuer_name": "AB Microfinance Bank Nigeria Limited",
+      "instrument_type": "commercial_paper",
+      "series": "Series 2 (of a NGN9.00bn CP Issuance Programme)",
+      "issue_size": 0.65,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": 180,
+      "coupon_rate": 0.2226,
+      "issue_date": "2024-04-12",
+      "maturity_date": "2024-10-09",
+      "use_of_proceeds": "Short-term financing requirements of the Issuer",
+      "trustee": null,
+      "issuing_house": "DLM Advisory Limited (Lead Sponsor/Issuing & Placing Agent); Kairos Capital Limited (Joint Sponsor); Zenith Bank PLC (Collecting & Paying Agent)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "Discount rate shown as coupon_rate. Unsecured CP against issuer's general credit -- no collateral described.",
+      "source": {
+        "source_name": "FMDQ Exchange programme page",
+        "source_url": "https://fmdqgroup.com/exchange/programme/ab-microfinance-bank-nigeria-limited-%E2%82%A69-00bn-commercial-paper-issuance-programme/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "issuer_name": "AB Microfinance Bank Nigeria Limited",
+      "instrument_type": "commercial_paper",
+      "series": "Series 3 (of a NGN9.00bn CP Issuance Programme)",
+      "issue_size": 1.44,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": 270,
+      "coupon_rate": 0.2252,
+      "issue_date": "2024-04-12",
+      "maturity_date": "2025-01-07",
+      "use_of_proceeds": "Short-term financing requirements of the Issuer",
+      "trustee": null,
+      "issuing_house": "DLM Advisory Limited (Lead Sponsor/Issuing & Placing Agent); Kairos Capital Limited (Joint Sponsor); Zenith Bank PLC (Collecting & Paying Agent)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "Discount rate shown as coupon_rate. Unsecured CP against issuer's general credit.",
+      "source": {
+        "source_name": "FMDQ Exchange programme page",
+        "source_url": "https://fmdqgroup.com/exchange/programme/ab-microfinance-bank-nigeria-limited-%E2%82%A69-00bn-commercial-paper-issuance-programme/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "issuer_name": "AB Microfinance Bank Nigeria Limited",
+      "instrument_type": "commercial_paper",
+      "series": "Series 4 (of a NGN9.00bn CP Issuance Programme)",
+      "issue_size": 2.75,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": 270,
+      "coupon_rate": 0.2456,
+      "issue_date": "2024-08-15",
+      "maturity_date": "2025-05-12",
+      "use_of_proceeds": "Short-term financing requirements of the Issuer",
+      "trustee": null,
+      "issuing_house": "DLM Advisory Limited (Lead Sponsor/Issuing & Placing Agent); Kairos Capital Limited (Joint Sponsor); Zenith Bank PLC (Collecting & Paying Agent)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "Discount rate shown as coupon_rate. Unsecured CP against issuer's general credit.",
+      "source": {
+        "source_name": "FMDQ Exchange programme page",
+        "source_url": "https://fmdqgroup.com/exchange/programme/ab-microfinance-bank-nigeria-limited-%E2%82%A69-00bn-commercial-paper-issuance-programme/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "ab-microfinance",
+      "issuer_name": "AB Microfinance Bank Nigeria Limited",
+      "instrument_type": "commercial_paper",
+      "series": "Series 5 (of a NGN9.00bn CP Issuance Programme)",
+      "issue_size": 4.23,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": 270,
+      "coupon_rate": 0.2588,
+      "issue_date": "2024-11-25",
+      "maturity_date": "2025-08-22",
+      "use_of_proceeds": "Short-term financing requirements of the Issuer",
+      "trustee": null,
+      "issuing_house": "DLM Advisory Limited (Lead Sponsor/Issuing & Placing Agent); Kairos Capital Limited (Joint Sponsor); Zenith Bank PLC (Collecting & Paying Agent)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "Discount rate shown as coupon_rate. Unsecured CP against issuer's general credit. Rising discount rates across Series 2->5 (22.26% -> 25.88%) track Nigeria's rising interest rate environment through 2024.",
+      "source": {
+        "source_name": "FMDQ Exchange programme page",
+        "source_url": "https://fmdqgroup.com/exchange/programme/ab-microfinance-bank-nigeria-limited-%E2%82%A69-00bn-commercial-paper-issuance-programme/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "accion-mfb",
+      "issuer_name": "Accion Microfinance Bank Limited",
+      "instrument_type": "commercial_paper",
+      "series": "Series 1 (of a NGN5.00bn CP Programme)",
+      "issue_size": 2.02,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": null,
+      "coupon_rate": null,
+      "issue_date": "2026-02-25",
+      "maturity_date": null,
+      "use_of_proceeds": "Strengthen working capital position and expand lending capacity to increase access to credit for micro-entrepreneurs and small businesses",
+      "trustee": null,
+      "issuing_house": "FBNQuest Merchant Bank Limited (Sponsor)",
+      "collateral_description": null,
+      "confidence": "high",
+      "notes": "THISDAY (2026-06-09) reports this Series 1 was fully repaid by June 9, 2026, implying a roughly 3-4 month tenor -- exact tenor/discount rate not confirmed. No collateral disclosed.",
+      "source": {
+        "source_name": "Nairametrics",
+        "source_url": "http://nairametrics.com/2026/02/26/fmdq-admits-accion-microfinance-banks-n2-02bn-commercial-paper/",
+        "retrieved_date": "2026-08-21"
+      }
+    },
+    {
+      "institution_id": "fairmoney-mfb",
+      "issuer_name": "FairMoney",
+      "instrument_type": "commercial_paper",
+      "series": "Programme (series/date not confirmed)",
+      "issue_size": 2.5,
+      "unit": "NGN_billion",
+      "tenor_years": null,
+      "tenor_days": null,
+      "coupon_rate": null,
+      "issue_date": null,
+      "maturity_date": null,
+      "use_of_proceeds": null,
+      "trustee": null,
+      "issuing_house": null,
+      "collateral_description": null,
+      "confidence": "low",
+      "notes": "Only the FMDQ-approved programme ceiling (NGN2.5bn) was confirmed via search snippet -- the source article could not be fetched (403) within research budget, so series size, issue date, rate, and sponsor are unverified. Notable as one of the only named fintech (non-MFB) CP issuers found; described in the source as one of the first fintechs to set up a CP programme.",
+      "source": {
+        "source_name": "BusinessDay Nigeria (snippet only; full article fetch blocked)",
+        "source_url": "https://businessday.ng/fintech/article/commercial-papers-offer-cheaper-funding-for-fintechs-fairmoney-nigeria-md/",
+        "retrieved_date": "2026-08-21"
+      }
+    }
+  ]
 }
