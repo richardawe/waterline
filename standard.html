@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css">
+<script src="assets/config.js"></script>
 <style>
   :root{ --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; }
   body{ font-size:15px; }
@@ -269,9 +270,9 @@
 
   <section class="divider" id="validator">
     <h2>Live validation, on real (synthetic) sample data</h2>
-    <p class="section-note">This isn't a mockup — the table below loads the actual WCDS v0.1 sample datasets and runs a subset of the deterministic validation rulebook against every row, in your browser, right now. Each sample file was seeded with 5 deliberate exceptions to test against; here's what the validator actually catches.</p>
+    <p class="section-note">This isn't a mockup — the sample datasets below are POSTed to the live Waterline API, which runs them through the real WCDS ingestion pipeline (map → canonicalize → validate → reconcile) and returns the actual rule outcomes. Same engine that runs in production, no database write, right now.</p>
 
-    <div id="validator-loading">Loading sample datasets and running validation…</div>
+    <div id="validator-loading">Running the sample datasets through the validation API…</div>
     <div id="validator-app" style="display:none;">
       <div class="lender-tabs" id="lender-tabs"></div>
       <div class="stats-row" id="validator-stats"></div>
@@ -279,19 +280,9 @@
     </div>
 
     <details style="margin-top:20px;">
-      <summary style="cursor:pointer; color:var(--accent); font-size:13.5px;">Which rules are running in this demo</summary>
-      <div class="rule-list" style="margin-top:14px;">
-        <div><span class="rid">WCDS-R008</span> outstanding_principal must be ≥ 0</div>
-        <div><span class="rid">WCDS-R012</span> CLOSED facility should have ~0 exposure</div>
-        <div><span class="rid">WCDS-R013</span> default_flag=true requires default_date</div>
-        <div><span class="rid">WCDS-R014</span> days_past_due must be integer ≥ 0</div>
-        <div><span class="rid">WCDS-R015</span> delinquency_bucket must agree with DPD</div>
-        <div><span class="rid">WCDS-R021</span> interest_rate must be decimal, not a percentage</div>
-        <div><span class="rid">WCDS-R022</span> currency must be valid ISO-4217</div>
-        <div><span class="rid">Date order</span> origination ≤ first_disbursement ≤ maturity; default_date ≥ origination</div>
-        <div><span class="rid">WCDS-R026</span> no duplicate crms_credit_id within an institution</div>
-      </div>
-      <p style="color:var(--text-dim); font-size:12.5px; margin-top:12px;">This is a subset of the full 30-rule deterministic rulebook (§8 of the spec) — enough to demonstrate the mechanism, not the complete engine. The full rulebook also covers referential integrity (collateral/guarantee/restructure linkage), payment decomposition, schedule reconciliation, and export reproducibility, which need more than a single flat facility file to check.</p>
+      <summary style="cursor:pointer; color:var(--accent); font-size:13.5px;">Which rules ran, and their outcome</summary>
+      <div class="rule-list" id="rule-breakdown" style="margin-top:14px;"></div>
+      <p style="color:var(--text-dim); font-size:12.5px; margin-top:12px;">This is the full 30-rule deterministic rulebook (§8 of the spec) running against a single flat facility file. Rules needing entities beyond that — Collateral, Guarantee, Restructure, Payment, Schedule linkage — report <code>SKIPPED</code> for every row rather than being silently omitted; see <code>app/ingest/validator.py</code>'s module docstring in the backend for exactly which.</p>
     </details>
   </section>
 
@@ -362,81 +353,44 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function parseCSV(text){
-  const lines = text.replace(/\r\n/g,'\n').split('\n').filter(l => l.length);
-  const headers = lines[0].split(',');
-  return lines.slice(1).map(line => {
-    // simple splitter; WCDS sample fields have no embedded commas
-    const cells = line.split(',');
-    const row = {};
-    headers.forEach((h,i) => row[h] = cells[i] !== undefined ? cells[i] : '');
-    return row;
-  });
-}
-
-const BUCKET_RANGES = {
-  CURRENT: [0,0], DPD_1_30: [1,30], DPD_31_60: [31,60], DPD_61_90: [61,90], DPD_90_PLUS: [90, Infinity]
-};
-const VALID_CURRENCY = new Set(['NGN','USD','GBP','EUR']);
-
-function validateRows(rows){
-  const exceptions = [];
-  const seenKey = new Map(); // crms_credit_id -> facility_id, within institution
-  rows.forEach(r => {
-    const fid = r.facility_id;
-    // R008
-    const op = parseFloat(r.outstanding_principal);
-    if(!isNaN(op) && op < 0) exceptions.push({fid, rule:'WCDS-R008', msg:`outstanding_principal is negative: ${r.outstanding_principal}`});
-    // R012
-    if(r.facility_status === 'CLOSED' && op > 0) exceptions.push({fid, rule:'WCDS-R012', msg:`facility_status is CLOSED but outstanding_principal = ${r.outstanding_principal}`});
-    // R013
-    if(r.default_flag === 'True' && !r.default_date) exceptions.push({fid, rule:'WCDS-R013', msg:'default_flag is true but default_date is missing'});
-    // R014 / R015
-    const dpd = parseInt(r.days_past_due, 10);
-    if(isNaN(dpd) || dpd < 0){
-      exceptions.push({fid, rule:'WCDS-R014', msg:`days_past_due is not a valid non-negative integer: ${r.days_past_due}`});
-    } else {
-      const range = BUCKET_RANGES[r.delinquency_bucket];
-      if(range && (dpd < range[0] || dpd > range[1])) exceptions.push({fid, rule:'WCDS-R015', msg:`delinquency_bucket ${r.delinquency_bucket} is inconsistent with days_past_due = ${dpd}`});
-    }
-    // R021
-    const rate = parseFloat(r.interest_rate);
-    if(!isNaN(rate) && rate > 2) exceptions.push({fid, rule:'WCDS-R021', msg:`interest_rate ${r.interest_rate} looks like a percentage, not a WCDS decimal (24% should be 0.24)`});
-    // R022
-    if(r.currency && !VALID_CURRENCY.has(r.currency)) exceptions.push({fid, rule:'WCDS-R022', msg:`currency code "${r.currency}" is not a recognised ISO-4217 code`});
-    // Date ordering
-    if(r.maturity_date && r.origination_date && r.origination_date > r.maturity_date)
-      exceptions.push({fid, rule:'Date order', msg:`origination_date (${r.origination_date}) is after maturity_date (${r.maturity_date})`});
-    if(r.first_disbursement_date && r.origination_date && r.first_disbursement_date < r.origination_date)
-      exceptions.push({fid, rule:'Date order', msg:`first_disbursement_date (${r.first_disbursement_date}) is before origination_date (${r.origination_date})`});
-    if(r.default_flag === 'True' && r.default_date && r.origination_date && r.default_date < r.origination_date)
-      exceptions.push({fid, rule:'Date order', msg:`default_date (${r.default_date}) is before origination_date (${r.origination_date})`});
-    // R026-style duplicate crms_credit_id
-    if(r.crms_credit_id){
-      const key = r.institution_id + '::' + r.crms_credit_id;
-      if(seenKey.has(key)) exceptions.push({fid, rule:'WCDS-R026', msg:`crms_credit_id "${r.crms_credit_id}" is also used by ${seenKey.get(key)} within the same institution`});
-      else seenKey.set(key, fid);
-    }
-  });
-  return exceptions;
-}
+const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
 
 const LENDER_FILES = [
-  { key:'A', label:'Lender A · Consumer', url:'standards/wcds/samples/Lender_A_Consumer.csv' },
-  { key:'B', label:'Lender B · SME', url:'standards/wcds/samples/Lender_B_SME.csv' },
-  { key:'C', label:'Lender C · MFB (mixed)', url:'standards/wcds/samples/Lender_C_MFB.csv' },
+  { key:'A', label:'Lender A · Consumer', url:'standards/wcds/samples/Lender_A_Consumer.csv', institution_id:'LENDER_A' },
+  { key:'B', label:'Lender B · SME', url:'standards/wcds/samples/Lender_B_SME.csv', institution_id:'LENDER_B' },
+  { key:'C', label:'Lender C · MFB (mixed)', url:'standards/wcds/samples/Lender_C_MFB.csv', institution_id:'LENDER_C' },
 ];
 
 let RESULTS = {};
 let activeLender = 'A';
 
+// Fetch the sample CSV (still a real static download) and POST it to the
+// live validation API — real mapping/canonicalize/validate/reconcile engine,
+// nothing persisted (see POST /validate in app/api/loan_tapes.py).
+async function validateLender(f){
+  const csvResp = await fetch(f.url);
+  if(!csvResp.ok) throw new Error(`${f.url} → HTTP ${csvResp.status}`);
+  const blob = await csvResp.blob();
+
+  const form = new FormData();
+  form.append('file', blob, f.url.split('/').pop());
+
+  const apiResp = await fetch(`${API_BASE}/validate?institution_id=${encodeURIComponent(f.institution_id)}`, {
+    method: 'POST',
+    body: form,
+  });
+  if(!apiResp.ok) throw new Error(`${API_BASE}/validate → HTTP ${apiResp.status}`);
+  return apiResp.json();
+}
+
 function renderValidator(){
-  const { rows, exceptions } = RESULTS[activeLender];
-  const distinctFacilitiesWithIssues = new Set(exceptions.map(e => e.fid)).size;
-  const clean = rows.length - distinctFacilitiesWithIssues;
+  const result = RESULTS[activeLender];
+  const { row_count, exceptions, validation_summary } = result;
+  const distinctFacilitiesWithIssues = new Set(exceptions.map(e => e.entity_id)).size;
+  const clean = row_count - distinctFacilitiesWithIssues;
 
   document.getElementById('validator-stats').innerHTML = `
-    <div class="stat"><div class="num">${rows.length}</div><div class="lbl">Facilities checked</div></div>
+    <div class="stat"><div class="num">${row_count}</div><div class="lbl">Facilities checked</div></div>
     <div class="stat ok"><div class="num">${clean}</div><div class="lbl">Passed all rules</div></div>
     <div class="stat bad"><div class="num">${distinctFacilitiesWithIssues}</div><div class="lbl">Facilities with an exception</div></div>
     <div class="stat bad"><div class="num">${exceptions.length}</div><div class="lbl">Total rule violations</div></div>
@@ -445,26 +399,25 @@ function renderValidator(){
   document.getElementById('exception-list').innerHTML = exceptions.length
     ? exceptions.map(e => `
         <div class="exception-card">
-          <div class="exc-top"><span class="exc-rule">${escapeHtml(e.rule)}</span><span class="exc-facility mono">${escapeHtml(e.fid)}</span></div>
-          <div class="exc-msg">${escapeHtml(e.msg)}</div>
+          <div class="exc-top"><span class="exc-rule">${escapeHtml(e.rule_id)}</span><span class="exc-facility mono">${escapeHtml(e.entity_id)}</span></div>
+          <div class="exc-msg">${escapeHtml(e.message)}</div>
         </div>
       `).join('')
-    : '<p class="dim">No exceptions found by this rule subset.</p>';
+    : '<p class="dim">No exceptions found.</p>';
+
+  const rules = Object.entries(validation_summary.rules).sort((a,b) => a[0].localeCompare(b[0]));
+  document.getElementById('rule-breakdown').innerHTML = rules.map(([rid, s]) => `
+    <div><span class="rid">${escapeHtml(rid)}</span>${s.skipped ? `skipped (needs data beyond this file)` : `${s.failed} failed / ${s.passed} passed <span class="dim">(${escapeHtml(s.severity)})</span>`}</div>
+  `).join('');
 }
 
 (async function initValidator(){
   try{
-    const results = await Promise.all(LENDER_FILES.map(f => fetch(f.url).then(r => {
-      if(!r.ok) throw new Error(`${f.url} → HTTP ${r.status}`);
-      return r.text();
-    })));
-    LENDER_FILES.forEach((f,i) => {
-      const rows = parseCSV(results[i]);
-      RESULTS[f.key] = { rows, exceptions: validateRows(rows) };
-    });
+    const results = await Promise.all(LENDER_FILES.map(validateLender));
+    LENDER_FILES.forEach((f,i) => { RESULTS[f.key] = results[i]; });
 
     document.getElementById('lender-tabs').innerHTML = LENDER_FILES.map(f => `
-      <button class="lender-tab${f.key===activeLender?' active':''}" data-key="${f.key}">${escapeHtml(f.label)} (${RESULTS[f.key].rows.length})</button>
+      <button class="lender-tab${f.key===activeLender?' active':''}" data-key="${f.key}">${escapeHtml(f.label)} (${RESULTS[f.key].row_count})</button>
     `).join('');
     document.querySelectorAll('.lender-tab').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -479,7 +432,7 @@ function renderValidator(){
     document.getElementById('validator-app').style.display = 'block';
     renderValidator();
   } catch(err){
-    document.getElementById('validator-loading').innerHTML = `Couldn't load the sample datasets (${escapeHtml(err.message)}). This page needs to be served over HTTP(S) — opening it directly as a file blocks the fetch. Run <code>python3 -m http.server</code> from the repo root and open it via <code>http://localhost:8000/standard.html</code>.`;
+    document.getElementById('validator-loading').innerHTML = `Couldn't reach the Waterline API at <code>${escapeHtml(API_BASE)}</code> (${escapeHtml(err.message)}). Make sure the backend is running: <code>cd backend && uvicorn app.main:app --reload</code> — see <code>backend/README.md</code>.`;
   }
 })();
 </script>

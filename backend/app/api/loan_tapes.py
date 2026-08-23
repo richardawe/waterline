@@ -1,14 +1,85 @@
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.ingest.canonicalize import canonicalize_row
+from app.ingest.loader import load_tape
+from app.ingest.mapping import propose_mapping
 from app.ingest.pipeline import ingest_loan_tape
+from app.ingest.reconcile import reconcile
+from app.ingest.validator import validate_dataset
 from app.models.deal import Deal, LoanTapeSnapshot
+from app.models.tier1 import Institution
 from app.models.wcds import Reconciliation, ValidationResult
 
 router = APIRouter(tags=["loan-tapes"])
+
+
+@router.post("/validate")
+async def validate_loan_tape(file: UploadFile, institution_id: str | None = None, db: Session = Depends(get_db)):
+    """Stateless dry run of the WCDS mapping + validation stages (map ->
+    canonicalize -> validate -> reconcile) — no Deal required, nothing
+    persisted. Powers the live validator demo on standard.html: real engine,
+    real rulebook, just no database write at the end."""
+    file_bytes = await file.read()
+    rows_raw, columns, _file_hash = load_tape(file_bytes, file.filename or "upload.csv")
+    mapping = propose_mapping(columns)
+
+    canonical_rows: list[dict] = []
+    for raw_row in rows_raw:
+        canonical, _events, _errors = canonicalize_row(raw_row, mapping.column_to_field)
+        if institution_id and not canonical.get("institution_id"):
+            canonical["institution_id"] = institution_id
+        canonical_rows.append(canonical)
+
+    known_ids = {row[0] for row in db.execute(select(Institution.institution_id)).all()}
+    if institution_id:
+        known_ids.add(institution_id)
+
+    validation = validate_dataset(canonical_rows, known_institution_ids=known_ids)
+    recon = reconcile(canonical_rows)
+
+    return {
+        "row_count": len(rows_raw),
+        "mapping": {
+            "auto_matched": mapping.auto_matched,
+            "unmapped_columns": mapping.unmapped_columns,
+            "missing_required_fields": mapping.missing_required_fields,
+        },
+        "validation_summary": {
+            "fatal": validation.fatal_count,
+            "error": validation.error_count,
+            "warning": validation.warning_count,
+            "rules": {
+                rid: {"passed": s.passed, "failed": s.failed, "skipped": s.skipped, "severity": s.severity}
+                for rid, s in validation.summary.items()
+            },
+        },
+        "exceptions": [
+            {
+                "rule_id": r.rule_id,
+                "entity_id": r.entity_id,
+                "field_name": r.field_name,
+                "severity": r.severity,
+                "message": r.message,
+            }
+            for r in validation.results
+            if r.status == "FAIL"
+        ],
+        "reconciliation": [
+            {
+                "control_name": r.control_name,
+                "source_control_total": r.source_control_total,
+                "wcds_control_total": r.wcds_control_total,
+                "within_tolerance": r.within_tolerance,
+                "notes": r.notes,
+            }
+            for r in recon
+        ],
+    }
 
 
 def _tape_to_dict(t: LoanTapeSnapshot) -> dict:
@@ -80,6 +151,20 @@ async def upload_loan_tape(
             for r in result.reconciliation
         ],
     }
+
+
+@router.get("/deals/{deal_id}/loan-tapes")
+def list_loan_tapes(deal_id: str, db: Session = Depends(get_db)):
+    deal = db.get(Deal, deal_id)
+    if deal is None:
+        raise HTTPException(404, "deal not found")
+    tapes = (
+        db.query(LoanTapeSnapshot)
+        .filter(LoanTapeSnapshot.deal_id == deal_id)
+        .order_by(LoanTapeSnapshot.received_date.desc())
+        .all()
+    )
+    return [_tape_to_dict(t) for t in tapes]
 
 
 @router.get("/loan-tapes/{tape_id}")

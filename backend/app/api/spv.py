@@ -214,6 +214,15 @@ def structure_spv(deal_id: str, payload: SPVStructureRequest, db: Session = Depe
     }
 
 
+@router.get("/deals/{deal_id}/spv")
+def list_spvs(deal_id: str, db: Session = Depends(get_db)):
+    deal = db.get(Deal, deal_id)
+    if deal is None:
+        raise HTTPException(404, "deal not found")
+    spvs = db.query(SPV).filter(SPV.deal_id == deal_id).order_by(SPV.created_at.desc()).all()
+    return [_spv_to_dict(s) for s in spvs]
+
+
 @router.get("/spv/{spv_id}")
 def get_spv(spv_id: str, db: Session = Depends(get_db)):
     spv = db.get(SPV, spv_id)
@@ -248,7 +257,11 @@ def get_latest_waterfall(spv_id: str, db: Session = Depends(get_db)):
                 "defaults": float(p.defaults),
                 "recoveries": float(p.recoveries),
                 "servicing_fee": float(p.servicing_fee),
+                "senior_interest_paid": float(p.senior_interest_paid),
+                "senior_principal_paid": float(p.senior_principal_paid),
                 "senior_balance_end": float(p.senior_balance_end),
+                "mezz_interest_paid": float(p.mezz_interest_paid),
+                "mezz_principal_paid": float(p.mezz_principal_paid),
                 "mezz_balance_end": float(p.mezz_balance_end),
                 "equity_distribution": float(p.equity_distribution),
                 "pool_balance_end": float(p.pool_balance_end),

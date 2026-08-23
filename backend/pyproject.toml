@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "pgvector>=0.2.5",
     "python-dateutil>=2.9",
+    "a2wsgi>=1.10",
 ]
 
 [project.optional-dependencies]

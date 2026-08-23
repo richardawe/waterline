@@ -43,4 +43,26 @@ def get_deal(deal_id: str, db: Session = Depends(get_db)):
     deal = db.get(Deal, deal_id)
     if deal is None:
         raise HTTPException(404, "deal not found")
-    return _to_dict(deal)
+    d = _to_dict(deal)
+    d["loan_tapes"] = [
+        {
+            "id": t.id,
+            "original_filename": t.original_filename,
+            "row_count": t.row_count,
+            "status": t.status,
+            "received_date": t.received_date.isoformat() if t.received_date else None,
+        }
+        for t in sorted(deal.loan_tapes, key=lambda t: t.received_date, reverse=True)
+    ]
+    d["spvs"] = [
+        {
+            "spv_id": s.spv_id,
+            "name": s.name,
+            "status": s.status,
+            "as_of_date": s.as_of_date.isoformat() if s.as_of_date else None,
+            "eligible_pool_par": float(s.eligible_pool_par) if s.eligible_pool_par is not None else None,
+            "eligible_facility_count": s.eligible_facility_count,
+        }
+        for s in sorted(deal.spvs, key=lambda s: s.created_at, reverse=True)
+    ]
+    return d

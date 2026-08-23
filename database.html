@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css">
+<script src="assets/config.js"></script>
 <style>
   :root{
     /* dataviz categorical palette (validated against --panel-2 surface, dark mode) */
@@ -246,19 +247,10 @@
 </footer>
 
 <script>
-const FILES = {
-  institutions: { url: 'data/market-intelligence/institutions.json', key: 'institutions' },
-  portfolio_snapshots: { url: 'data/market-intelligence/portfolio_snapshots.json', key: 'portfolio_snapshots' },
-  rating_actions: { url: 'data/market-intelligence/rating_actions.json', key: 'rating_actions' },
-  disbursement_metrics: { url: 'data/market-intelligence/disbursement_metrics.json', key: 'disbursement_metrics' },
-  industry_aggregates: { url: 'data/market-intelligence/industry_aggregates.json', key: 'industry_aggregates' },
-  fccpc_digital_lenders: { url: 'data/market-intelligence/fccpc_digital_lenders.json', key: 'digital_lenders' },
-  capital_market_instruments: { url: 'data/market-intelligence/capital_market_instruments.json', key: 'capital_market_instruments' },
-  portfolio_mix: { url: 'data/market-intelligence/portfolio_mix.json', key: 'portfolio_mix' },
-  product_snapshots: { url: 'data/market-intelligence/product_snapshots.json', key: 'product_snapshots' },
-};
-let DB = { institutions: [], portfolio_snapshots: [], rating_actions: [], disbursement_metrics: [], industry_aggregates: [], fccpc_digital_lenders: [], capital_market_instruments: [], portfolio_mix: [], product_snapshots: [] };
+const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
 const PREVIEW_SIZE = 8;
+let ALL_INSTITUTIONS = [];
+let STATS = { fccpc_lenders_count: 0, rating_actions_count: 0, capital_market_instruments_count: 0 };
 
 function fmtNumber(n){
   if(n === null || n === undefined) return null;
@@ -277,40 +269,10 @@ function confDot(conf){
   return `<span class="conf-dot conf-${conf}"></span>`;
 }
 
-async function loadAll(){
-  const entries = Object.entries(FILES);
-  const results = await Promise.all(entries.map(([k,{url}]) => fetch(url).then(r => {
-    if(!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
-    return r.json();
-  })));
-  entries.forEach(([k,{key}], i) => { DB[k] = results[i][key] || []; });
-}
-
-function latestSnapshot(instId){
-  const rows = DB.portfolio_snapshots.filter(r => r.institution_id === instId);
-  if(!rows.length) return null;
-  return rows.slice().sort((a,b) => (b.period_end||'').localeCompare(a.period_end||''))[0];
-}
-function latestRating(instId){
-  const rows = DB.rating_actions.filter(r => r.institution_id === instId);
-  if(!rows.length) return null;
-  return rows.slice().sort((a,b) => (b.action_date_estimated||'').localeCompare(a.action_date_estimated||''))[0];
-}
-
-function buildRows(){
-  return DB.institutions.map(inst => {
-    const snap = latestSnapshot(inst.institution_id);
-    const rating = latestRating(inst.institution_id);
-    return {
-      ...inst,
-      _gross_loans: snap ? (snap.gross_loans ?? snap.net_loans ?? null) : null,
-      _gross_loans_unit: snap ? snap.unit : null,
-      _npl: snap ? snap.npl_ratio : null,
-      _rating: rating ? rating.rating : null,
-      _snap: snap,
-      _rating_obj: rating,
-    };
-  });
+async function fetchJSON(path){
+  const r = await fetch(`${API_BASE}${path}`);
+  if(!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
+  return r.json();
 }
 
 // --- Group operating banks under their listed holdco so pairs like
@@ -329,19 +291,19 @@ function buildGroups(rows){
     const children = childrenByParent[r.institution_id] || [];
     const members = [r, ...children];
     members.forEach(m => consumed.add(m.institution_id));
-    const withData = members.find(m => m._gross_loans != null) || members.find(m => m._rating != null) || r;
+    const withData = members.find(m => m.gross_loans != null) || members.find(m => m.rating != null) || r;
     groups.push({
       group_id: r.institution_id,
       member_ids: members.map(m => m.institution_id),
       members,
       display: {
         ...r,
-        _gross_loans: withData._gross_loans,
-        _gross_loans_unit: withData._gross_loans_unit,
-        _npl: withData._npl,
-        _rating: withData._rating,
-        _snap: withData._snap,
-        _rating_obj: withData._rating_obj,
+        gross_loans: withData.gross_loans,
+        gross_loans_unit: withData.gross_loans_unit,
+        npl_ratio: withData.npl_ratio,
+        snapshot_confidence: withData.snapshot_confidence,
+        rating: withData.rating,
+        rating_type: withData.rating_type,
         status: members.some(m => m.status === 'active') ? 'active' : r.status,
         sector_tag: members.some(m => m.sector_tag === 'fintech') ? 'fintech' : r.sector_tag,
       },
@@ -355,9 +317,9 @@ function renderStats(groups){
   const el = document.getElementById('stats-row');
   el.innerHTML = `
     <div class="stat"><div class="num">${groups.length}</div><div class="lbl">Institutions tracked</div></div>
-    <div class="stat"><div class="num">${DB.fccpc_digital_lenders.length}</div><div class="lbl">FCCPC-registered lenders</div></div>
-    <div class="stat"><div class="num">${DB.rating_actions.length}</div><div class="lbl">Rating actions</div></div>
-    <div class="stat"><div class="num">${DB.capital_market_instruments.length}</div><div class="lbl">Bond/CP issuances</div></div>
+    <div class="stat"><div class="num">${STATS.fccpc_lenders_count}</div><div class="lbl">FCCPC-registered lenders</div></div>
+    <div class="stat"><div class="num">${STATS.rating_actions_count}</div><div class="lbl">Rating actions</div></div>
+    <div class="stat"><div class="num">${STATS.capital_market_instruments_count}</div><div class="lbl">Bond/CP issuances</div></div>
   `;
   document.getElementById('preview-total-count').textContent = groups.length;
 }
@@ -376,18 +338,18 @@ function rowHtml(g){
       </td>
       <td><span class="badge badge-type">${escapeHtml((r.type||'').replace(/_/g,' '))}</span></td>
       <td class="dim">${escapeHtml((r.cbn_authorization||'').replace(/_/g,' '))}</td>
-      <td class="num-cell">${r._gross_loans !== null ? confDot(r._snap.confidence) + fmtNumber(r._gross_loans) + ' <span class="dim">' + (r._gross_loans_unit||'').replace('NGN_','NGN ') + '</span>' : '<span class="dim">—</span>'}</td>
-      <td class="num-cell">${r._npl !== null && r._npl !== undefined ? fmtPct(r._npl) : '<span class="dim">—</span>'}</td>
-      <td>${r._rating ? confDot(r._rating_obj.rating_type==='issuer'?'high':'medium') + escapeHtml(r._rating) : '<span class="dim">—</span>'}</td>
-      <td>${r.status === 'active' ? '<span class="badge badge-active">active</span>' : `<span class="badge badge-revoked">${escapeHtml(r.status.replace(/_/g,' '))}</span>`}</td>
+      <td class="num-cell">${r.gross_loans !== null ? confDot(r.snapshot_confidence) + fmtNumber(r.gross_loans) + ' <span class="dim">' + (r.gross_loans_unit||'').replace('NGN_','NGN ') + '</span>' : '<span class="dim">—</span>'}</td>
+      <td class="num-cell">${r.npl_ratio !== null && r.npl_ratio !== undefined ? fmtPct(r.npl_ratio) : '<span class="dim">—</span>'}</td>
+      <td>${r.rating ? confDot(r.rating_type==='issuer'?'high':'medium') + escapeHtml(r.rating) : '<span class="dim">—</span>'}</td>
+      <td>${r.status === 'active' ? '<span class="badge badge-active">active</span>' : `<span class="badge badge-revoked">${escapeHtml((r.status||'').replace(/_/g,' '))}</span>`}</td>
     </tr>
   `;
 }
 
 function renderPreviewTable(groups){
   const ranked = groups
-    .filter(g => g.display._gross_loans !== null)
-    .sort((a,b) => b.display._gross_loans - a.display._gross_loans);
+    .filter(g => g.display.gross_loans !== null)
+    .sort((a,b) => b.display.gross_loans - a.display.gross_loans);
   const preview = ranked.slice(0, PREVIEW_SIZE);
   const tbody = document.getElementById('preview-table-body');
   tbody.innerHTML = preview.map(rowHtml).join('');
@@ -396,17 +358,45 @@ function renderPreviewTable(groups){
   });
 }
 
-function openDetail(groupId){
-  const group = window.ALL_GROUPS.find(g => g.group_id === groupId);
-  if(!group) return;
-  const memberIds = group.member_ids;
-  const primary = DB.institutions.find(i => i.institution_id === groupId);
-  const snaps = DB.portfolio_snapshots.filter(r => memberIds.includes(r.institution_id)).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
-  const ratings = DB.rating_actions.filter(r => memberIds.includes(r.institution_id)).sort((a,b)=>(b.action_date_estimated||'').localeCompare(a.action_date_estimated||''));
-  const disb = DB.disbursement_metrics.filter(r => memberIds.includes(r.institution_id)).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
-  const instNameFor = id => (DB.institutions.find(i => i.institution_id === id) || {}).legal_name || id;
+// Flat rows [{period_end, dimension_value, pct_of_book, ...}] -> one card per period
+function groupMixByPeriod(mixRows){
+  const byPeriod = {};
+  mixRows.forEach(m => { (byPeriod[m.period_end] ||= []).push(m); });
+  return Object.entries(byPeriod)
+    .sort((a,b) => (b[0]||'').localeCompare(a[0]||''))
+    .map(([period_end, entries]) => ({
+      period_end,
+      confidence: entries[0].confidence,
+      notes: entries[0].notes,
+      source_name: entries[0].source_name,
+      source_url: entries[0].source_url,
+      entries: entries.map(e => [e.dimension_value, e.pct_of_book]).sort((a,b) => b[1]-a[1]),
+    }));
+}
 
+async function openDetail(groupId){
   const panel = document.getElementById('detail-panel');
+  panel.innerHTML = '<div class="detail-head"><h2>Loading…</h2></div>';
+  document.getElementById('overlay').classList.add('open');
+
+  let d;
+  try{
+    d = await fetchJSON(`/institutions/${encodeURIComponent(groupId)}/detail`);
+  } catch(err){
+    panel.innerHTML = `<div class="detail-head"><h2>Couldn't load detail</h2><button class="close-btn" id="close-btn">✕</button></div><p class="empty-note">${escapeHtml(err.message)}</p>`;
+    document.getElementById('close-btn').addEventListener('click', closeDetail);
+    return;
+  }
+
+  const primary = d.institution;
+  const memberIds = [primary.institution_id, ...d.subsidiaries.map(s => s.institution_id)];
+  const instNameFor = id => {
+    if(id === primary.institution_id) return primary.legal_name;
+    const sub = d.subsidiaries.find(s => s.institution_id === id);
+    return sub ? sub.legal_name : id;
+  };
+  const mixCards = groupMixByPeriod(d.portfolio_mix);
+
   panel.innerHTML = `
     <div class="detail-head">
       <h2>${escapeHtml(primary.legal_name)}</h2>
@@ -420,121 +410,108 @@ function openDetail(groupId){
       ${primary.headquarters ? ` &nbsp; HQ: ${escapeHtml(primary.headquarters)}` : ''}
       ${primary.website ? ` &nbsp; <a href="${escapeHtml(primary.website)}" target="_blank" rel="noopener" style="color:var(--accent);">website ↗</a>` : ''}
       ${primary.notes ? `<div style="margin-top:10px;">${escapeHtml(primary.notes)}</div>` : ''}
-      ${group.subsidiaries.length ? `<div style="margin-top:10px;">Includes related legal entities: ${group.subsidiaries.map(s => escapeHtml(s.legal_name)).join(', ')} — grouped here because they share a corporate group; portfolio/rating/disbursement data below is pooled across all of them.</div>` : ''}
+      ${d.subsidiaries.length ? `<div style="margin-top:10px;">Includes related legal entities: ${d.subsidiaries.map(s => escapeHtml(s.legal_name)).join(', ')} — grouped here because they share a corporate group; portfolio/rating/disbursement data below is pooled across all of them.</div>` : ''}
     </div>
 
     <div class="detail-block">
       <h3>Portfolio snapshots</h3>
-      ${snaps.length ? snaps.map(s => `
+      ${d.portfolio_snapshots.length ? d.portfolio_snapshots.map(s => `
         <div class="fact-card">
           <div class="fact-top">
-            <span class="fact-figure">${confDot(s.confidence)}${s.gross_loans!=null ? 'Gross loans: '+fmtNumber(s.gross_loans)+' '+s.unit.replace('NGN_','NGN ') : (s.net_loans!=null ? 'Net loans: '+fmtNumber(s.net_loans)+' '+s.unit.replace('NGN_','NGN ') : 'No balance figure')}</span>
+            <span class="fact-figure">${confDot(s.confidence)}${s.gross_loans!=null ? 'Gross loans: '+fmtNumber(s.gross_loans)+' '+(s.unit||'').replace('NGN_','NGN ') : (s.net_loans!=null ? 'Net loans: '+fmtNumber(s.net_loans)+' '+(s.unit||'').replace('NGN_','NGN ') : 'No balance figure')}</span>
             <span class="fact-period mono">${escapeHtml(s.period_end||'')} (${escapeHtml(s.period_type||'')})${memberIds.length>1 ? ' · '+escapeHtml(instNameFor(s.institution_id)) : ''}</span>
           </div>
-          ${s.npl_ratio!=null ? `<div>NPL ratio: <strong>${fmtPct(s.npl_ratio)}</strong>${s.npl_ratio_basis ? ' <span class="dim">('+escapeHtml(s.npl_ratio_basis.replace(/_/g,' '))+')</span>' : ''}</div>` : ''}
-          ${s.npl_coverage_ratio!=null ? `<div>NPL coverage: <strong>${(s.npl_coverage_ratio*100).toFixed(0)}%</strong></div>` : ''}
+          ${s.npl_ratio!=null ? `<div>NPL ratio: <strong>${fmtPct(s.npl_ratio)}</strong></div>` : ''}
+          ${s.npl_coverage!=null ? `<div>NPL coverage: <strong>${(s.npl_coverage*100).toFixed(0)}%</strong></div>` : ''}
           ${s.notes ? `<div class="fact-notes">${escapeHtml(s.notes)}</div>` : ''}
-          <div class="fact-source">${s.source && s.source.source_url ? `<a href="${escapeHtml(s.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(s.source.source_name)} ↗</a>` : `<span class="dim">${escapeHtml((s.source&&s.source.source_name)||'source unlinked')}</span>`}</div>
+          <div class="fact-source">${s.source_url ? `<a href="${escapeHtml(s.source_url)}" target="_blank" rel="noopener">${escapeHtml(s.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(s.source_name||'source unlinked')}</span>`}</div>
         </div>
       `).join('') : '<p class="empty-note">No verified portfolio figures found yet for this institution.</p>'}
     </div>
 
     <div class="detail-block">
       <h3>Rating actions</h3>
-      ${ratings.length ? ratings.map(r => `
+      ${d.rating_actions.length ? d.rating_actions.map(r => `
         <div class="fact-card">
           <div class="fact-top">
             <span class="fact-figure">${escapeHtml(r.agency)}: <strong>${escapeHtml(r.rating)}</strong>${r.outlook ? ' ('+escapeHtml(r.outlook)+')' : ''}</span>
             <span class="fact-period mono">${escapeHtml(r.rating_type||'')}</span>
           </div>
-          <div class="dim" style="font-size:12px;">${r.action_date_estimated ? 'Action ~'+escapeHtml(r.action_date_estimated)+' · ' : ''}${r.rating_expiry ? 'Expires '+escapeHtml(r.rating_expiry) : ''}</div>
+          <div class="dim" style="font-size:12px;">${r.action_date ? 'Action '+(r.action_date_is_estimated?'~':'')+escapeHtml(r.action_date)+' · ' : ''}${r.rating_expiry ? 'Expires '+escapeHtml(r.rating_expiry) : ''}</div>
           ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
-          <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
+          <div class="fact-source">${r.source_url ? `<a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(r.source_name||'source unlinked')}</span>`}</div>
         </div>
       `).join('') : '<p class="empty-note">No public rating action found yet for this institution.</p>'}
     </div>
 
     <div class="detail-block">
       <h3>Sector mix</h3>
-      ${(() => {
-        const mixRows = DB.portfolio_mix.filter(m => memberIds.includes(m.institution_id)).sort((a,b)=>(b.period_end||'').localeCompare(a.period_end||''));
-        if(!mixRows.length) return '<p class="empty-note">No sector/geography breakdown found yet for this institution.</p>';
-        return mixRows.map(m => {
-          const entries = Object.entries(m.sector_mix).sort((a,b)=>b[1]-a[1]);
-          const max = Math.max(...entries.map(e=>e[1]));
-          return `
-            <div class="fact-card">
-              <div class="fact-top">
-                <span class="fact-figure">${confDot(m.confidence)}Sector mix</span>
-                <span class="fact-period mono">${escapeHtml(m.period_end||'')}</span>
-              </div>
-              ${entries.map(([label,val]) => `
-                <div class="bar-row" style="margin-bottom:6px;">
-                  <div class="bar-label" style="width:160px;">${escapeHtml(label)}</div>
-                  <div class="bar-track" style="height:14px;"><div class="bar-fill" style="width:${(val/max*100).toFixed(1)}%; background:var(--c1); height:100%;"></div></div>
-                  <div class="bar-value" style="width:50px;">${fmtPct(val)}</div>
-                </div>
-              `).join('')}
-              ${m.notes ? `<div class="fact-notes">${escapeHtml(m.notes)}</div>` : ''}
-              <div class="fact-source"><a href="${escapeHtml(m.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(m.source.source_name)} ↗</a></div>
+      ${mixCards.length ? mixCards.map(m => {
+        const max = Math.max(...m.entries.map(e=>e[1]));
+        return `
+          <div class="fact-card">
+            <div class="fact-top">
+              <span class="fact-figure">${confDot(m.confidence)}Sector mix</span>
+              <span class="fact-period mono">${escapeHtml(m.period_end||'')}</span>
             </div>
-          `;
-        }).join('');
-      })()}
+            ${m.entries.map(([label,val]) => `
+              <div class="bar-row" style="margin-bottom:6px;">
+                <div class="bar-label" style="width:160px;">${escapeHtml(label)}</div>
+                <div class="bar-track" style="height:14px;"><div class="bar-fill" style="width:${(val/max*100).toFixed(1)}%; background:var(--c1); height:100%;"></div></div>
+                <div class="bar-value" style="width:50px;">${fmtPct(val)}</div>
+              </div>
+            `).join('')}
+            ${m.notes ? `<div class="fact-notes">${escapeHtml(m.notes)}</div>` : ''}
+            <div class="fact-source">${m.source_url ? `<a href="${escapeHtml(m.source_url)}" target="_blank" rel="noopener">${escapeHtml(m.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(m.source_name||'source unlinked')}</span>`}</div>
+          </div>
+        `;
+      }).join('') : '<p class="empty-note">No sector/geography breakdown found yet for this institution.</p>'}
     </div>
 
     <div class="detail-block">
       <h3>Product terms</h3>
-      ${(() => {
-        const prodRows = DB.product_snapshots.filter(p => memberIds.includes(p.institution_id));
-        if(!prodRows.length) return '<p class="empty-note">No live product terms captured yet for this institution.</p>';
-        return prodRows.map(p => `
-          <div class="fact-card">
-            <div class="fact-top">
-              <span class="fact-figure">${confDot(p.confidence)}${p.min_ticket!=null||p.max_ticket!=null ? `${p.ticket_currency||''} ${p.min_ticket!=null?fmtNumber(p.min_ticket):'?'}–${p.max_ticket!=null?fmtNumber(p.max_ticket):'?'}` : 'Ticket size not confirmed'}</span>
-              <span class="fact-period mono">${escapeHtml(p.scrape_date||'')}</span>
-            </div>
-            ${p.min_tenor_days!=null||p.max_tenor_days!=null ? `<div>Tenor: <strong>${p.min_tenor_days??'?'}–${p.max_tenor_days??'?'} days</strong></div>` : ''}
-            ${p.interest_rate_description ? `<div>Rate: <strong>${escapeHtml(p.interest_rate_description)}</strong></div>` : ''}
-            ${p.collateral_required ? `<div>Collateral: <strong>${escapeHtml(p.collateral_required)}</strong></div>` : ''}
-            ${p.eligibility_notes ? `<div class="fact-notes">${escapeHtml(p.eligibility_notes)}</div>` : ''}
-            ${p.notes ? `<div class="fact-notes">${escapeHtml(p.notes)}</div>` : ''}
-            <div class="fact-source"><a href="${escapeHtml(p.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(p.source.source_name)} ↗</a></div>
+      ${d.product_snapshots.length ? d.product_snapshots.map(p => `
+        <div class="fact-card">
+          <div class="fact-top">
+            <span class="fact-figure">${confDot(p.confidence)}${p.min_ticket!=null||p.max_ticket!=null ? `${p.ticket_currency||''} ${p.min_ticket!=null?fmtNumber(p.min_ticket):'?'}–${p.max_ticket!=null?fmtNumber(p.max_ticket):'?'}` : 'Ticket size not confirmed'}</span>
+            <span class="fact-period mono">${escapeHtml(p.scrape_date||'')}</span>
           </div>
-        `).join('');
-      })()}
+          ${p.min_tenor_days!=null||p.max_tenor_days!=null ? `<div>Tenor: <strong>${p.min_tenor_days??'?'}–${p.max_tenor_days??'?'} days</strong></div>` : ''}
+          ${p.interest_rate_description ? `<div>Rate: <strong>${escapeHtml(p.interest_rate_description)}</strong></div>` : ''}
+          ${p.collateral_required ? `<div>Collateral: <strong>${escapeHtml(p.collateral_required)}</strong></div>` : ''}
+          ${p.eligibility_notes ? `<div class="fact-notes">${escapeHtml(p.eligibility_notes)}</div>` : ''}
+          ${p.notes ? `<div class="fact-notes">${escapeHtml(p.notes)}</div>` : ''}
+          <div class="fact-source">${p.source_url ? `<a href="${escapeHtml(p.source_url)}" target="_blank" rel="noopener">${escapeHtml(p.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(p.source_name||'source unlinked')}</span>`}</div>
+        </div>
+      `).join('') : '<p class="empty-note">No live product terms captured yet for this institution.</p>'}
     </div>
 
     <div class="detail-block">
       <h3>Capital market instruments</h3>
-      ${(() => {
-        const cmRows = DB.capital_market_instruments.filter(c => memberIds.includes(c.institution_id)).sort((a,b)=>(b.issue_date||'').localeCompare(a.issue_date||''));
-        if(!cmRows.length) return '<p class="empty-note">No bond/CP issuances found yet for this institution.</p>';
-        return cmRows.map(r => `
-          <div class="fact-card">
-            <div class="fact-top">
-              <span class="fact-figure">${confDot(r.confidence)}${fmtNumber(r.issue_size)} ${(r.unit||'').replace('NGN_','NGN ')} ${escapeHtml(r.instrument_type.replace(/_/g,' '))}</span>
-              <span class="fact-period mono">${escapeHtml(r.issue_date||'')}</span>
-            </div>
-            <div class="dim" style="font-size:12px;">${r.series ? escapeHtml(r.series) : ''}${r.coupon_rate!=null ? ' · '+fmtPct(r.coupon_rate)+' rate' : ''}</div>
-            ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
-            <div class="fact-source"><a href="${escapeHtml(r.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source.source_name)} ↗</a></div>
+      ${d.capital_market_instruments.length ? d.capital_market_instruments.map(r => `
+        <div class="fact-card">
+          <div class="fact-top">
+            <span class="fact-figure">${confDot(r.confidence)}${fmtNumber(r.issue_size)} ${(r.unit||'').replace('NGN_','NGN ')} ${escapeHtml((r.instrument_type||'').replace(/_/g,' '))}</span>
+            <span class="fact-period mono">${escapeHtml(r.issue_date||'')}</span>
           </div>
-        `).join('');
-      })()}
+          <div class="dim" style="font-size:12px;">${r.series ? escapeHtml(r.series) : ''}${r.coupon!=null ? ' · '+fmtPct(r.coupon)+' rate' : ''}</div>
+          ${r.notes ? `<div class="fact-notes">${escapeHtml(r.notes)}</div>` : ''}
+          <div class="fact-source">${r.source_url ? `<a href="${escapeHtml(r.source_url)}" target="_blank" rel="noopener">${escapeHtml(r.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(r.source_name||'source unlinked')}</span>`}</div>
+        </div>
+      `).join('') : '<p class="empty-note">No bond/CP issuances found yet for this institution.</p>'}
     </div>
 
     <div class="detail-block">
       <h3>Disbursement / self-reported metrics</h3>
-      ${disb.length ? disb.map(d => `
+      ${d.disbursement_metrics.length ? d.disbursement_metrics.map(dd => `
         <div class="fact-card">
           <div class="fact-top">
-            <span class="fact-figure">${fmtNumber(d.disbursement_volume)} ${d.unit.replace('NGN_','NGN ')}</span>
-            <span class="fact-period mono">${escapeHtml(d.period_end||'undated')}</span>
+            <span class="fact-figure">${fmtNumber(dd.disbursement_volume)} ${(dd.unit||'').replace('NGN_','NGN ')}</span>
+            <span class="fact-period mono">${escapeHtml(dd.period_end||'undated')}</span>
           </div>
-          <div class="fact-notes">${escapeHtml(d.metric_description||'')} ${d.self_reported ? '<span class="dim">(self-reported, not independently verified)</span>' : ''}</div>
-          ${d.notes ? `<div class="fact-notes">${escapeHtml(d.notes)}</div>` : ''}
-          <div class="fact-source"><a href="${escapeHtml(d.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(d.source.source_name)} ↗</a></div>
+          <div class="fact-notes">${escapeHtml(dd.metric_description||'')} ${dd.self_reported ? '<span class="dim">(self-reported, not independently verified)</span>' : ''}</div>
+          ${dd.notes ? `<div class="fact-notes">${escapeHtml(dd.notes)}</div>` : ''}
+          <div class="fact-source">${dd.source_url ? `<a href="${escapeHtml(dd.source_url)}" target="_blank" rel="noopener">${escapeHtml(dd.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(dd.source_name||'source unlinked')}</span>`}</div>
         </div>
       `).join('') : '<p class="empty-note">No disbursement metrics found yet for this institution.</p>'}
     </div>
@@ -542,13 +519,12 @@ function openDetail(groupId){
     <div class="detail-block" style="margin-bottom:0;">
       <h3>Institution source</h3>
       <div class="fact-card" style="margin-bottom:0;">
-        <div class="fact-source"><a href="${escapeHtml(primary.source.source_url)}" target="_blank" rel="noopener">${escapeHtml(primary.source.source_name)} ↗</a></div>
-        <div class="dim" style="font-size:12px; margin-top:4px;">Retrieved ${escapeHtml(primary.source.retrieved_date)}</div>
+        <div class="fact-source">${primary.source_url ? `<a href="${escapeHtml(primary.source_url)}" target="_blank" rel="noopener">${escapeHtml(primary.source_name)} ↗</a>` : `<span class="dim">${escapeHtml(primary.source_name||'source unlinked')}</span>`}</div>
+        <div class="dim" style="font-size:12px; margin-top:4px;">Retrieved ${escapeHtml(primary.retrieved_date)}</div>
       </div>
     </div>
   `;
   document.getElementById('close-btn').addEventListener('click', closeDetail);
-  document.getElementById('overlay').classList.add('open');
 }
 function closeDetail(){ document.getElementById('overlay').classList.remove('open'); }
 
@@ -564,9 +540,11 @@ navToggle.addEventListener('click', () => {
 
 (async function init(){
   try{
-    await loadAll();
-    const rows = buildRows();
-    window.ALL_GROUPS = buildGroups(rows);
+    [ALL_INSTITUTIONS, STATS] = await Promise.all([
+      fetchJSON('/institutions'),
+      fetchJSON('/institutions/stats'),
+    ]);
+    window.ALL_GROUPS = buildGroups(ALL_INSTITUTIONS);
     renderStats(window.ALL_GROUPS);
     renderPreviewTable(window.ALL_GROUPS);
     document.getElementById('load-state').style.display = 'none';
@@ -575,10 +553,9 @@ navToggle.addEventListener('click', () => {
     document.getElementById('load-state').style.display = 'none';
     const errEl = document.getElementById('load-error');
     errEl.style.display = 'block';
-    errEl.innerHTML = `Couldn't load the database files (${escapeHtml(err.message)}).<br><br>
-      If you opened this file directly (<code>file://</code>), browsers block JSON fetches from local files.
-      Serve it over HTTP instead, e.g. from the repo root run <code>python3 -m http.server</code> and open
-      <code>http://localhost:8000/database.html</code> — or view it once this branch is deployed (GitHub Pages / any static host).`;
+    errEl.innerHTML = `Couldn't reach the Waterline API at <code>${escapeHtml(API_BASE)}</code> (${escapeHtml(err.message)}).<br><br>
+      Make sure the backend is running: <code>cd backend && uvicorn app.main:app --reload</code> —
+      see <code>backend/README.md</code> for the full local setup (Postgres + seed data).`;
   }
 })();
 </script>

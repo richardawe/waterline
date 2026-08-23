@@ -181,7 +181,14 @@ def ingest_loan_tape(
     canonical_rows: list[dict] = []
     for raw_row in rows_raw:
         canonical, events, errors = canonicalize_row(raw_row, mapping.column_to_field)
-        if default_institution_id and not canonical.get("institution_id"):
+        if default_institution_id:
+            # A Deal has exactly one originator — the deal is authoritative over
+            # facility ownership, even when the source file carries its own
+            # institution_id column (e.g. the WCDS sample tapes hardcode
+            # LENDER_A/B/C). Without this override, facilities silently persist
+            # under the file's baked-in code instead of the deal's real
+            # originator, and SPV structuring (which looks up facilities by
+            # deal.originator_institution_id) finds nothing.
             canonical["institution_id"] = default_institution_id
         canonical_rows.append(canonical)
 
