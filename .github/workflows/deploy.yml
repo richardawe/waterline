@@ -79,7 +79,14 @@ jobs:
       - name: Stamp restart trigger
         run: mkdir -p backend/tmp && date -u > backend/tmp/restart.txt
 
+      - name: Refuse to deploy backend without an explicit target directory
+        if: ${{ vars.BACKEND_REMOTE_DIR == '' }}
+        run: |
+          echo "::error::vars.BACKEND_REMOTE_DIR is not set. Skipping the backend FTP upload rather than defaulting to the FTP account's root — that account may be the same one the frontend deploys to, and an unset server-dir would dump backend source (including passenger_wsgi.py, requirements.txt, app/) into the public static site directory. Set BACKEND_REMOTE_DIR once the cPanel Python App's Application Path is known — see DEPLOYMENT.md."
+          exit 1
+
       - name: Deploy backend source via FTP
+        if: ${{ vars.BACKEND_REMOTE_DIR != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
