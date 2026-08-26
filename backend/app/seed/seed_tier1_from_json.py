@@ -26,7 +26,10 @@ from app.models.tier1 import (  # noqa: E402
     RatingAction,
 )
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "market-intelligence"
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+BUNDLED_DATA_DIR = BACKEND_ROOT / "seed_data" / "market-intelligence"
+REPOSITORY_DATA_DIR = BACKEND_ROOT.parent / "data" / "market-intelligence"
+DATA_DIR = BUNDLED_DATA_DIR if BUNDLED_DATA_DIR.exists() else REPOSITORY_DATA_DIR
 
 
 def _load(name: str) -> dict:

@@ -153,6 +153,11 @@ jobs:
               ;;
           esac
 
+      - name: Bundle Tier 1 seed data
+        run: |
+          mkdir -p backend/seed_data
+          cp -R data/market-intelligence backend/seed_data/
+
       - name: Deploy backend source via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:

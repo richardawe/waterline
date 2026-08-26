@@ -131,11 +131,7 @@ copy before uploading; it never commits the generated version back to git.
   not what you'd want at scale.
 - **No automated rollback.** A bad deploy needs a manual `git revert` +
   re-push, or restoring from cPanel's file backups.
-- **`data/market-intelligence/*.json` and `standards/wcds/samples/*.csv` are
-  not duplicated to the backend server** — the backend reads them from its
-  own `backend/../data` and `backend/../standards` at seed/runtime, which
-  only exist if you deploy the whole repo there, not just `backend/`. If
-  `BACKEND_REMOTE_DIR` only contains `backend/`'s contents, run
-  `seed_tier1_from_json.py` with those files uploaded alongside once during
-  initial setup (step 1.5), rather than expecting the deploy workflow to keep
-  them in sync — they don't change often enough to justify wiring that up now.
+- The backend deployment bundles a copy of `data/market-intelligence` for the
+  production seed command. The repository files remain the source of truth.
+  WCDS sample downloads stay with the static frontend and are not required by
+  the production API.
