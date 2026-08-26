@@ -68,10 +68,10 @@ backend.
   requested but the new account hadn't been created/confirmed as of last
   update — check before assuming it's fixed.**
 
-- **`admin.html` intentionally has no Apache Basic Auth.** The extra browser
-  login was removed because it duplicated the backend API login. The page is
-  not linked publicly, and every sensitive API route remains protected by
-  `ADMIN_API_USERNAME`/`ADMIN_API_PASSWORD`.
+- **Private preview access:** `database.html` and `standard.html` are protected
+  by one Apache Basic Auth credential generated during frontend deployment.
+  The public homepage remains open and invites visitors to request access.
+  `admin.html` has no Apache Basic Auth; its own sign-in protects API actions.
 
 - **Backend deploy: intentionally not run yet.** `BACKEND_REMOTE_DIR` is
   unset on purpose — the workflow has a guard

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
 <title>Waterline — WCDS Credit Data Standard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,24 +106,23 @@
 
 <nav>
   <div class="nav-inner">
-    <a href="index.html" class="brand"><span class="brand-dot"></span>Waterline</a>
+    <a href="index.html" class="brand"><span class="brand-mark">W</span>Waterline</a>
     <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <div class="nav-links" id="nav-links">
-      <a href="index.html#investors">Investors</a>
-      <a href="index.html#originators">Lenders</a>
+      <a href="index.html">Overview</a>
       <a href="database.html">Database</a>
       <a href="standard.html" style="color:var(--text);">Data Standard</a>
-      <a href="index.html#contact">Contact</a>
+      <a href="mailto:richard.awe@3d7tech.com">Contact</a>
     </div>
   </div>
 </nav>
 
 <header class="page-head">
   <div class="wrap">
-    <div class="kicker">Step 2 of 3 · Free · Tier 2 Loan-Level Data</div>
-    <h1>Waterline Credit Data Standard <span class="badge-draft">WCDS v0.1 · Working Draft</span></h1>
-    <p class="lede">One canonical, auditable representation of loan and financing data that can be ingested once, validated once, and transformed into whatever CRMS, IFRS 9, credit-bureau, investor, or funding output needs it next. WCDS doesn't replace your core banking system, CBN CRMS, or your accounting standard — it's the interoperability layer that sits between your loan tape and everyone who needs a clean copy of it.</p>
-    <p style="color:var(--text-dim); font-size:13.5px; margin-top:10px;">Already browsed <a href="database.html" style="color:var(--accent);">the market intelligence database</a> (step 1)? This is step 2 — getting your own book into the same canonical shape, at no cost.</p>
+    <div class="kicker">Data readiness</div>
+    <h1>Waterline Credit Data Standard <span class="badge-draft">Private preview</span></h1>
+    <p class="lede">A consistent, auditable representation of loan and financing data. Prepare a loan book once, validate it clearly and reuse it across diligence, reporting and funding processes.</p>
+    <p style="color:var(--text-dim); font-size:13.5px; margin-top:10px;">Designed to work alongside core banking systems, CRMS, credit-bureau reporting and IFRS 9 processes.</p>
     <div class="head-cta">
       <a href="#validator" class="btn btn-primary">See live validation on sample data →</a>
       <a href="#engage" class="btn btn-outline">How to engage with us</a>
@@ -269,10 +269,10 @@
   </section>
 
   <section class="divider" id="validator">
-    <h2>Live validation, on real (synthetic) sample data</h2>
-    <p class="section-note">This isn't a mockup — the sample datasets below are POSTed to the live Waterline API, which runs them through the real WCDS ingestion pipeline (map → canonicalize → validate → reconcile) and returns the actual rule outcomes. Same engine that runs in production, no database write, right now.</p>
+    <h2>Validation demonstration</h2>
+    <p class="section-note">The sample portfolios below are processed by Waterline's validation engine. Results show the same data-quality checks used during a portfolio assessment.</p>
 
-    <div id="validator-loading">Running the sample datasets through the validation API…</div>
+    <div id="validator-loading">Assessing the sample portfolios…</div>
     <div id="validator-app" style="display:none;">
       <div class="lender-tabs" id="lender-tabs"></div>
       <div class="stats-row" id="validator-stats"></div>
@@ -282,7 +282,7 @@
     <details style="margin-top:20px;">
       <summary style="cursor:pointer; color:var(--accent); font-size:13.5px;">Which rules ran, and their outcome</summary>
       <div class="rule-list" id="rule-breakdown" style="margin-top:14px;"></div>
-      <p style="color:var(--text-dim); font-size:12.5px; margin-top:12px;">This is the full 30-rule deterministic rulebook (§8 of the spec) running against a single flat facility file. Rules needing entities beyond that — Collateral, Guarantee, Restructure, Payment, Schedule linkage — report <code>SKIPPED</code> for every row rather than being silently omitted; see <code>app/ingest/validator.py</code>'s module docstring in the backend for exactly which.</p>
+      <p style="color:var(--text-dim); font-size:12.5px; margin-top:12px;">The assessment applies 30 deterministic checks. Checks that require supporting schedules or security records are clearly marked as not assessed when those records are absent.</p>
     </details>
   </section>
 
@@ -295,7 +295,7 @@
       <div class="step"><div class="step-num">03</div><h3>Mapping &amp; standardisation</h3><p>Our tooling proposes a field-by-field mapping from your source system to WCDS. Every transformation rule is named, versioned, and shown to you — nothing is silently reinterpreted.</p></div>
       <div class="step"><div class="step-num">04</div><h3>Validation &amp; reconciliation</h3><p>The full rulebook runs against your whole book. Exceptions come back to you with the exact record, field, and rule that failed — not just a rejected file.</p></div>
       <div class="step"><div class="step-num">05</div><h3>Clean WCDS dataset delivered</h3><p>A versioned, audit-ready canonical loan tape — yours to keep and reuse for CRMS, bureau, or IFRS 9 reporting, independent of anything else you do with us.</p></div>
-      <div class="step"><div class="step-num">06</div><h3>Structuring-ready, if you want it</h3><p>If and when you're ready to raise funding against the book, this is the same dataset that feeds pool structuring and investor diligence — no re-work. See <a href="index.html#originators" style="color:var(--accent);">how structuring works</a> — this is the only step that isn't free.</p></div>
+      <div class="step"><div class="step-num">06</div><h3>Ready for structuring</h3><p>When you are ready to raise funding, the same prepared dataset supports pool construction and investor diligence without starting again.</p></div>
     </div>
   </section>
 
@@ -336,7 +336,7 @@
 <footer>
   <div class="wrap">
     WCDS v0.1 is a working draft, not an official CBN standard — see §18 of the spec for what it deliberately does not claim.
-    <a href="index.html#contact">Talk to us about your loan book →</a>
+    <a href="mailto:richard.awe@3d7tech.com?subject=Waterline%20loan%20book%20assessment">Talk to us about your loan book →</a>
   </div>
 </footer>
 
@@ -432,7 +432,7 @@ function renderValidator(){
     document.getElementById('validator-app').style.display = 'block';
     renderValidator();
   } catch(err){
-    document.getElementById('validator-loading').innerHTML = `Couldn't reach the Waterline API at <code>${escapeHtml(API_BASE)}</code> (${escapeHtml(err.message)}). Make sure the backend is running: <code>cd backend && uvicorn app.main:app --reload</code> — see <code>backend/README.md</code>.`;
+    document.getElementById('validator-loading').textContent = 'The validation demonstration is temporarily unavailable. Please refresh the page or try again shortly.';
   }
 })();
 </script>

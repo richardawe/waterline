@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
 <title>Waterline — Admin Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,28 +115,32 @@
   table.wf-table th{ text-align:right; font-family:var(--font-head); font-size:10px; text-transform:uppercase; color:var(--text-faint); padding:6px 8px; border-bottom:1px solid var(--border-soft); white-space:nowrap; }
   table.wf-table th:first-child, table.wf-table td:first-child{ text-align:left; }
   table.wf-table td{ text-align:right; padding:6px 8px; border-bottom:1px solid var(--border-soft); font-family:var(--font-head); white-space:nowrap; }
+  .login-gate{ position:fixed; inset:0; z-index:200; display:grid; place-items:center; padding:20px; background:rgba(247,248,250,.94); backdrop-filter:blur(10px); }
+  .login-card{ width:min(420px,100%); padding:32px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-xl); box-shadow:var(--shadow-pop); }
+  .login-card .brand{ margin-bottom:30px; }.login-card h1{ font-size:26px; }.login-card>p{ margin:8px 0 24px; color:var(--text-dim); }
+  .login-error{ display:none; margin-top:12px; color:var(--red); font-size:13px; }
 </style>
 </head>
 <body>
 
 <nav>
   <div class="nav-inner">
-    <a href="index.html" class="brand"><span class="brand-dot"></span>Waterline</a>
+    <a href="index.html" class="brand"><span class="brand-mark">W</span>Waterline</a>
     <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <div class="nav-links" id="nav-links">
       <a href="database.html">Database</a>
       <a href="standard.html">Data Standard</a>
-      <a href="admin.html" style="color:var(--text);">Admin</a>
-      <a href="index.html#contact">Contact</a>
+      <a href="admin.html" style="color:var(--text);">Workspace</a>
+      <a href="#" id="sign-out">Sign out</a>
     </div>
   </div>
 </nav>
 
 <header class="page-head">
   <div class="wrap">
-    <div class="kicker">Internal · Not part of the public funnel</div>
-    <h1>Deal &amp; SPV console.</h1>
-    <p>Create deals, ingest loan tapes through the real WCDS pipeline, and structure SPVs — directly against Postgres, no <code class="mono">curl</code> required. Talks to the same API as the rest of the site.</p>
+    <div class="kicker">Deal workspace</div>
+    <h1>Structure and manage transactions.</h1>
+    <p>Create deals, assess loan portfolios and model funding structures from one controlled workspace.</p>
   </div>
 </header>
 
@@ -155,7 +160,7 @@
           <label for="nd-institution">Originator institution ID</label>
           <input id="nd-institution" type="text" placeholder="e.g. LENDER_A or access-bank" list="institution-suggestions" autocomplete="off">
           <datalist id="institution-suggestions"></datalist>
-          <div class="form-note">Free text — an unknown ID is auto-created as a stub institution on save.</div>
+          <div class="form-note">Choose an existing institution or enter a new originator reference.</div>
         </div>
         <div class="field">
           <label for="nd-name">Deal name</label>
@@ -197,7 +202,7 @@
           <div id="tapes-empty" class="empty-row" style="display:none;">No loan tapes uploaded to this deal yet.</div>
 
           <div class="upload-drop">
-            <div style="margin-bottom:8px;">Upload a WCDS loan tape (CSV/XLSX) — runs the full map → canonicalize → validate → reconcile pipeline and persists facilities.</div>
+            <div style="margin-bottom:8px;">Upload a CSV or Excel loan tape for standardisation, validation and reconciliation.</div>
             <input type="file" id="tape-file" accept=".csv,.xlsx">
             <button class="btn btn-primary btn-sm" id="tape-upload-btn" style="margin-left:8px;">Upload &amp; ingest</button>
           </div>
@@ -250,7 +255,7 @@
 
 <footer>
   <div class="wrap">
-    Internal console — reads and writes the live Postgres database via the Waterline API. See <code class="mono">backend/README.md</code> for local setup.
+    Waterline private deal workspace · Authorised access only.
   </div>
 </footer>
 
@@ -267,12 +272,25 @@
   .close-btn:hover{ color:var(--text); border-color:var(--ring); }
 </style>
 
+<div class="login-gate" id="login-gate">
+  <form class="login-card" id="login-form">
+    <div class="brand"><span class="brand-mark">W</span>Waterline</div>
+    <div class="kicker">Private workspace</div>
+    <h1>Sign in</h1>
+    <p>Use your Waterline workspace credentials to continue.</p>
+    <div class="field"><label for="login-username">Username</label><input id="login-username" autocomplete="username" required></div>
+    <div class="field"><label for="login-password">Password</label><input id="login-password" type="password" autocomplete="current-password" required></div>
+    <button class="btn btn-primary" id="login-submit" type="submit" style="width:100%">Continue</button>
+    <div class="login-error" id="login-error">Those credentials were not recognised.</div>
+  </form>
+</div>
+
 <script>
 const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
 let DEALS = [];
 let SELECTED_DEAL_ID = null;
 let SELECTED_DEAL = null;
-let API_AUTH = null;
+let API_AUTH = sessionStorage.getItem('waterline_admin_auth');
 
 function escapeHtml(s){
   if(s === null || s === undefined) return '';
@@ -282,28 +300,21 @@ function fmtNumber(n){ if(n === null || n === undefined) return '—'; return ne
 function fmtPct(n){ if(n === null || n === undefined) return '—'; return (n*100).toFixed(1) + '%'; }
 function fmtDate(s){ if(!s) return '—'; return s.slice(0,10); }
 
-async function api(path, opts = {}, canPrompt = true){
+async function api(path, opts = {}){
   const requestOpts = {...opts, headers: {...(opts.headers || {})}};
   if(API_AUTH) requestOpts.headers.Authorization = `Basic ${API_AUTH}`;
   const r = await fetch(`${API_BASE}${path}`, requestOpts);
-  if(r.status === 401 && canPrompt){
-    const username = window.prompt('Waterline API username');
-    if(username === null) throw new Error('API login cancelled');
-    const password = window.prompt('Waterline API password');
-    if(password === null) throw new Error('API login cancelled');
-    API_AUTH = btoa(`${username}:${password}`);
-    return api(path, opts, false);
-  }
+  if(r.status === 401) throw new Error('AUTH_REQUIRED');
   if(!r.ok){
     let detail = '';
     try{ detail = (await r.json()).detail || ''; }catch(e){}
-    throw new Error(`${opts && opts.method || 'GET'} ${path} → HTTP ${r.status}${detail ? ' — '+detail : ''}`);
+    throw new Error(detail || 'The request could not be completed. Please try again.');
   }
   return r.status === 204 ? null : r.json();
 }
 
 function rawToggleHtml(id, obj){
-  return `<span class="raw-toggle" onclick="document.getElementById('${id}').style.display = document.getElementById('${id}').style.display==='block'?'none':'block';">view raw response</span><pre class="raw-json" id="${id}">${escapeHtml(JSON.stringify(obj, null, 2))}</pre>`;
+  return '';
 }
 
 // ---------- Deals list ----------
@@ -682,17 +693,46 @@ navToggle.addEventListener('click', () => {
   navToggle.setAttribute('aria-expanded', open);
 });
 
+async function enterWorkspace(){
+  await Promise.all([loadDeals(), loadInstitutionSuggestions()]);
+  document.getElementById('login-gate').style.display = 'none';
+  document.getElementById('api-ok').style.display = 'flex';
+  document.getElementById('api-ok-text').textContent = 'Workspace connected';
+}
+
+document.getElementById('login-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = document.getElementById('login-submit');
+  const error = document.getElementById('login-error');
+  button.disabled = true; button.textContent = 'Signing in…'; error.style.display = 'none';
+  API_AUTH = btoa(`${document.getElementById('login-username').value}:${document.getElementById('login-password').value}`);
+  try{
+    await enterWorkspace();
+    sessionStorage.setItem('waterline_admin_auth', API_AUTH);
+    document.getElementById('login-password').value = '';
+  }catch(e){
+    API_AUTH = null; sessionStorage.removeItem('waterline_admin_auth'); error.style.display = 'block';
+  }finally{
+    button.disabled = false; button.textContent = 'Continue';
+  }
+});
+
+document.getElementById('sign-out').addEventListener('click', event => {
+  event.preventDefault(); sessionStorage.removeItem('waterline_admin_auth'); API_AUTH = null; location.reload();
+});
+
 (async function init(){
   try{
     await api('/health');
-    document.getElementById('api-ok').style.display = 'flex';
-    document.getElementById('api-ok-text').textContent = `Connected to ${API_BASE}`;
-    await Promise.all([loadDeals(), loadInstitutionSuggestions()]);
+    if(API_AUTH) await enterWorkspace();
   }catch(e){
+    if(e.message === 'AUTH_REQUIRED'){
+      API_AUTH = null; sessionStorage.removeItem('waterline_admin_auth');
+      return;
+    }
     const banner = document.getElementById('api-banner');
     banner.style.display = 'block';
-    banner.innerHTML = `Couldn't reach the Waterline API at <code>${escapeHtml(API_BASE)}</code> (${escapeHtml(e.message)}).<br><br>
-      Start the backend: <code>cd backend && uvicorn app.main:app --reload</code> — see <code>backend/README.md</code>.`;
+    banner.textContent = 'The workspace is temporarily unavailable. Please refresh the page or try again shortly.';
   }
 })();
 </script>

@@ -1,0 +1,12 @@
+# Generated during deployment. Keep the public homepage open while protecting
+# the private research preview. The admin workspace uses its own sign-in.
+<FilesMatch "^(database|standard)\.html$">
+  AuthType Basic
+  AuthName "Waterline Private Preview"
+  AuthUserFile __HTPASSWD_ABS_PATH__
+  Require valid-user
+</FilesMatch>
+
+<Files ".htpasswd">
+  Require all denied
+</Files>

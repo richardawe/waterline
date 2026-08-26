@@ -81,6 +81,20 @@ jobs:
             > assets/config.js
           cat assets/config.js
 
+      - name: Render private preview access
+        run: |
+          HTPASSWD_PATH="${{ vars.CPANEL_HTPASSWD_ABS_PATH }}"
+          PREVIEW_USER="${{ secrets.PREVIEW_BASIC_AUTH_USER }}"
+          PREVIEW_PASS="${{ secrets.PREVIEW_BASIC_AUTH_PASSWORD }}"
+          if [ -z "$PREVIEW_USER" ]; then PREVIEW_USER="${{ secrets.ADMIN_BASIC_AUTH_USER }}"; fi
+          if [ -z "$PREVIEW_PASS" ]; then PREVIEW_PASS="${{ secrets.ADMIN_BASIC_AUTH_PASSWORD }}"; fi
+          if [ -z "$HTPASSWD_PATH" ] || [ -z "$PREVIEW_USER" ] || [ -z "$PREVIEW_PASS" ]; then
+            echo "::error::Private preview credentials and CPANEL_HTPASSWD_ABS_PATH are required."
+            exit 1
+          fi
+          sed "s#__HTPASSWD_ABS_PATH__#${HTPASSWD_PATH}#" deploy/.htaccess.preview.template > .htaccess
+          printf '%s:%s\n' "$PREVIEW_USER" "$(openssl passwd -apr1 "$PREVIEW_PASS")" > .htpasswd
+
       - name: Deploy static site via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -103,7 +117,7 @@ jobs:
 
       - name: Clean up generated secrets from the runner
         if: always()
-        run: rm -f assets/config.js
+        run: rm -f .htaccess .htpasswd assets/config.js
 
   deploy-backend:
     needs: test-backend

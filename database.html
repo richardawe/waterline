@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
 <title>Waterline — Market Intelligence Database</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -141,30 +142,29 @@
 
 <nav>
   <div class="nav-inner">
-    <a href="index.html" class="brand"><span class="brand-dot"></span>Waterline</a>
+    <a href="index.html" class="brand"><span class="brand-mark">W</span>Waterline</a>
     <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <div class="nav-links" id="nav-links">
-      <a href="index.html#investors">Investors</a>
-      <a href="index.html#originators">Lenders</a>
+      <a href="index.html">Overview</a>
       <a href="database.html" style="color:var(--text);">Database</a>
       <a href="standard.html">Data Standard</a>
-      <a href="index.html#contact">Contact</a>
+      <a href="mailto:richard.awe@3d7tech.com">Contact</a>
     </div>
   </div>
 </nav>
 
 <header class="page-head">
   <div class="wrap">
-    <div class="kicker">Step 1 of 3 · Free · Tier 1 Market Intelligence</div>
-    <h1>Nigerian lender loan-book database.</h1>
-    <p>Institution and portfolio-level data pulled from annual reports, NGX/CBN filings, rating agency summaries, and press releases — every figure carries a source link and a confidence rating. This is not loan-level data (that comes from originators directly, under NDA, once a deal starts) — see the <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md" style="color:var(--accent);">build plan</a> for the full picture.</p>
+    <div class="kicker">Market intelligence</div>
+    <h1>Nigerian lender intelligence.</h1>
+    <p>Comparable institution, portfolio, ratings and capital-markets information assembled from public disclosures. Every figure includes its source and confidence assessment.</p>
   </div>
 </header>
 
 <div class="wrap">
   <div class="cta-banner">
-    <div class="cta-text"><strong>Is your institution one of the ones below?</strong><span>Get your own loan book mapped to WCDS and validated — free, no commitment.</span></div>
-    <a href="standard.html" class="btn btn-primary" style="flex-shrink:0;">See the data standard →</a>
+    <div class="cta-text"><strong>Private preview</strong><span>This research workspace is available to approved Waterline partners.</span></div>
+    <a href="standard.html" class="btn btn-primary" style="flex-shrink:0;">Explore data readiness</a>
   </div>
   <div id="load-error"></div>
   <div id="load-state">Loading database…</div>
@@ -188,50 +188,7 @@
         <tbody id="preview-table-body"></tbody>
       </table>
     </div>
-    <div class="preview-note">Click a row for the full source-cited detail — ratings, filings, capital markets activity. Ranked by disclosed gross loans — the full table (<span id="preview-total-count">60+</span> tracked institutions) is behind the request below.</div>
-
-    <div class="gate-card">
-      <h2>That's a preview. There's a lot more behind it.</h2>
-      <p>The full database is free — we just ask who's asking, so we know who to follow up with.</p>
-      <ul class="gate-list">
-        <li><strong>The complete institution table</strong> — every tracked lender, searchable and filterable by type, status, and fintech tag</li>
-        <li><strong>5-year trend charts</strong> — industry-wide NPL ratio and per-institution loan-book growth</li>
-        <li><strong>The full FCCPC digital-lender registry</strong> — all 559 approved lending apps, searchable</li>
-        <li><strong>Capital markets activity</strong> — real bond/CP issuances with sponsor, rate, and use-of-proceeds detail</li>
-        <li><strong>Sector &amp; geography breakdowns</strong> where disclosed, per institution</li>
-        <li><strong>Full rating history</strong> and source citations for every figure in the database</li>
-      </ul>
-
-      <div class="access-form">
-        <h3>Request full access</h3>
-        <form id="access-request-form" onsubmit="event.preventDefault(); document.getElementById('access-request-form').style.display='none'; document.getElementById('access-submitted').style.display='block';">
-          <div class="field">
-            <label for="acc-name">Name</label>
-            <input id="acc-name" type="text" placeholder="Your name" required>
-          </div>
-          <div class="field">
-            <label for="acc-org">Organization</label>
-            <input id="acc-org" type="text" placeholder="Company or fund name" required>
-          </div>
-          <div class="field">
-            <label for="acc-email">Email</label>
-            <input id="acc-email" type="email" placeholder="you@organization.com" required>
-          </div>
-          <div class="field">
-            <label for="acc-role">I am a</label>
-            <select id="acc-role">
-              <option>DFI / institutional investor</option>
-              <option>Bank, MFB, or fintech lender</option>
-              <option>Leasing / asset finance company</option>
-              <option>Researcher / journalist</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; border:none;">Request full access →</button>
-        </form>
-        <p class="access-submitted" id="access-submitted">Thanks — we'll follow up by email shortly with access.</p>
-      </div>
-    </div>
+    <div class="preview-note">Select an institution to review its disclosed portfolio, ratings and capital-markets history. <span id="preview-total-count">60+</span> institutions are currently tracked.</div>
   </div>
 </div>
 
@@ -241,14 +198,13 @@
 
 <footer>
   <div class="wrap">
-    Every figure above carries a source citation, visible when you open an institution's detail view ·
-    <a href="https://github.com/richardawe/waterline/blob/main/docs/loan-database-plan.md">how this database is built</a>
+    Waterline market intelligence · Sources are shown within each institution record.
   </div>
 </footer>
 
 <script>
 const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
-const PREVIEW_SIZE = 8;
+const PREVIEW_SIZE = 1000;
 let ALL_INSTITUTIONS = [];
 let STATS = { fccpc_lenders_count: 0, rating_actions_count: 0, capital_market_instruments_count: 0 };
 
@@ -553,9 +509,7 @@ navToggle.addEventListener('click', () => {
     document.getElementById('load-state').style.display = 'none';
     const errEl = document.getElementById('load-error');
     errEl.style.display = 'block';
-    errEl.innerHTML = `Couldn't reach the Waterline API at <code>${escapeHtml(API_BASE)}</code> (${escapeHtml(err.message)}).<br><br>
-      Make sure the backend is running: <code>cd backend && uvicorn app.main:app --reload</code> —
-      see <code>backend/README.md</code> for the full local setup (Postgres + seed data).`;
+    errEl.textContent = 'Market intelligence is temporarily unavailable. Please refresh the page or try again shortly.';
   }
 })();
 </script>
