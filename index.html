@@ -22,7 +22,7 @@
   section{padding:84px 0}.section-head{max-width:650px;margin-bottom:38px}.section-head h2{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.section-head p{margin-top:14px;color:var(--text-dim);font-size:16px}
   .three-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.product-card{padding:25px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card)}.product-card .num{margin-bottom:30px;color:var(--accent);font:600 12px var(--font-mono)}.product-card h3{font-size:18px}.product-card p{margin-top:9px;color:var(--text-dim);font-size:14px}
   .flow{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}.flow-item{padding:24px;border-right:1px solid var(--border)}.flow-item:last-child{border:0}.flow-item span{display:block;margin-bottom:16px;color:var(--text-faint);font:600 11px var(--font-mono)}.flow-item strong{display:block;color:var(--navy)}.flow-item p{margin-top:6px;color:var(--text-dim);font-size:13px}
-  .access-panel{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;padding:42px;border:1px solid #b8cdf9;border-radius:var(--r-xl);background:#edf3ff}.access-panel h2{font-size:clamp(27px,3.5vw,40px)}.access-panel p{max-width:650px;margin-top:12px;color:var(--text-dim)}
+  .access-panel{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;padding:42px;border:1px solid #b8cdf9;border-radius:var(--r-xl);background:#edf3ff}.access-panel h2{font-size:clamp(27px,3.5vw,40px)}.access-panel p{max-width:650px;margin-top:12px;color:var(--text-dim)}.access-actions{display:flex;flex-direction:column;gap:10px;min-width:190px}.access-email{margin-top:12px!important;font-size:13px}.access-email a{color:var(--accent);font-weight:600;text-decoration:none}
   .footer-row{display:flex;justify-content:space-between;gap:20px;align-items:center}.footer-row a{color:var(--text-dim);text-decoration:none}
   .reveal{opacity:0;transform:translateY(10px);transition:opacity .45s ease,transform .45s ease}.reveal.visible{opacity:1;transform:none}
   @media(max-width:850px){.hero-grid{grid-template-columns:1fr;gap:48px}.three-grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr 1fr}.flow-item:nth-child(2){border-right:0}.flow-item{border-bottom:1px solid var(--border)}.access-panel{grid-template-columns:1fr}}
@@ -30,7 +30,7 @@
 </style>
 </head>
 <body>
-<nav><div class="nav-inner"><a class="brand" href="index.html"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="#platform">Platform</a><a href="#process">How it works</a><a href="#access">Access</a></div></div></nav>
+<nav><div class="nav-inner"><a class="brand" href="/"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="#platform">Platform</a><a href="#process">How it works</a><a href="#access">Request access</a><a href="/database.html">Enter preview</a></div></div></nav>
 
 <main>
   <section class="hero">
@@ -39,7 +39,7 @@
         <div class="stealth"><span class="status-dot"></span>Private preview · Operating in stealth</div>
         <h1>Turn performing loans into dependable funding.</h1>
         <p class="hero-copy">Waterline gives Nigerian lenders the data infrastructure, market intelligence and deal execution needed to access institutional capital—without giving up equity.</p>
-        <div class="cta-row"><a class="btn btn-primary" href="mailto:richard.awe@3d7tech.com?subject=Waterline%20access%20request&amp;body=Hello%20Richard%2C%0A%0AI%20would%20like%20access%20to%20the%20Waterline%20private%20preview.%0A%0AName%3A%0AOrganisation%3A%0ARole%3A%0A">Request private access</a><a class="btn btn-outline" href="#platform">See what we are building</a></div>
+        <div class="cta-row"><a class="btn btn-primary" href="mailto:richard.awe@3d7tech.com?subject=Waterline%20private%20access%20request">Request private access</a><a class="btn btn-outline" href="/database.html">Enter with credentials</a></div>
         <p class="small-note">Access is currently issued directly to approved lenders, investors and partners.</p>
       </div>
       <div class="product-frame reveal" aria-label="Waterline product preview">
@@ -52,7 +52,7 @@
 
   <section id="process" style="padding-top:20px"><div class="wrap"><div class="section-head reveal"><div class="kicker">How it works</div><h2>Built for disciplined execution.</h2></div><div class="flow reveal"><div class="flow-item"><span>01</span><strong>Assess</strong><p>Review the lender, portfolio and funding objective.</p></div><div class="flow-item"><span>02</span><strong>Standardise</strong><p>Map and validate the loan book against a clear data model.</p></div><div class="flow-item"><span>03</span><strong>Structure</strong><p>Define the eligible pool, protections and payment priorities.</p></div><div class="flow-item"><span>04</span><strong>Operate</strong><p>Support closing, monitoring and investor reporting.</p></div></div></div></section>
 
-  <section id="access"><div class="wrap"><div class="access-panel reveal"><div><div class="kicker">Private access</div><h2>Waterline is currently in stealth.</h2><p>We are working privately with a small group of Nigerian lenders, institutional investors and transaction partners. Request access and we will respond with preview credentials if there is a fit.</p></div><a class="btn btn-primary" href="mailto:richard.awe@3d7tech.com?subject=Waterline%20access%20request&amp;body=Hello%20Richard%2C%0A%0AI%20would%20like%20access%20to%20the%20Waterline%20private%20preview.%0A%0AName%3A%0AOrganisation%3A%0ARole%3A%0A">Email Richard</a></div></div></section>
+  <section id="access"><div class="wrap"><div class="access-panel reveal"><div><div class="kicker">Private access</div><h2>Waterline is currently in stealth.</h2><p>We are working privately with a small group of Nigerian lenders, institutional investors and transaction partners. Request access and we will respond with preview credentials if there is a fit.</p><p class="access-email">Email: <a href="mailto:richard.awe@3d7tech.com?subject=Waterline%20private%20access%20request">richard.awe@3d7tech.com</a></p></div><div class="access-actions"><a class="btn btn-primary" href="mailto:richard.awe@3d7tech.com?subject=Waterline%20private%20access%20request">Request access</a><a class="btn btn-outline" href="/database.html">Enter private preview</a></div></div></div></section>
 </main>
 
 <footer><div class="wrap footer-row"><span>© 2026 Waterline. Lagos, Nigeria.</span><a href="mailto:richard.awe@3d7tech.com">richard.awe@3d7tech.com</a></div></footer>

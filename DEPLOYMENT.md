@@ -104,6 +104,10 @@ dependencies or an old database schema:
   then FTPs everything except `backend/`, `.github/`, `deploy/`, `docs/`,
   `data/` to `FRONTEND_REMOTE_DIR`. The public homepage remains open.
   `admin.html` uses its own workspace sign-in backed by the protected API.
+
+Approved users open `https://waterline.ng/database.html` and enter the preview
+credentials. The same browser session then opens `standard.html` without a
+second prompt because both pages share one authentication realm.
 - **Backend job**: stays skipped while `ENABLE_BACKEND_DEPLOY=false`.
   `bootstrap` uploads source only for the first manual server setup. `true`
   requires the server automation settings, then rejects a missing or malformed
