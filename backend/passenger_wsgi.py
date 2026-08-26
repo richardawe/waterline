@@ -7,10 +7,20 @@ process. See ../DEPLOYMENT.md for the one-time cPanel setup this depends on
 (app root, Python version, environment variables, first `pip install`).
 """
 
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+APP_ROOT = Path(__file__).resolve().parent
+VENV_PYTHON = str(APP_ROOT / ".venv" / "bin" / "python")
+
+# cPanel's Application Manager may start Python apps with the server default
+# interpreter and does not permit PassengerPython in per-site .htaccess files.
+# Re-exec through this app's venv before importing dependencies.
+if sys.executable != VENV_PYTHON and Path(VENV_PYTHON).is_file():
+    os.execl(VENV_PYTHON, VENV_PYTHON, *sys.argv)
+
+sys.path.insert(0, str(APP_ROOT))
 
 from a2wsgi import ASGIMiddleware  # noqa: E402
 
