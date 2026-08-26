@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://waterline:waterline@localhost:5432/waterline"
     environment: str = "development"
     api_cors_origins: str = "http://localhost:5500,http://localhost:8000"
+    admin_api_username: str | None = None
+    admin_api_password: str | None = None
 
     @property
     def cors_origins(self) -> list[str]:

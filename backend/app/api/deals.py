@@ -5,8 +5,13 @@ from app.db import get_db
 from app.models.deal import Deal
 from app.models.tier1 import Institution
 from app.schemas import DealCreate
+from app.security import require_admin
 
-router = APIRouter(prefix="/deals", tags=["deals"])
+router = APIRouter(
+    prefix="/deals",
+    tags=["deals"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _to_dict(d: Deal) -> dict:

@@ -272,6 +272,7 @@ const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
 let DEALS = [];
 let SELECTED_DEAL_ID = null;
 let SELECTED_DEAL = null;
+let API_AUTH = null;
 
 function escapeHtml(s){
   if(s === null || s === undefined) return '';
@@ -281,8 +282,18 @@ function fmtNumber(n){ if(n === null || n === undefined) return '—'; return ne
 function fmtPct(n){ if(n === null || n === undefined) return '—'; return (n*100).toFixed(1) + '%'; }
 function fmtDate(s){ if(!s) return '—'; return s.slice(0,10); }
 
-async function api(path, opts){
-  const r = await fetch(`${API_BASE}${path}`, opts);
+async function api(path, opts = {}, canPrompt = true){
+  const requestOpts = {...opts, headers: {...(opts.headers || {})}};
+  if(API_AUTH) requestOpts.headers.Authorization = `Basic ${API_AUTH}`;
+  const r = await fetch(`${API_BASE}${path}`, requestOpts);
+  if(r.status === 401 && canPrompt){
+    const username = window.prompt('Waterline API username');
+    if(username === null) throw new Error('API login cancelled');
+    const password = window.prompt('Waterline API password');
+    if(password === null) throw new Error('API login cancelled');
+    API_AUTH = btoa(`${username}:${password}`);
+    return api(path, opts, false);
+  }
   if(!r.ok){
     let detail = '';
     try{ detail = (await r.json()).detail || ''; }catch(e){}

@@ -8,11 +8,12 @@ from app.db import get_db
 from app.models.deal import SPV, Deal, PoolFacility, Tranche, WaterfallPeriod, WaterfallRun
 from app.models.wcds import Facility, FacilityParty, FacilitySnapshot
 from app.schemas import SPVStructureRequest
+from app.security import require_admin
 from app.spv.eligibility import EligibilityCriteria, FacilityCandidate, screen_pool
 from app.spv.sizing import SizingAssumptions, size_pool
 from app.spv.waterfall import WaterfallAssumptions, run_waterfall
 
-router = APIRouter(tags=["spv"])
+router = APIRouter(tags=["spv"], dependencies=[Depends(require_admin)])
 
 
 def _load_candidates(db: Session, institution_id: str, loan_tape_snapshot_id: str | None) -> list[FacilityCandidate]:

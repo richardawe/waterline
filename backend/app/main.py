@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(institutions.router)
 app.include_router(deals.router)
 app.include_router(loan_tapes.router)
+app.include_router(loan_tapes.private_router)
 app.include_router(spv.router)
 
 

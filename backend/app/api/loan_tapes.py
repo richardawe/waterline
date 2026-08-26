@@ -14,8 +14,13 @@ from app.ingest.validator import validate_dataset
 from app.models.deal import Deal, LoanTapeSnapshot
 from app.models.tier1 import Institution
 from app.models.wcds import Reconciliation, ValidationResult
+from app.security import require_admin
 
 router = APIRouter(tags=["loan-tapes"])
+private_router = APIRouter(
+    tags=["loan-tapes"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("/validate")
@@ -97,7 +102,7 @@ def _tape_to_dict(t: LoanTapeSnapshot) -> dict:
     }
 
 
-@router.post("/deals/{deal_id}/loan-tapes", status_code=201)
+@private_router.post("/deals/{deal_id}/loan-tapes", status_code=201)
 async def upload_loan_tape(
     deal_id: str,
     file: UploadFile,
@@ -153,7 +158,7 @@ async def upload_loan_tape(
     }
 
 
-@router.get("/deals/{deal_id}/loan-tapes")
+@private_router.get("/deals/{deal_id}/loan-tapes")
 def list_loan_tapes(deal_id: str, db: Session = Depends(get_db)):
     deal = db.get(Deal, deal_id)
     if deal is None:
@@ -167,7 +172,7 @@ def list_loan_tapes(deal_id: str, db: Session = Depends(get_db)):
     return [_tape_to_dict(t) for t in tapes]
 
 
-@router.get("/loan-tapes/{tape_id}")
+@private_router.get("/loan-tapes/{tape_id}")
 def get_loan_tape(tape_id: str, db: Session = Depends(get_db)):
     tape = db.get(LoanTapeSnapshot, tape_id)
     if tape is None:
@@ -175,7 +180,7 @@ def get_loan_tape(tape_id: str, db: Session = Depends(get_db)):
     return _tape_to_dict(tape)
 
 
-@router.get("/loan-tapes/{tape_id}/validation-results")
+@private_router.get("/loan-tapes/{tape_id}/validation-results")
 def get_validation_results(tape_id: str, status: str | None = "FAIL", db: Session = Depends(get_db)):
     q = db.query(ValidationResult).filter(ValidationResult.loan_tape_snapshot_id == tape_id)
     if status:
@@ -194,7 +199,7 @@ def get_validation_results(tape_id: str, status: str | None = "FAIL", db: Sessio
     ]
 
 
-@router.get("/loan-tapes/{tape_id}/reconciliation")
+@private_router.get("/loan-tapes/{tape_id}/reconciliation")
 def get_reconciliation(tape_id: str, db: Session = Depends(get_db)):
     rows = db.query(Reconciliation).filter(Reconciliation.loan_tape_snapshot_id == tape_id).all()
     return [
