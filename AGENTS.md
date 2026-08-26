@@ -68,15 +68,10 @@ backend.
   requested but the new account hadn't been created/confirmed as of last
   update — check before assuming it's fixed.**
 
-- **⚠️ SECURITY: `admin.html` was manually copied to `public_html` without
-  its `.htaccess`/`.htpasswd`**, so as of last update it's live at
-  `https://waterline.ng/admin.html` with **no password**, able to write to
-  production (create deals, upload loan tapes, structure SPVs). Verify this
-  is fixed before doing anything else — either copy those two hidden files
-  over manually, or wait for the FTP-account fix above and let the pipeline
-  redeploy `public_html` properly (which generates them correctly). Check
-  with: `curl -sI https://waterline.ng/admin.html` — must be `401`, not
-  `200`.
+- **`admin.html` intentionally has no Apache Basic Auth.** The extra browser
+  login was removed because it duplicated the backend API login. The page is
+  not linked publicly, and every sensitive API route remains protected by
+  `ADMIN_API_USERNAME`/`ADMIN_API_PASSWORD`.
 
 - **Backend deploy: intentionally not run yet.** `BACKEND_REMOTE_DIR` is
   unset on purpose — the workflow has a guard
@@ -143,10 +138,8 @@ backend.
   would break re-seeding, not clean anything up.
 - **`admin.html` is deliberately not linked from the public nav** on
   `index.html`/`database.html`/`standard.html`. It's reachable only by
-  direct URL (`/admin.html`), gated by HTTP Basic Auth in production
-  (`.htaccess`/`.htpasswd`, generated per-deploy from
-  `deploy/.htaccess.template` + GitHub secrets `ADMIN_BASIC_AUTH_USER`/
-  `ADMIN_BASIC_AUTH_PASSWORD`). Don't add public nav links to it.
+  direct URL (`/admin.html`). Its sensitive operations are gated by backend
+  API authentication. Don't add public nav links to it.
 - **Frontend and backend deploy as two independent FTP targets on purpose**,
   even though right now they'd resolve to the same account/root if
   misconfigured (see the guard above). This split exists because cPanel's

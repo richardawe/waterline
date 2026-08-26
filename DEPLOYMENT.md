@@ -66,8 +66,6 @@ Settings → Secrets and variables → Actions. **Secrets** (sensitive):
 | `FRONTEND_FTP_PASSWORD` | Password for the frontend-only FTP account |
 | `BACKEND_FTP_USERNAME` | FTP account jailed to the Python application root |
 | `BACKEND_FTP_PASSWORD` | Password for the backend-only FTP account |
-| `ADMIN_BASIC_AUTH_USER` | Username required to open `admin.html` in production |
-| `ADMIN_BASIC_AUTH_PASSWORD` | Password required to open `admin.html` — pick something real, this page can write to your production database |
 
 **Variables** (not sensitive, visible in workflow logs):
 
@@ -77,7 +75,6 @@ Settings → Secrets and variables → Actions. **Secrets** (sensitive):
 | `FRONTEND_REMOTE_DIR` | Path inside the frontend FTP account | `/` |
 | `BACKEND_REMOTE_DIR` | Path inside the backend FTP account | `/` |
 | `ENABLE_BACKEND_DEPLOY` | `false` skips backend; `bootstrap` uploads source only; `true` also builds, migrates, and restarts over SSH | `false` |
-| `CPANEL_HTPASSWD_ABS_PATH` | Absolute server filesystem path to `.htpasswd` (Apache requires an absolute path, not a URL) — put it next to where it's uploaded | `/home/youruser/public_html/.htpasswd` |
 
 **Required before setting `ENABLE_BACKEND_DEPLOY=true`.** These settings run
 the build, migrations, and restart on the cPanel server. The workflow will not
@@ -99,13 +96,11 @@ dependencies or an old database schema:
   the backend on Python 3.11, applies every Alembic migration, and runs all
   tests. No deployment runs if this fails.
 - **Frontend job**: first rejects a missing or malformed remote directory,
-  generates `assets/config.js` from `PROD_API_BASE`,
-  renders `.htaccess`/`.htpasswd` from `ADMIN_BASIC_AUTH_*` to
-  password-protect `admin.html`, then FTPs everything except `backend/`,
-  `.github/`, `deploy/`, `docs/`, `data/` to `FRONTEND_REMOTE_DIR`. Both the
-  API-URL and admin-password steps **fail the deploy** if their
-  secrets/variables are missing, rather than silently shipping a broken or
-  unprotected page.
+  generates `assets/config.js` from `PROD_API_BASE`, then FTPs everything
+  except `backend/`, `.github/`, `deploy/`, `docs/`, `data/` to
+  `FRONTEND_REMOTE_DIR`. The API-URL step **fails the deploy** if its variable
+  is missing. `admin.html` is public, but every sensitive API operation still
+  requires the backend admin credentials.
 - **Backend job**: stays skipped while `ENABLE_BACKEND_DEPLOY=false`.
   `bootstrap` uploads source only for the first manual server setup. `true`
   requires the server automation settings, then rejects a missing or malformed
