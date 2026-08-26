@@ -14,17 +14,13 @@ below are one-time manual setup, done once before the first deploy.
 
 ## 1. One-time cPanel setup (manual, do this first)
 
-1. **Postgres database.** You said Postgres is already available on this
-   cPanel account. Create a database + user for this app if you haven't, and
-   note the connection details. **Check whether `CREATE EXTENSION vector;`
-   works on it** — run that one command via phpPgAdmin or `psql` before
-   relying on it. If it fails, the `document_embedding` table
-   (`app/models/embedding.py`) won't work; nothing else in the app depends on
-   pgvector, so this is only a blocker if/when semantic search gets built.
+1. **Postgres database.** Create a database and a dedicated user with full
+   rights to that database. PostgreSQL must be reachable from the Python app
+   as `localhost`. pgvector is not required for this release; the unused
+   embedding table will be added later if the host enables the extension.
 2. **Setup Python App** (cPanel → Software → Setup Python App):
    - App root: an empty directory *outside* `public_html`, e.g.
-     `/home/youruser/waterline_backend` — this is what `BACKEND_REMOTE_DIR`
-     (below) must point to.
+     `/home/youruser/waterline_backend`.
    - Python version: 3.11+.
    - Application startup file: `passenger_wsgi.py` (already committed in
      `backend/`).
@@ -49,13 +45,27 @@ below are one-time manual setup, done once before the first deploy.
 
 ## 2. GitHub repo configuration
 
+Create two narrowly scoped FTP accounts in cPanel before adding the GitHub
+secrets:
+
+- Frontend account directory: the real domain document root, normally
+  `public_html`.
+- Backend account directory: the Python application's app root, normally
+  `waterline_backend`.
+
+Do not reuse an account rooted at the cPanel home directory. With scoped
+accounts, both remote directories below are `/`; FTP cannot escape into the
+other application folder.
+
 Settings → Secrets and variables → Actions. **Secrets** (sensitive):
 
 | Name | What |
 |---|---|
 | `FTP_SERVER` | Your cPanel FTP hostname |
-| `FTP_USERNAME` | FTP account username |
-| `FTP_PASSWORD` | FTP account password |
+| `FRONTEND_FTP_USERNAME` | FTP account jailed to the real frontend document root |
+| `FRONTEND_FTP_PASSWORD` | Password for the frontend-only FTP account |
+| `BACKEND_FTP_USERNAME` | FTP account jailed to the Python application root |
+| `BACKEND_FTP_PASSWORD` | Password for the backend-only FTP account |
 | `ADMIN_BASIC_AUTH_USER` | Username required to open `admin.html` in production |
 | `ADMIN_BASIC_AUTH_PASSWORD` | Password required to open `admin.html` — pick something real, this page can write to your production database |
 
@@ -64,39 +74,48 @@ Settings → Secrets and variables → Actions. **Secrets** (sensitive):
 | Name | What | Example |
 |---|---|---|
 | `PROD_API_BASE` | Where the frontend sends API calls — becomes `window.WATERLINE_API_BASE` at deploy time | `https://api.yourdomain.com` |
-| `FRONTEND_REMOTE_DIR` | FTP path the static site deploys to | `/public_html/` |
-| `BACKEND_REMOTE_DIR` | FTP path the backend deploys to — **must match the Python App's App root from step 1.2** | `/waterline_backend/` |
+| `FRONTEND_REMOTE_DIR` | Path inside the frontend FTP account | `/` |
+| `BACKEND_REMOTE_DIR` | Path inside the backend FTP account | `/` |
+| `ENABLE_BACKEND_DEPLOY` | `false` skips backend; `bootstrap` uploads source only; `true` also builds, migrates, and restarts over SSH | `false` |
 | `CPANEL_HTPASSWD_ABS_PATH` | Absolute server filesystem path to `.htpasswd` (Apache requires an absolute path, not a URL) — put it next to where it's uploaded | `/home/youruser/public_html/.htpasswd` |
 
-**Optional — automates `pip install` + `alembic upgrade head` on every deploy.**
-Without these, the workflow still deploys backend code and restarts the app,
-but leaves dependency/schema changes for you to run manually (it prints a
-warning telling you so):
+**Required before setting `ENABLE_BACKEND_DEPLOY=true`.** These settings run
+the build, migrations, and restart on the cPanel server. The workflow will not
+upload backend code without them because doing so could restart against old
+dependencies or an old database schema:
 
 | Name | Kind | What |
 |---|---|---|
 | `CPANEL_SSH_HOST` | Variable | SSH hostname — leave unset to skip automation entirely |
 | `CPANEL_SSH_PORT` | Variable | SSH port, defaults to 22 |
+| `CPANEL_APP_ROOT` | Variable | Absolute server path to the Python app, e.g. `/home/youruser/waterline_backend` |
 | `CPANEL_PYTHON_VENV_ACTIVATE` | Variable | Absolute path to the venv's `activate` script cPanel created, e.g. `/home/youruser/virtualenv/waterline_backend/3.11/bin/activate` |
 | `CPANEL_SSH_USERNAME` | Secret | SSH username |
 | `CPANEL_SSH_KEY` | Secret | SSH private key (not a password) |
 
 ## 3. What happens on push to `main`
 
-- **Frontend job**: generates `assets/config.js` from `PROD_API_BASE`,
+- **Test job**: creates a temporary PostgreSQL 16 + pgvector database, installs
+  the backend on Python 3.11, applies every Alembic migration, and runs all
+  tests. No deployment runs if this fails.
+- **Frontend job**: first rejects a missing or malformed remote directory,
+  generates `assets/config.js` from `PROD_API_BASE`,
   renders `.htaccess`/`.htpasswd` from `ADMIN_BASIC_AUTH_*` to
   password-protect `admin.html`, then FTPs everything except `backend/`,
   `.github/`, `deploy/`, `docs/`, `data/` to `FRONTEND_REMOTE_DIR`. Both the
   API-URL and admin-password steps **fail the deploy** if their
   secrets/variables are missing, rather than silently shipping a broken or
   unprotected page.
-- **Backend job**: FTPs `backend/` to `BACKEND_REMOTE_DIR`, stamping
+- **Backend job**: stays skipped while `ENABLE_BACKEND_DEPLOY=false`.
+  `bootstrap` uploads source only for the first manual server setup. `true`
+  requires the server automation settings, then rejects a missing or malformed
+  remote directory,
+  then FTPs `backend/` to `BACKEND_REMOTE_DIR`, stamping
   `tmp/restart.txt` so Passenger reloads. If SSH secrets are configured, it
   also runs `pip install` and `alembic upgrade head` before the final
   restart; otherwise it warns you to do that by hand.
 
-Both jobs run in parallel and are independent — a failure in one doesn't
-block the other.
+Frontend and backend deploy only after the test job passes.
 
 ## 4. Local dev is unaffected
 

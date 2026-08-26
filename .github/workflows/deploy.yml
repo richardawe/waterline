@@ -14,10 +14,60 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: waterline
+          POSTGRES_PASSWORD: waterline
+          POSTGRES_DB: waterline_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U waterline -d waterline_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://waterline:waterline@localhost:5432/waterline_test
+      TEST_DATABASE_URL: postgresql+psycopg://waterline:waterline@localhost:5432/waterline_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: alembic upgrade head
+      - run: python -m pytest -q
+
   deploy-frontend:
+    needs: test-backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Validate frontend deployment target
+        env:
+          REMOTE_DIR: ${{ vars.FRONTEND_REMOTE_DIR }}
+        run: |
+          if [ -z "$REMOTE_DIR" ]; then
+            echo "::error::vars.FRONTEND_REMOTE_DIR is required."
+            exit 1
+          fi
+          case "$REMOTE_DIR" in
+            /*/) ;;
+            *)
+              echo "::error::FRONTEND_REMOTE_DIR must start and end with / (for example /)."
+              exit 1
+              ;;
+          esac
 
       - name: Inject production API URL
         run: |
@@ -48,8 +98,8 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          username: ${{ secrets.FRONTEND_FTP_USERNAME }}
+          password: ${{ secrets.FRONTEND_FTP_PASSWORD }}
           server-dir: ${{ vars.FRONTEND_REMOTE_DIR }}
           local-dir: ./
           dangerous-clean-slate: false
@@ -69,29 +119,46 @@ jobs:
         run: rm -f .htpasswd .htaccess assets/config.js
 
   deploy-backend:
+    needs: test-backend
+    if: ${{ vars.ENABLE_BACKEND_DEPLOY == 'bootstrap' || vars.ENABLE_BACKEND_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      # Passenger reloads the app whenever tmp/restart.txt's mtime changes.
-      # Stamping it here means every deploy restarts the app, whether or not
-      # the SSH automation below is configured.
-      - name: Stamp restart trigger
-        run: mkdir -p backend/tmp && date -u > backend/tmp/restart.txt
-
-      - name: Refuse to deploy backend without an explicit target directory
-        if: ${{ vars.BACKEND_REMOTE_DIR == '' }}
+      - name: Require complete server automation settings
+        if: ${{ vars.ENABLE_BACKEND_DEPLOY == 'true' }}
+        env:
+          SSH_HOST: ${{ vars.CPANEL_SSH_HOST }}
+          APP_ROOT: ${{ vars.CPANEL_APP_ROOT }}
+          VENV_ACTIVATE: ${{ vars.CPANEL_PYTHON_VENV_ACTIVATE }}
         run: |
-          echo "::error::vars.BACKEND_REMOTE_DIR is not set. Skipping the backend FTP upload rather than defaulting to the FTP account's root — that account may be the same one the frontend deploys to, and an unset server-dir would dump backend source (including passenger_wsgi.py, requirements.txt, app/) into the public static site directory. Set BACKEND_REMOTE_DIR once the cPanel Python App's Application Path is known — see DEPLOYMENT.md."
-          exit 1
+          if [ -z "$SSH_HOST" ] || [ -z "$APP_ROOT" ] || [ -z "$VENV_ACTIVATE" ]; then
+            echo "::error::Backend deployment requires CPANEL_SSH_HOST, CPANEL_APP_ROOT, and CPANEL_PYTHON_VENV_ACTIVATE."
+            exit 1
+          fi
+
+      - name: Validate backend deployment target
+        env:
+          REMOTE_DIR: ${{ vars.BACKEND_REMOTE_DIR }}
+        run: |
+          if [ -z "$REMOTE_DIR" ]; then
+            echo "::error::vars.BACKEND_REMOTE_DIR is required."
+            exit 1
+          fi
+          case "$REMOTE_DIR" in
+            /*/) ;;
+            *)
+              echo "::error::BACKEND_REMOTE_DIR must start and end with / (for example /)."
+              exit 1
+              ;;
+          esac
 
       - name: Deploy backend source via FTP
-        if: ${{ vars.BACKEND_REMOTE_DIR != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
+          username: ${{ secrets.BACKEND_FTP_USERNAME }}
+          password: ${{ secrets.BACKEND_FTP_PASSWORD }}
           server-dir: ${{ vars.BACKEND_REMOTE_DIR }}
           local-dir: ./backend/
           dangerous-clean-slate: false
@@ -104,8 +171,8 @@ jobs:
             **/.env
             **/tests/**
 
-      - name: Install dependencies and run migrations (requires SSH secrets)
-        if: ${{ vars.CPANEL_SSH_HOST != '' }}
+      - name: Install dependencies, migrate, and restart on cPanel
+        if: ${{ vars.ENABLE_BACKEND_DEPLOY == 'true' }}
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ vars.CPANEL_SSH_HOST }}
@@ -114,15 +181,9 @@ jobs:
           port: ${{ vars.CPANEL_SSH_PORT || 22 }}
           script: |
             set -e
-            cd "${{ vars.BACKEND_REMOTE_DIR }}"
+            cd "${{ vars.CPANEL_APP_ROOT }}"
             source "${{ vars.CPANEL_PYTHON_VENV_ACTIVATE }}"
             pip install -r requirements.txt
             alembic upgrade head
             touch tmp/restart.txt
             echo "Dependencies installed, migrations applied, app restarted."
-
-      - name: Reminder when SSH automation isn't configured
-        if: ${{ vars.CPANEL_SSH_HOST == '' }}
-        run: |
-          echo "::warning::No CPANEL_SSH_HOST configured — 'pip install' and 'alembic upgrade head' were NOT run automatically."
-          echo "::warning::If requirements.txt or the DB schema changed in this push, log into cPanel now: Setup Python App → your app → Run Pip Install; then run 'alembic upgrade head' from the app's terminal. The app already restarted on old dependencies/schema in the meantime — see DEPLOYMENT.md."
