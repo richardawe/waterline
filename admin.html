@@ -7,7 +7,7 @@
 <title>Waterline — Admin Console</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css?v=__ASSET_VERSION__">
 <script src="assets/config.js?v=__ASSET_VERSION__"></script>
 <style>
@@ -119,6 +119,12 @@
   .login-card{ width:min(420px,100%); padding:32px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-xl); box-shadow:var(--shadow-pop); }
   .login-card .brand{ margin-bottom:30px; }.login-card h1{ font-size:26px; }.login-card>p{ margin:8px 0 24px; color:var(--text-dim); }
   .login-error{ display:none; margin-top:12px; color:var(--red); font-size:13px; }
+  .workspace-tabs{display:flex;gap:4px;margin:6px 0 22px;padding:5px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface);overflow-x:auto}
+  .workspace-tab{border:0;background:transparent;color:var(--text-dim);padding:9px 13px;border-radius:6px;font:600 12.5px var(--font-body);white-space:nowrap;cursor:pointer}.workspace-tab.active{background:var(--navy);color:#fff}
+  .admin-view{display:none;margin-bottom:60px}.admin-view.active{display:block}.view-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}.view-head h2{font-size:24px}.view-head p{color:var(--text-dim);margin-top:5px}
+  .admin-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface)}
+  .profile-grid,.standard-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.profile-card{padding:24px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface)}.profile-card h3{font-size:18px}.profile-role{color:var(--accent);font-weight:600;font-size:12px;margin:3px 0 12px}.profile-card p{color:var(--text-dim);font-size:14px}.career{margin-top:16px}.career div{display:flex;justify-content:space-between;gap:14px;padding:7px 0;border-top:1px solid var(--border);font-size:12px}.career span:last-child{color:var(--text-faint)}
+  @media(max-width:760px){.profile-grid,.standard-grid{grid-template-columns:1fr}.view-head{align-items:start;flex-direction:column}}
 </style>
 </head>
 <body>
@@ -128,9 +134,7 @@
     <a href="/" class="brand"><span class="brand-mark">W</span>Waterline</a>
     <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">☰</button>
     <div class="nav-links" id="nav-links">
-      <a href="database.html">Database</a>
-      <a href="standard.html">Data Standard</a>
-      <a href="admin.html" style="color:var(--text);">Workspace</a>
+      <a href="admin.html" style="color:var(--text);">Admin workspace</a>
       <a href="#" id="sign-out">Sign out</a>
     </div>
   </div>
@@ -147,6 +151,31 @@
 <div class="wrap">
   <div id="api-banner"></div>
   <div id="api-ok" style="display:none;"><span class="dot"></span><span id="api-ok-text"></span></div>
+
+  <div class="workspace-tabs" role="tablist" aria-label="Admin workspace">
+    <button class="workspace-tab active" data-view="dashboard">Dashboard</button>
+    <button class="workspace-tab" data-view="market">Market Intelligence</button>
+    <button class="workspace-tab" data-view="standard">Data Standard</button>
+    <button class="workspace-tab" data-view="deals">Deals &amp; SPVs</button>
+    <button class="workspace-tab" data-view="profile">Company Profile</button>
+  </div>
+
+  <section class="admin-view active" data-admin-view="dashboard">
+    <div class="view-head"><div><h2>Dashboard</h2><p>Current activity across the Waterline workspace.</p></div></div>
+    <div class="stats-row"><div class="stat"><div class="num" id="dash-deals">—</div><div class="lbl">Deals</div></div><div class="stat"><div class="num" id="dash-institutions">—</div><div class="lbl">Institutions</div></div><div class="stat"><div class="num" id="dash-ratings">—</div><div class="lbl">Rating actions</div></div><div class="stat"><div class="num" id="dash-instruments">—</div><div class="lbl">Capital-market instruments</div></div></div>
+  </section>
+
+  <section class="admin-view" data-admin-view="market">
+    <div class="view-head"><div><h2>Market Intelligence</h2><p>Live institution, portfolio, rating and capital-markets records.</p></div><input id="market-search" placeholder="Search institutions" style="max-width:280px"></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Institution</th><th>Type</th><th>Gross loans</th><th>NPL ratio</th><th>Rating</th><th>Status</th></tr></thead><tbody id="market-tbody"></tbody></table></div>
+  </section>
+
+  <section class="admin-view" data-admin-view="standard">
+    <div class="view-head"><div><h2>Data Standard</h2><p>Assess loan tapes against the Waterline Credit Data Standard.</p></div></div>
+    <div class="standard-grid"><div class="panel-block"><h3>Canonical workflow</h3><p style="color:var(--text-dim);margin:8px 0 16px">Map source fields, standardise values, apply deterministic checks and reconcile totals.</p><div class="result-box"><div class="rk-row"><span class="k">Entities</span><span class="v">18</span></div><div class="rk-row"><span class="k">Validation checks</span><span class="v">30</span></div><div class="rk-row"><span class="k">Current version</span><span class="v">WCDS 0.1</span></div></div></div><div class="panel-block"><h3>Validate a sample</h3><p style="color:var(--text-dim);margin:8px 0 14px">Upload a CSV or Excel file. This assessment does not save the loan tape.</p><input id="standard-file" type="file" accept=".csv,.xlsx"><button class="btn btn-primary btn-sm" id="standard-validate" style="margin-top:12px">Run assessment</button><div id="standard-result"></div></div><div class="panel-block"><h3>Private documents</h3><p style="color:var(--text-dim);margin:8px 0 14px">Downloads require the active admin session.</p><div class="form-actions"><button class="btn btn-outline btn-sm admin-download" data-file="WCDS_v0.1_Full_Specification.docx">Specification</button><button class="btn btn-outline btn-sm admin-download" data-file="WCDS_v0.1_Anonymised_Lender_Datasets.zip">Sample datasets</button><button class="btn btn-outline btn-sm admin-download" data-file="WCDS_dataset_manifest.json">Manifest</button></div></div></div>
+  </section>
+
+  <section class="admin-view" data-admin-view="deals">
 
   <div class="admin-grid">
     <div class="panel-block" id="deals-panel">
@@ -247,6 +276,15 @@
       </div>
     </div>
   </div>
+  </section>
+
+  <section class="admin-view" data-admin-view="profile">
+    <div class="view-head"><div><h2>Company Profile</h2><p>Founder and institutional experience maintained for internal use.</p></div></div>
+    <div class="profile-grid">
+      <article class="profile-card"><h3>Richard Awe</h3><div class="profile-role">Co-founder</div><p>Financial-services and technology leader with experience across banking, central banking, government, ratings and software delivery.</p><div class="career"><div><span>Access Bank</span><span>2007–10</span></div><div><span>Barclays Bank</span><span>2010–14</span></div><div><span>HSBC</span><span>2015–19</span></div><div><span>Lloyds Banking Group</span><span>2019–20</span></div><div><span>European Central Bank</span><span>2020–21</span></div><div><span>HMRC</span><span>2022–23</span></div><div><span>3d7 Technologies</span><span>2024–25</span></div><div><span>Fitch Ratings</span><span>2025–present</span></div></div></article>
+      <article class="profile-card"><h3>Abiodun Awe</h3><div class="profile-role">Co-founder</div><p>Markets-infrastructure and issuer-services specialist with experience across central banking, investment banking, custody and ratings.</p><div class="career"><div><span>Central Bank of Nigeria</span><span>2008–10</span></div><div><span>Morgan Stanley</span><span>2012–13</span></div><div><span>NatWest Markets</span><span>2013–18</span></div><div><span>BBC</span><span>2018–19</span></div><div><span>Co-op</span><span>2019–22</span></div><div><span>Equiniti</span><span>2021–22</span></div><div><span>BNY</span><span>2022–24</span></div><div><span>Fitch Ratings</span><span>2024–present</span></div></div></article>
+    </div>
+  </section>
 </div>
 
 <div class="overlay" id="overlay">
@@ -260,7 +298,7 @@
 </footer>
 
 <style>
-  /* overlay reused from database.html */
+  /* market detail overlay */
   .overlay{ position:fixed; inset:0; background:rgba(4,5,6,0.75); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; z-index:100; padding:20px 12px; overflow-y:auto; }
   @media (min-width:700px){ .overlay{ padding:40px 20px; } }
   .overlay.open{ display:flex; }
@@ -270,6 +308,7 @@
   .detail-head h2{ font-size:18px; font-weight:500; }
   .close-btn{ background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); width:32px; height:32px; border-radius:var(--r-sm); cursor:pointer; font-size:16px; line-height:1; flex-shrink:0; }
   .close-btn:hover{ color:var(--text); border-color:var(--ring); }
+  .detail-meta{color:var(--text-dim);font-size:13px;margin-bottom:22px}.detail-block{margin-top:22px}.detail-block h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-faint);margin-bottom:10px}.fact-card{padding:13px 14px;border:1px solid var(--border-soft);border-radius:var(--r-md);margin-bottom:8px}.fact-top{display:flex;justify-content:space-between;gap:12px}.fact-period,.fact-notes,.fact-source{color:var(--text-dim);font-size:12px}.fact-source{margin-top:6px}.fact-source a{color:var(--accent)}
 </style>
 
 <div class="login-gate" id="login-gate">
@@ -290,6 +329,7 @@ const API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';
 let DEALS = [];
 let SELECTED_DEAL_ID = null;
 let SELECTED_DEAL = null;
+let ADMIN_INSTITUTIONS = [];
 let API_AUTH = sessionStorage.getItem('waterline_admin_auth');
 
 function escapeHtml(s){
@@ -345,10 +385,61 @@ async function loadDeals(){
 async function loadInstitutionSuggestions(){
   try{
     const insts = await api('/institutions');
+    ADMIN_INSTITUTIONS = insts;
     document.getElementById('institution-suggestions').innerHTML =
       insts.map(i => `<option value="${escapeHtml(i.institution_id)}">${escapeHtml(i.legal_name)}</option>`).join('');
+    renderMarket();
   }catch(e){ /* non-fatal — suggestions are a convenience, not required */ }
 }
+
+function renderMarket(query = ''){
+  const q = query.trim().toLowerCase();
+  const rows = ADMIN_INSTITUTIONS.filter(i => !q || `${i.legal_name} ${i.type} ${i.status}`.toLowerCase().includes(q));
+  const tbody = document.getElementById('market-tbody');
+  tbody.innerHTML = rows.map(i => `<tr data-id="${escapeHtml(i.institution_id)}"><td><strong>${escapeHtml(i.legal_name)}</strong><div class="dim">${escapeHtml(i.institution_id)}</div></td><td>${escapeHtml((i.type||'—').replace(/_/g,' '))}</td><td>${i.gross_loans==null?'—':fmtNumber(i.gross_loans)} ${escapeHtml(i.gross_loans_unit||'')}</td><td>${i.npl_ratio==null?'—':fmtPct(i.npl_ratio)}</td><td>${escapeHtml(i.rating||'—')}</td><td>${escapeHtml(i.status||'—')}</td></tr>`).join('');
+  tbody.querySelectorAll('tr').forEach(row => row.addEventListener('click', () => openMarketDetail(row.dataset.id)));
+}
+
+async function openMarketDetail(institutionId){
+  const panel = document.getElementById('detail-panel');
+  panel.innerHTML = '<div class="detail-head"><h2>Loading…</h2></div>';
+  document.getElementById('overlay').classList.add('open');
+  try{
+    const d = await api(`/institutions/${encodeURIComponent(institutionId)}/detail`), i = d.institution;
+    const cards = (items, render, empty) => items.length ? items.map(render).join('') : `<p class="dim">${empty}</p>`;
+    panel.innerHTML = `<div class="detail-head"><h2>${escapeHtml(i.legal_name)}</h2><button class="close-btn" id="close-btn">✕</button></div>
+      <div class="detail-meta">${escapeHtml((i.type||'').replace(/_/g,' '))} · ${escapeHtml((i.cbn_authorization||'Authorization not recorded').replace(/_/g,' '))}${i.headquarters?` · ${escapeHtml(i.headquarters)}`:''}${i.website?` · <a href="${escapeHtml(i.website)}" target="_blank" rel="noopener">Website ↗</a>`:''}</div>
+      <div class="detail-block"><h3>Portfolio snapshots</h3>${cards(d.portfolio_snapshots, s => `<div class="fact-card"><div class="fact-top"><strong>${s.gross_loans!=null?fmtNumber(s.gross_loans):fmtNumber(s.net_loans)} ${escapeHtml((s.unit||'').replace('_',' '))}</strong><span class="fact-period">${escapeHtml(s.period_end||'')}</span></div>${s.npl_ratio!=null?`<div>NPL ratio: ${fmtPct(s.npl_ratio)}</div>`:''}<div class="fact-notes">${escapeHtml(s.notes||'')}</div></div>`, 'No portfolio snapshot is recorded.')}</div>
+      <div class="detail-block"><h3>Rating actions</h3>${cards(d.rating_actions, r => `<div class="fact-card"><div class="fact-top"><strong>${escapeHtml(r.agency||'Agency')} · ${escapeHtml(r.rating||'—')}</strong><span class="fact-period">${escapeHtml(r.action_date||'')}</span></div><div class="fact-notes">${escapeHtml(r.notes||r.outlook||'')}</div></div>`, 'No rating action is recorded.')}</div>
+      <div class="detail-block"><h3>Capital-market instruments</h3>${cards(d.capital_market_instruments, r => `<div class="fact-card"><div class="fact-top"><strong>${fmtNumber(r.issue_size)} ${escapeHtml((r.unit||'').replace('_',' '))}</strong><span class="fact-period">${escapeHtml(r.issue_date||'')}</span></div><div>${escapeHtml((r.instrument_type||'').replace(/_/g,' '))}${r.coupon!=null?` · ${fmtPct(r.coupon)}`:''}</div><div class="fact-notes">${escapeHtml(r.notes||'')}</div></div>`, 'No capital-market instrument is recorded.')}</div>`;
+    document.getElementById('close-btn').addEventListener('click', closeOverlay);
+  }catch(e){ panel.innerHTML=`<div class="detail-head"><h2>Could not load record</h2><button class="close-btn" id="close-btn">✕</button></div><p>${escapeHtml(e.message)}</p>`; document.getElementById('close-btn').addEventListener('click', closeOverlay); }
+}
+
+document.getElementById('market-search').addEventListener('input', e => renderMarket(e.target.value));
+
+document.querySelectorAll('.workspace-tab').forEach(button => button.addEventListener('click', () => showAdminView(button.dataset.view)));
+function showAdminView(view){
+  document.querySelectorAll('.workspace-tab').forEach(b => b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.admin-view').forEach(v => v.classList.toggle('active', v.dataset.adminView===view));
+  history.replaceState(null,'',`#${view}`);
+}
+
+document.getElementById('standard-validate').addEventListener('click', async () => {
+  const file = document.getElementById('standard-file').files[0], box = document.getElementById('standard-result');
+  if(!file){ box.innerHTML='<div class="result-box">Choose a CSV or Excel file first.</div>'; return; }
+  const data = new FormData(); data.append('file', file); box.innerHTML='<div class="result-box"><span class="spinner"></span>Assessing file…</div>';
+  try{ const result=await api('/validate',{method:'POST',body:data}); const s=result.validation_summary; box.innerHTML=`<div class="result-box"><div class="rk-row"><span class="k">Rows assessed</span><span class="v">${result.row_count}</span></div><div class="rk-row"><span class="k">Fatal</span><span class="v">${s.fatal}</span></div><div class="rk-row"><span class="k">Errors</span><span class="v">${s.error}</span></div><div class="rk-row"><span class="k">Warnings</span><span class="v">${s.warning}</span></div></div>`; }catch(e){ box.innerHTML=`<div class="result-box" style="color:var(--red)">${escapeHtml(e.message)}</div>`; }
+});
+
+document.querySelectorAll('.admin-download').forEach(button => button.addEventListener('click', async () => {
+  const filename = button.dataset.file, original = button.textContent; button.disabled = true; button.textContent = 'Preparing…';
+  try{
+    const response = await fetch(`${API_BASE}/admin-downloads/${encodeURIComponent(filename)}`, {headers:{Authorization:`Basic ${API_AUTH}`}});
+    if(!response.ok) throw new Error('Download is unavailable.');
+    const url = URL.createObjectURL(await response.blob()), link = document.createElement('a'); link.href=url; link.download=filename; link.click(); URL.revokeObjectURL(url);
+  }catch(e){ alert(e.message); }finally{ button.disabled=false; button.textContent=original; }
+}));
 
 // ---------- Create deal ----------
 
@@ -694,10 +785,16 @@ navToggle.addEventListener('click', () => {
 });
 
 async function enterWorkspace(){
-  await Promise.all([loadDeals(), loadInstitutionSuggestions()]);
+  const [, , stats] = await Promise.all([loadDeals(), loadInstitutionSuggestions(), api('/institutions/stats')]);
+  document.getElementById('dash-deals').textContent = DEALS.length;
+  document.getElementById('dash-institutions').textContent = ADMIN_INSTITUTIONS.length;
+  document.getElementById('dash-ratings').textContent = stats.rating_actions_count;
+  document.getElementById('dash-instruments').textContent = stats.capital_market_instruments_count;
   document.getElementById('login-gate').style.display = 'none';
   document.getElementById('api-ok').style.display = 'flex';
   document.getElementById('api-ok-text').textContent = 'Workspace connected';
+  const requested = location.hash.slice(1);
+  if(['dashboard','market','standard','deals','profile'].includes(requested)) showAdminView(requested);
 }
 
 document.getElementById('login-form').addEventListener('submit', async event => {

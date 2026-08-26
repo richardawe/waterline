@@ -16,7 +16,10 @@ from app.models.tier1 import Institution
 from app.models.wcds import Reconciliation, ValidationResult
 from app.security import require_admin
 
-router = APIRouter(tags=["loan-tapes"])
+router = APIRouter(
+    tags=["loan-tapes"],
+    dependencies=[Depends(require_admin)],
+)
 private_router = APIRouter(
     tags=["loan-tapes"],
     dependencies=[Depends(require_admin)],
@@ -27,8 +30,8 @@ private_router = APIRouter(
 async def validate_loan_tape(file: UploadFile, institution_id: str | None = None, db: Session = Depends(get_db)):
     """Stateless dry run of the WCDS mapping + validation stages (map ->
     canonicalize -> validate -> reconcile) — no Deal required, nothing
-    persisted. Powers the live validator demo on standard.html: real engine,
-    real rulebook, just no database write at the end."""
+    persisted. Powers the admin workspace assessment: real engine, real
+    rulebook, just no database write at the end."""
     file_bytes = await file.read()
     rows_raw, columns, _file_hash = load_tape(file_bytes, file.filename or "upload.csv")
     mapping = propose_mapping(columns)

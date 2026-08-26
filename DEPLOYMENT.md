@@ -3,8 +3,8 @@
 `.github/workflows/deploy.yml` runs on every push to `main` and deploys two
 independent things over FTP:
 
-- **Static frontend** (`index.html`, `database.html`, `standard.html`,
-  `admin.html`, `assets/`, `standards/`) → your cPanel `public_html` (or
+- **Static frontend** (`index.html`, `preview/`, `admin.html`, `assets/`) →
+  your cPanel `public_html` (or
   wherever `FRONTEND_REMOTE_DIR` points).
 - **Backend** (`backend/`) → a separate directory that cPanel's "Setup Python
   App" serves via Passenger.
@@ -99,17 +99,15 @@ dependencies or an old database schema:
   the backend on Python 3.11, applies every Alembic migration, and runs all
   tests. No deployment runs if this fails.
 - **Frontend job**: first rejects a missing or malformed remote directory,
-  generates `assets/config.js` from `PROD_API_BASE`, protects
-  `database.html` and `standard.html` with the private-preview credentials,
-  then FTPs everything except `backend/`, `.github/`, `deploy/`, `docs/`,
-  `data/` to `FRONTEND_REMOTE_DIR`. The public homepage remains open.
-  `admin.html` uses its own workspace sign-in backed by the protected API.
+  generates `assets/config.js` from `PROD_API_BASE`, protects `/preview/`
+  with the private-preview credentials, and FTPs the static site to
+  `FRONTEND_REMOTE_DIR`. The homepage stays open. The admin workspace has a
+  separate API-backed sign-in and is not linked from public navigation.
 
-Approved users open `https://waterline.ng/database.html` and enter the preview
-credentials. The same browser session then opens `standard.html` without a
-second prompt because both pages share one authentication realm.
+Approved users open `https://waterline.ng/preview/` and enter the preview
+credentials once. The preview contains no live database or API access.
 - **Backend job**: stays skipped while `ENABLE_BACKEND_DEPLOY=false`.
-  `bootstrap` uploads source only for the first manual server setup. `true`
+  `bootstrap` uploads source and restarts Passenger without SSH. `true`
   requires the server automation settings, then rejects a missing or malformed
   remote directory,
   then FTPs `backend/` to `BACKEND_REMOTE_DIR`, stamping
@@ -122,8 +120,7 @@ Frontend and backend deploy only after the test job passes.
 ## 4. Local dev is unaffected
 
 `assets/config.js` in the repo is a committed no-op placeholder (see the file
-itself) — locally, `database.html`/`standard.html`/`admin.html` keep falling
-back to `http://localhost:8001`. The workflow overwrites its own checkout's
+itself) — locally, `admin.html` falls back to `http://localhost:8001`. The workflow overwrites its own checkout's
 copy before uploading; it never commits the generated version back to git.
 
 ## Known limitations, honestly
@@ -135,5 +132,5 @@ copy before uploading; it never commits the generated version back to git.
   re-push, or restoring from cPanel's file backups.
 - The backend deployment bundles a copy of `data/market-intelligence` for the
   production seed command. The repository files remain the source of truth.
-  WCDS sample downloads stay with the static frontend and are not required by
-  the production API.
+  WCDS documents are bundled with the backend and served only through the
+  authenticated admin-download endpoint.

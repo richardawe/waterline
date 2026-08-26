@@ -1,16 +1,23 @@
-# Generated during deployment. Keep the public homepage open while protecting
-# the private research preview. The admin workspace uses its own sign-in.
+# Generated during deployment. Public-site routing and security headers.
 RewriteEngine On
 RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
 RewriteRule ^index\.html$ / [R=301,L]
-
-<FilesMatch "^(database|standard)\.html$">
-  AuthType Basic
-  AuthName "Waterline Private Preview"
-  AuthUserFile __HTPASSWD_ABS_PATH__
-  Require valid-user
-</FilesMatch>
+RewriteRule ^database\.html$ /admin.html#market [R=302,L,NE]
+RewriteRule ^standard\.html$ /admin.html#standard [R=302,L,NE]
 
 <Files ".htpasswd">
   Require all denied
 </Files>
+
+<FilesMatch "\.(csv|xlsx|json|zip|docx)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.waterline.ng; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' mailto:"
+</IfModule>

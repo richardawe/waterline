@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.security import require_admin
 from app.models.tier1 import (
     CapitalMarketInstrument,
     DisbursementMetric,
@@ -14,7 +15,11 @@ from app.models.tier1 import (
     RatingAction,
 )
 
-router = APIRouter(prefix="/institutions", tags=["institutions"])
+router = APIRouter(
+    prefix="/institutions",
+    tags=["institutions"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 def _institution_to_dict(inst: Institution) -> dict:

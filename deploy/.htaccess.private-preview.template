@@ -1,0 +1,9 @@
+AuthType Basic
+AuthName "Waterline Private Preview"
+AuthUserFile __HTPASSWD_ABS_PATH__
+Require valid-user
+
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  Header always set Cache-Control "no-store"
+</IfModule>

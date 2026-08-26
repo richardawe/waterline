@@ -83,20 +83,19 @@ jobs:
 
       - name: Version frontend assets
         run: |
-          sed -i "s/__ASSET_VERSION__/${GITHUB_SHA}/g" index.html database.html standard.html admin.html
+          sed -i "s/__ASSET_VERSION__/${GITHUB_SHA}/g" index.html preview/index.html admin.html
 
       - name: Render private preview access
         run: |
           HTPASSWD_PATH="${{ vars.CPANEL_HTPASSWD_ABS_PATH }}"
           PREVIEW_USER="${{ secrets.PREVIEW_BASIC_AUTH_USER }}"
           PREVIEW_PASS="${{ secrets.PREVIEW_BASIC_AUTH_PASSWORD }}"
-          if [ -z "$PREVIEW_USER" ]; then PREVIEW_USER="${{ secrets.ADMIN_BASIC_AUTH_USER }}"; fi
-          if [ -z "$PREVIEW_PASS" ]; then PREVIEW_PASS="${{ secrets.ADMIN_BASIC_AUTH_PASSWORD }}"; fi
           if [ -z "$HTPASSWD_PATH" ] || [ -z "$PREVIEW_USER" ] || [ -z "$PREVIEW_PASS" ]; then
             echo "::error::Private preview credentials and CPANEL_HTPASSWD_ABS_PATH are required."
             exit 1
           fi
-          sed "s#__HTPASSWD_ABS_PATH__#${HTPASSWD_PATH}#" deploy/.htaccess.preview.template > .htaccess
+          cp deploy/.htaccess.preview.template .htaccess
+          sed "s#__HTPASSWD_ABS_PATH__#${HTPASSWD_PATH}#" deploy/.htaccess.private-preview.template > preview/.htaccess
           printf '%s:%s\n' "$PREVIEW_USER" "$(openssl passwd -apr1 "$PREVIEW_PASS")" > .htpasswd
 
       - name: Deploy static site via FTP
@@ -116,12 +115,13 @@ jobs:
             **/deploy/**
             **/docs/**
             **/data/**
+            **/standards/**
             **/node_modules/**
             **/DEPLOYMENT.md
 
       - name: Clean up generated secrets from the runner
         if: always()
-        run: rm -f .htaccess .htpasswd assets/config.js
+        run: rm -f .htaccess .htpasswd preview/.htaccess assets/config.js
 
   deploy-backend:
     needs: test-backend
@@ -158,10 +158,16 @@ jobs:
               ;;
           esac
 
-      - name: Bundle Tier 1 seed data
+      - name: Bundle private backend data
         run: |
           mkdir -p backend/seed_data
           cp -R data/market-intelligence backend/seed_data/
+          mkdir -p backend/admin_downloads
+          cp standards/wcds/WCDS_v0.1_Full_Specification.docx backend/admin_downloads/
+          cp standards/wcds/WCDS_v0.1_Anonymised_Lender_Datasets.zip backend/admin_downloads/
+          cp standards/wcds/samples/WCDS_dataset_manifest.json backend/admin_downloads/
+          mkdir -p backend/tmp
+          date -u +%FT%TZ > backend/tmp/restart.txt
 
       - name: Deploy backend source via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
