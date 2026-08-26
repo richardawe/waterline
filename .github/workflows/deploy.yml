@@ -81,6 +81,10 @@ jobs:
             > assets/config.js
           cat assets/config.js
 
+      - name: Version frontend assets
+        run: |
+          sed -i "s/__ASSET_VERSION__/${GITHUB_SHA}/g" index.html database.html standard.html admin.html
+
       - name: Render private preview access
         run: |
           HTPASSWD_PATH="${{ vars.CPANEL_HTPASSWD_ABS_PATH }}"
