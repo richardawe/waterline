@@ -22,7 +22,9 @@ def test_production_api_exposes_only_health_without_admin_credentials(monkeypatc
     importlib.reload(main)
     client = TestClient(main.app)
 
-    assert client.get("/health").status_code == 200
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.headers["cache-control"] == "no-store, max-age=0"
     assert client.get("/institutions").status_code == 401
     assert client.post("/validate").status_code == 401
     assert client.get("/deals").status_code == 401

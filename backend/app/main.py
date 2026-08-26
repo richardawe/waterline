@@ -23,6 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def prevent_api_caching(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
 app.include_router(institutions.router)
 app.include_router(deals.router)
 app.include_router(loan_tapes.router)
