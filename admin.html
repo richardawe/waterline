@@ -297,6 +297,24 @@
 
   <section class="admin-view" data-admin-view="blog">
     <div class="view-head"><div><h2>Blog</h2><p>Auto-generated posts publish without pre-approval once they pass automated QA — this is the safety valve: review, edit, force-publish or archive any post.</p></div><select id="blog-status-filter"><option value="">All statuses</option><option value="draft">Draft</option><option value="qa_failed">QA failed</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+
+    <div class="panel-block" style="margin-bottom:20px;">
+      <div class="panel-head"><h2>Content queue</h2><span class="badge" id="blog-queue-count">— pending</span></div>
+      <div class="field-row">
+        <div class="field" style="grid-column:1/-1;"><label for="bt-prompt">Topic (what the writer should cover)</label><input id="bt-prompt" type="text" placeholder="e.g. How BVN links to loan applications in Nigeria"></div>
+        <div class="field"><label for="bt-category">Category</label><input id="bt-category" type="text" placeholder="e.g. lending, regulation, pan-africa"></div>
+        <div class="field"><label for="bt-priority">Priority</label><input id="bt-priority" type="number" value="100"></div>
+        <div class="field" style="grid-column:1/-1;"><label for="bt-keywords">Target keywords (comma-separated)</label><input id="bt-keywords" type="text" placeholder="e.g. bvn, loan application, kyc"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary btn-sm" id="bt-submit">Add topic</button></div>
+      <div id="bt-result"></div>
+      <details class="adv" id="blog-queue-details" style="margin-top:14px;">
+        <summary>Pending queue</summary>
+        <div class="admin-table-wrap" style="margin-top:10px;"><table class="admin-table"><thead><tr><th>Topic</th><th>Category</th><th>Priority</th><th></th></tr></thead><tbody id="blog-queue-tbody"></tbody></table></div>
+        <div id="blog-queue-empty" class="empty-row" style="display:none;">No pending topics — add one above, or the scheduled run will just no-op.</div>
+      </details>
+    </div>
+
     <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Title</th><th>Status</th><th>QA</th><th>Words</th><th>Published</th></tr></thead><tbody id="blog-tbody"></tbody></table></div>
     <div id="blog-tbody-empty" class="empty-row" style="display:none;">No posts yet — the scheduled generation workflow will populate this.</div>
   </section>
@@ -458,6 +476,47 @@ function renderBlogTable(){
   </tr>`).join('');
   tbody.querySelectorAll('tr').forEach(row => row.addEventListener('click', () => openBlogDetail(row.dataset.id)));
 }
+
+// ---------- Blog content queue (topics) ----------
+
+async function loadBlogQueue(){
+  const topics = await api('/admin/blog/topics?status=pending');
+  document.getElementById('blog-queue-count').textContent = `${topics.length} pending`;
+  const tbody = document.getElementById('blog-queue-tbody');
+  document.getElementById('blog-queue-empty').style.display = topics.length ? 'none' : 'block';
+  tbody.innerHTML = topics.map(t => `<tr>
+    <td><strong>${escapeHtml(t.prompt)}</strong>${t.target_keywords ? `<div class="dim">${escapeHtml(t.target_keywords)}</div>` : ''}</td>
+    <td>${escapeHtml(t.category)}</td>
+    <td class="num-cell">${t.priority}</td>
+    <td><button class="btn btn-outline btn-sm bt-remove" data-id="${escapeHtml(t.id)}">Remove</button></td>
+  </tr>`).join('');
+  tbody.querySelectorAll('.bt-remove').forEach(btn => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try{ await api(`/admin/blog/topics/${encodeURIComponent(btn.dataset.id)}`, { method:'DELETE' }); await loadBlogQueue(); }
+    catch(e){ alert(e.message); btn.disabled = false; }
+  }));
+}
+
+document.getElementById('bt-submit').addEventListener('click', async () => {
+  const prompt = document.getElementById('bt-prompt').value.trim();
+  const category = document.getElementById('bt-category').value.trim();
+  const priority = parseInt(document.getElementById('bt-priority').value, 10) || 100;
+  const target_keywords = document.getElementById('bt-keywords').value.trim();
+  const box = document.getElementById('bt-result'), btn = document.getElementById('bt-submit');
+  if(!prompt || !category){ box.innerHTML = '<div class="result-box" style="color:var(--red)">Topic and category are both required.</div>'; return; }
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Adding…';
+  try{
+    await api('/admin/blog/topics', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ prompt, category, target_keywords: target_keywords || null, priority }) });
+    document.getElementById('bt-prompt').value = '';
+    document.getElementById('bt-category').value = '';
+    document.getElementById('bt-keywords').value = '';
+    document.getElementById('bt-priority').value = '100';
+    box.innerHTML = '<div class="result-box">Added to the queue.</div>';
+    document.getElementById('blog-queue-details').open = true;
+    await loadBlogQueue();
+  }catch(e){ box.innerHTML = `<div class="result-box" style="color:var(--red)">${escapeHtml(e.message)}</div>`; }
+  finally{ btn.disabled = false; btn.textContent = 'Add topic'; }
+});
 
 document.getElementById('blog-status-filter').addEventListener('change', renderBlogTable);
 
@@ -889,6 +948,7 @@ async function enterWorkspace(){
   document.getElementById('dash-ratings').textContent = stats.rating_actions_count;
   document.getElementById('dash-instruments').textContent = stats.capital_market_instruments_count;
   loadBlogPosts().catch(() => {}); // non-fatal — blog tab shows an empty table if this fails
+  loadBlogQueue().catch(() => {});
   document.getElementById('login-gate').style.display = 'none';
   document.getElementById('api-ok').style.display = 'flex';
   document.getElementById('api-ok-text').textContent = 'Workspace connected';

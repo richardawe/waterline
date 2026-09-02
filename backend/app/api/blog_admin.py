@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.blog.sanitize import sanitize_html
 from app.db import get_db
 from app.models.blog import BlogPost, BlogTopic
-from app.schemas import BlogPostUpdate
+from app.schemas import BlogPostUpdate, BlogTopicCreate
 from app.security import require_admin
 
 router = APIRouter(prefix="/admin/blog", tags=["admin-blog"], dependencies=[Depends(require_admin)])
@@ -111,17 +111,54 @@ def archive_post(post_id: str, db: Session = Depends(get_db)):
     return _post_to_dict(post)
 
 
+def _topic_to_dict(topic: BlogTopic) -> dict:
+    return {
+        "id": topic.id,
+        "prompt": topic.prompt,
+        "category": topic.category,
+        "target_keywords": topic.target_keywords,
+        "priority": topic.priority,
+        "status": topic.status,
+    }
+
+
 @router.get("/topics")
-def list_topics(db: Session = Depends(get_db)):
-    topics = db.execute(select(BlogTopic).order_by(BlogTopic.priority.desc(), BlogTopic.created_at)).scalars()
-    return [
-        {
-            "id": t.id,
-            "prompt": t.prompt,
-            "category": t.category,
-            "target_keywords": t.target_keywords,
-            "priority": t.priority,
-            "status": t.status,
-        }
-        for t in topics
-    ]
+def list_topics(db: Session = Depends(get_db), status: str | None = None):
+    stmt = select(BlogTopic).order_by(BlogTopic.priority.desc(), BlogTopic.created_at)
+    if status:
+        stmt = stmt.where(BlogTopic.status == status)
+    return [_topic_to_dict(t) for t in db.execute(stmt).scalars()]
+
+
+@router.post("/topics")
+def create_topic(body: BlogTopicCreate, db: Session = Depends(get_db)):
+    prompt = body.prompt.strip()
+    category = body.category.strip()
+    if not prompt or not category:
+        raise HTTPException(422, "prompt and category are required")
+
+    topic = BlogTopic(
+        prompt=prompt,
+        category=category,
+        target_keywords=(body.target_keywords or "").strip() or None,
+        priority=body.priority,
+    )
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    return _topic_to_dict(topic)
+
+
+@router.delete("/topics/{topic_id}")
+def remove_topic(topic_id: str, db: Session = Depends(get_db)):
+    """Only for topics the generator hasn't touched yet (status=pending) —
+    once a topic has produced a post, its history stays put rather than
+    being deleted out from under that post's topic_id foreign key."""
+    topic = db.get(BlogTopic, topic_id)
+    if topic is None:
+        raise HTTPException(404, "topic not found")
+    if topic.status != "pending":
+        raise HTTPException(409, "only pending topics can be removed")
+    db.delete(topic)
+    db.commit()
+    return {"deleted": True}
