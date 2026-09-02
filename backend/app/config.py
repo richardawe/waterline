@@ -12,11 +12,14 @@ class Settings(BaseSettings):
     admin_api_username: str | None = None
     admin_api_password: str | None = None
 
-    # OpenRouter — free OSS models. Free-tier model availability rotates, so
+    # OpenRouter — free OSS model. gpt-oss-20b is the one confirmed working;
+    # other free-tier models were tried and didn't. Same model id for both
+    # the writer and QA roles by design (env-configurable independently in
+    # case that ever needs to change) — free-tier availability rotates, so
     # these are config-driven defaults, not hardcoded in the pipeline.
     openrouter_api_key: str | None = None
-    openrouter_writer_model: str = "deepseek/deepseek-chat-v3.1:free"
-    openrouter_qa_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_writer_model: str = "openai/gpt-oss-20b:free"
+    openrouter_qa_model: str = "openai/gpt-oss-20b:free"
 
     # Blog pipeline
     blog_site_base_url: str = "https://waterline.ng"

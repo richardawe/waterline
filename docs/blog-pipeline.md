@@ -1,12 +1,14 @@
 # Automated finance blog — pipeline reference
 
 An automated blog on credit, loans and personal/SME finance in Nigeria and
-across Africa, written by a free OpenRouter model, reviewed by a second
-model against a hard factual-grounding rubric, then auto-published as static
-HTML through the existing FTP deploy pipeline. This is the operational
-reference; the original design plan (context/trade-offs) lived in the
-session that built it — this doc is what to read when operating or
-extending the pipeline day to day.
+across Africa, written by a free OpenRouter model (`openai/gpt-oss-20b:free`
+— the free-tier model that was actually confirmed working; several others
+were tried and didn't), reviewed by a second pass of the same model against
+a hard factual-grounding rubric, then auto-published as static HTML through
+the existing FTP deploy pipeline. This is the operational reference; the
+original design plan (context/trade-offs) lived in the session that built
+it — this doc is what to read when operating or extending the pipeline day
+to day.
 
 ## Why the design looks like this
 
@@ -35,8 +37,8 @@ extending the pipeline day to day.
   3. python scripts/generate_blog_posts.py     — for each of N pending topics:
        a. knowledge_base.relevant_facts()      — curated reference facts (backend/app/blog/facts/*.json)
        b. news_feed.fetch_recent_items()        — recent items from configured RSS feeds
-       c. writer model (OpenRouter)             — drafts title/body/FAQ/news section as JSON
-       d. QA model (OpenRouter, different model)— reviews draft against the same facts/news; verdict JSON
+       c. writer pass (OpenRouter, gpt-oss-20b:free) — drafts title/body/FAQ/news section as JSON
+       d. QA pass (OpenRouter, gpt-oss-20b:free)     — reviews draft against the same facts/news; verdict JSON
        e. fail -> feed QA issues back to the writer, retry once, then give up
        f. save BlogPost: status=published (QA pass) or qa_failed (still failing after retry)
   4. python scripts/build_blog_static.py       — regenerates /blog/*, sitemap.xml, robots.txt from published posts
@@ -68,13 +70,22 @@ scheduled `blog.yml` run) to actually ship the change.
 
 | Name | Kind | What |
 |---|---|---|
-| `BLOG_DATABASE_URL` | Secret | Same production Postgres the backend already uses — content must persist there, not in an ephemeral CI database. This workflow also runs `alembic upgrade head` against it. |
-| `OPENROUTER_API_KEY` | Secret | OpenRouter API key (free tier is enough for the default models). |
+| `BLOG_DATABASE_URL` | Secret | The **same production Postgres database the backend already uses** — set it to that exact connection string. There is no separate blog database; `BlogTopic`/`BlogPost` are two more tables in the same schema (same `alembic` chain, same `Base.metadata` as `Institution`, `Deal`, etc. — see `backend/app/models/blog.py`). Content must persist there, not in an ephemeral CI database. This workflow also runs `alembic upgrade head` against it, which is what actually creates the two blog tables the first time it runs. |
+| `OPENROUTER_API_KEY` | Secret | OpenRouter API key (free tier is enough — both roles run on `openai/gpt-oss-20b:free`). |
 | `BLOG_SITE_BASE_URL` | Variable | Absolute base URL for canonical/OG/sitemap links, e.g. `https://waterline.ng`. Defaults to that value if unset. |
 
 `GITHUB_TOKEN` (automatic) needs `contents: write` and `issues: write`,
 already set in `blog.yml`'s `permissions:` block, for the auto-commit/push
 and the run-summary issue.
+
+**Why a separate secret for the same database:** production `DATABASE_URL`
+lives only in cPanel's "Environment variables" panel for the Python app
+(per `DEPLOYMENT.md`) — GitHub Actions has no access to that. `blog.yml`
+runs on GitHub's own runners, so it needs its own copy of that same
+connection string as a GitHub secret, and that connection string has to be
+reachable from the public internet (GitHub-hosted runners, not `localhost`)
+— confirm your Postgres host allows external connections before relying on
+the scheduled runs.
 
 **A direct push to `main` from the workflow's `GITHUB_TOKEN` requires that
 branch protection on `main` (if any) allows it.** If it doesn't, the push
@@ -96,9 +107,12 @@ re-run `build_blog_static.py` and push manually, or adjust branch protection.
   `backend/app/seed/seed_blog_topics.py`, or insert a `BlogTopic` directly
   (`prompt`, `category`, `target_keywords`, `priority`).
 - **Change the writer/QA model**: `OPENROUTER_WRITER_MODEL` /
-  `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`). Free-tier
-  model availability on OpenRouter rotates — if the default starts 404ing,
-  swap in whatever's currently free.
+  `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`), independently
+  configurable even though both currently point at `openai/gpt-oss-20b:free`.
+  Free-tier model availability on OpenRouter rotates — if that starts
+  404ing/erroring, swap in whatever's currently free and actually working
+  (test it directly against OpenRouter's API first — several other
+  "free" models were tried while building this and didn't work).
 
 ## Local dry run
 
