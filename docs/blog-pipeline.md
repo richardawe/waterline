@@ -1,14 +1,16 @@
 # Automated finance blog — pipeline reference
 
 An automated blog on credit, loans and personal/SME finance in Nigeria and
-across Africa, written by a free OpenRouter model (`openai/gpt-oss-20b:free`
-— the free-tier model that was actually confirmed working; several others
-were tried and didn't), reviewed by a second pass of the same model against
-a hard factual-grounding rubric, then auto-published as static HTML through
-the existing FTP deploy pipeline. This is the operational reference; the
-original design plan (context/trade-offs) lived in the session that built
-it — this doc is what to read when operating or extending the pipeline day
-to day.
+across Africa, written by a free OpenRouter model (`minimax/minimax-m3:free`
+as of 2026-09-02 — free-tier availability on OpenRouter rotates fast; two
+earlier choices (`deepseek/deepseek-chat-v3.1:free`, then
+`openai/gpt-oss-20b:free`) both stopped working, one pulled from the free
+tier entirely, another hitting a shared-pool 429), reviewed by a second pass
+of the same model against a hard factual-grounding rubric, then
+auto-published as static HTML through the existing FTP deploy pipeline.
+This is the operational reference; the original design plan
+(context/trade-offs) lived in the session that built it — this doc is what
+to read when operating or extending the pipeline day to day.
 
 ## Why the design looks like this
 
@@ -46,8 +48,8 @@ to day.
        (this step runs INSIDE the backend, on the server, not in CI)
        a. knowledge_base.relevant_facts()          — curated reference facts (backend/app/blog/facts/*.json)
        b. news_feed.fetch_recent_items()            — recent items from configured RSS feeds
-       c. writer pass (OpenRouter, gpt-oss-20b:free) — drafts title/body/FAQ/news section as JSON
-       d. QA pass (OpenRouter, gpt-oss-20b:free)     — reviews draft against the same facts/news; verdict JSON
+       c. writer pass (OpenRouter, minimax-m3:free) — drafts title/body/FAQ/news section as JSON
+       d. QA pass (OpenRouter, minimax-m3:free)     — reviews draft against the same facts/news; verdict JSON
        e. fail -> feed QA issues back to the writer, retry once, then give up
        f. save BlogPost: status=published (QA pass) or qa_failed (still failing after retry)
        <- backend returns {published: [...], qa_failed: [...]} as JSON
@@ -153,11 +155,40 @@ Apache/Passenger layer with a higher value, that's the fix.
   directly (`prompt`, `category`, `target_keywords`, `priority`).
 - **Change the writer/QA model**: `OPENROUTER_WRITER_MODEL` /
   `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`), independently
-  configurable even though both currently point at `openai/gpt-oss-20b:free`.
-  Free-tier model availability on OpenRouter rotates — if that starts
-  404ing/erroring, swap in whatever's currently free and actually working
-  (test it directly against OpenRouter's API first — several other
-  "free" models were tried while building this and didn't work).
+  configurable even though both currently point at `minimax/minimax-m3:free`.
+  Free-tier model availability on OpenRouter rotates fast — a model can go
+  from working to a hard 404 ("no longer free") or a 429 ("temporarily
+  rate-limited upstream, shared free pool") with no warning. **When
+  `/admin/blog/generate` 502s, don't guess from the outside — reproduce
+  directly on the server first**, where the real Python traceback is
+  visible instead of a generic 502 (a `502 Bad Gateway` from the endpoint is
+  always `OpenRouterError` — the model call itself failing — never a bug in
+  the request path around it):
+  ```
+  cd <app root> && source .venv/bin/activate
+  python -c "
+  from app.blog.openrouter_client import chat_completion
+  print(chat_completion('<candidate-model>:free', 'You are a helpful assistant.', 'Say hello in one sentence.'))
+  "
+  ```
+  Get the live list of what's currently actually free from OpenRouter's own
+  API (`https://openrouter.ai/api/v1/models`, filter for `pricing.prompt ==
+  "0"` — the `:free`-suffixed id alone isn't a reliable filter, some free
+  models don't use that suffix) rather than assuming a previously-known-good
+  slug still works. Once a candidate responds, verify it actually follows
+  the strict-JSON instruction before committing to it:
+  ```
+  python -c "
+  import json
+  from app.blog import knowledge_base, prompts
+  from app.blog.openrouter_client import chat_completion
+  facts = knowledge_base.relevant_facts('lending', 'loan')
+  user_prompt = prompts.build_writer_prompt('A test topic', 'lending', facts, [])
+  raw = chat_completion('<candidate-model>:free', prompts.WRITER_SYSTEM_PROMPT, user_prompt)
+  json.loads(raw)  # raises if the model didn't return clean JSON
+  print('OK')
+  "
+  ```
 
 ## Local dry run
 
