@@ -13,6 +13,13 @@ class BlogPostUpdate(BaseModel):
     faq: Optional[list[dict]] = None
 
 
+class BlogTopicCreate(BaseModel):
+    prompt: str
+    category: str
+    target_keywords: Optional[str] = None
+    priority: int = 100
+
+
 class DealCreate(BaseModel):
     originator_institution_id: str
     name: str
