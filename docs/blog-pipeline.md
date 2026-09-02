@@ -27,24 +27,35 @@ to day.
   of the frontend already has no build step — so published posts become
   plain files under `/blog/`, shipped by the same FTP job that already
   deploys `index.html`.
+- **CI never touches Postgres directly.** Generation runs *inside the
+  backend process* (which already has `localhost` access to Postgres) and
+  GitHub Actions triggers it over HTTPS, the same way `admin.html` already
+  calls the backend. This was a deliberate pivot away from an earlier design
+  that gave GitHub Actions its own direct database connection — that meant
+  opening Postgres to the internet (firewall + `pg_hba.conf` +
+  `listen_addresses` changes) just so a CI runner could reach it, when the
+  backend already sits on an HTTPS endpoint that can do the same work
+  without exposing the database at all.
 
 ## Architecture
 
 ```
 .github/workflows/blog.yml (cron, daily 08:00 UTC, or workflow_dispatch)
-  1. alembic upgrade head                     — ensure blog_topic/blog_post tables exist
-  2. python -m app.seed.seed_blog_topics       — idempotent: only inserts new prompts
-  3. python scripts/generate_blog_posts.py     — for each of N pending topics:
-       a. knowledge_base.relevant_facts()      — curated reference facts (backend/app/blog/facts/*.json)
-       b. news_feed.fetch_recent_items()        — recent items from configured RSS feeds
+  1. POST /admin/blog/seed-topics                 — idempotent: only inserts new prompts
+  2. python scripts/trigger_blog_generation.py     — POST /admin/blog/generate, over HTTPS:
+       (this step runs INSIDE the backend, on the server, not in CI)
+       a. knowledge_base.relevant_facts()          — curated reference facts (backend/app/blog/facts/*.json)
+       b. news_feed.fetch_recent_items()            — recent items from configured RSS feeds
        c. writer pass (OpenRouter, gpt-oss-20b:free) — drafts title/body/FAQ/news section as JSON
        d. QA pass (OpenRouter, gpt-oss-20b:free)     — reviews draft against the same facts/news; verdict JSON
        e. fail -> feed QA issues back to the writer, retry once, then give up
        f. save BlogPost: status=published (QA pass) or qa_failed (still failing after retry)
-  4. python scripts/build_blog_static.py       — regenerates /blog/*, sitemap.xml, robots.txt from published posts
-  5. commit + push blog/, sitemap.xml, robots.txt to main
+       <- backend returns {published: [...], qa_failed: [...]} as JSON
+  3. python scripts/build_blog_static.py           — GET /admin/blog/posts?status=published, regenerates
+                                                       /blog/*, sitemap.xml, robots.txt from the response
+  4. commit + push blog/, sitemap.xml, robots.txt to main
        -> existing deploy.yml triggers on that push, FTPs the static site as always
-  6. notify.py                                  — opens a GitHub issue summarizing the run
+  5. notify.py                                      — opens a GitHub issue summarizing the run
 ```
 
 `admin.html`'s **Blog** tab (`/admin/blog/*` API, admin-authenticated) shows
@@ -58,71 +69,73 @@ scheduled `blog.yml` run) to actually ship the change.
 | Concern | Path |
 |---|---|
 | Data models | `backend/app/models/blog.py` (`BlogTopic`, `BlogPost`) |
-| Generation pipeline | `backend/app/blog/` (`openrouter_client.py`, `knowledge_base.py`, `news_feed.py`, `prompts.py`, `generator.py`, `notify.py`, `sanitize.py`) |
+| Generation pipeline | `backend/app/blog/` (`openrouter_client.py`, `knowledge_base.py`, `news_feed.py`, `prompts.py`, `generator.py`, `notify.py`, `sanitize.py`, `serialize.py`) |
 | Curated reference facts | `backend/app/blog/facts/*.json` — human-edited, git-tracked, small |
-| Admin API | `backend/app/api/blog_admin.py` (`/admin/blog/posts`, `/admin/blog/topics`) |
-| Static site build | `backend/scripts/build_blog_static.py` → `blog/`, `sitemap.xml`, `robots.txt` at repo root |
-| CI entrypoint | `backend/scripts/generate_blog_posts.py` |
+| Admin API | `backend/app/api/blog_admin.py` — `/admin/blog/posts` (CRUD), `/admin/blog/topics` (CRUD), `/admin/blog/generate` (runs generation server-side), `/admin/blog/seed-topics` |
+| Static site build | `backend/scripts/build_blog_static.py` → `blog/`, `sitemap.xml`, `robots.txt` at repo root. Fetches from the live API by default (`--source api`); `--source db` is a local-dev-only fallback that queries Postgres directly. |
+| CI entrypoint | `backend/scripts/trigger_blog_generation.py` — calls `/admin/blog/generate` over HTTPS |
+| Direct-DB ops utility | `backend/scripts/generate_blog_posts.py` — same generation logic run locally/on-server against Postgres directly; CI doesn't use this, kept for local dev or a machine with `localhost` DB access |
 | Topic seed | `backend/app/seed/seed_blog_topics.py` |
 | Automation | `.github/workflows/blog.yml` |
 
-## Required secrets/variables (GitHub Actions)
+## Required setup
+
+**On the server (cPanel environment variables for the Python app, same
+panel `DATABASE_URL` already lives in):**
+
+| Name | What |
+|---|---|
+| `OPENROUTER_API_KEY` | OpenRouter API key — generation now runs in the backend process, so this needs to be here, not in GitHub. |
+
+After adding it, restart the app (touch `tmp/restart.txt`, or via cPanel's
+Application Manager) so Passenger picks up the new environment variable.
+The backend code that reads it (`backend/app/config.py`,
+`backend/app/blog/`) needs to already be deployed — pull the latest
+`backend/` changes through your normal deploy process first.
+
+**One-time production migration:** the `blog_topic`/`blog_post` tables
+don't exist yet — earlier attempts to create them via a CI-driven direct
+`alembic upgrade head` never got far enough (that's what this pivot away
+from). Run it once via cPanel Terminal (or however backend migrations
+normally happen — see `DEPLOYMENT.md`):
+```
+cd <app root> && source <venv>/bin/activate && alembic upgrade head
+```
+
+**GitHub Actions secrets/variables:**
 
 | Name | Kind | What |
 |---|---|---|
-| `BLOG_DATABASE_URL` | Secret | The **same production Postgres database the backend already uses** — set it to that exact connection string. There is no separate blog database; `BlogTopic`/`BlogPost` are two more tables in the same schema (same `alembic` chain, same `Base.metadata` as `Institution`, `Deal`, etc. — see `backend/app/models/blog.py`). Content must persist there, not in an ephemeral CI database. This workflow also runs `alembic upgrade head` against it, which is what actually creates the two blog tables the first time it runs. |
-| `OPENROUTER_API_KEY` | Secret | OpenRouter API key (free tier is enough — both roles run on `openai/gpt-oss-20b:free`). |
-| `BLOG_SITE_BASE_URL` | Variable | Absolute base URL for canonical/OG/sitemap links, e.g. `https://waterline.ng`. Defaults to that value if unset. |
+| `ADMIN_API_USERNAME` | Secret | Same admin API username `admin.html` already authenticates with — copy the value from cPanel's `ADMIN_API_USERNAME` environment variable. |
+| `ADMIN_API_PASSWORD` | Secret | Same, for the password. |
+| `BLOG_API_BASE` | Variable | Your backend's public HTTPS base, e.g. `https://api.waterline.ng`. Defaults to that if unset. |
+| `BLOG_SITE_BASE_URL` | Variable | Public site base for canonical/OG/sitemap links, e.g. `https://waterline.ng`. Defaults to that if unset. |
 
+No database connection string is needed in GitHub at all anymore.
 `GITHUB_TOKEN` (automatic) needs `contents: write` and `issues: write`,
 already set in `blog.yml`'s `permissions:` block, for the auto-commit/push
 and the run-summary issue.
 
-**Why a separate secret for the same database:** production `DATABASE_URL`
-lives only in cPanel's "Environment variables" panel for the Python app
-(per `DEPLOYMENT.md`) — GitHub Actions has no access to that. `blog.yml`
-runs on GitHub's own runners, so it needs its own copy of that same
-connection string as a GitHub secret, and that connection string has to be
-reachable from the public internet (GitHub-hosted runners, not `localhost`)
-— confirm your Postgres host allows external connections before relying on
-the scheduled runs.
-
-**Opening Postgres to external connections (cPanel/WHM):** the production
-server's Postgres, like most cPanel installs, defaults to accepting
-connections only from `localhost` — which is why `BLOG_DATABASE_URL` can't
-just reuse `localhost` the way the app's own `DATABASE_URL` does. To open
-it up (requires WHM/root access, or your host's support team):
-
-1. Check cPanel first for a **Remote PostgreSQL** panel (the Postgres
-   equivalent of the common "Remote MySQL" feature) — if present, this is
-   the self-service path: add access for the database user.
-2. If not available, via WHM/server root:
-   - `postgresql.conf` (typically `/var/lib/pgsql/data/postgresql.conf` or
-     `/var/lib/pgsql/<version>/data/postgresql.conf`): set
-     `listen_addresses = '*'`.
-   - `pg_hba.conf` (same directory): add a line scoping access to the
-     specific user/database rather than opening everything, e.g.
-     `host    <dbname>    <dbuser>    0.0.0.0/0    scram-sha-256`
-     (GitHub-hosted runners don't have a fixed, allowlist-able IP range, so
-     the password — and SSL — are the real security boundary here, not the
-     source IP).
-   - Restart PostgreSQL (`systemctl restart postgresql`, or via WHM's
-     "Restart Services").
-   - Open port 5432 in the firewall (CSF: add `5432` to `TCP_IN` in
-     `/etc/csf/csf.conf`, then `csf -r`; firewalld:
-     `firewall-cmd --permanent --add-port=5432/tcp && firewall-cmd --reload`).
-3. Use a strong, dedicated password for this user and append
-   `?sslmode=require` to `BLOG_DATABASE_URL` if the server supports SSL —
-   worth doing given the port faces the internet.
-4. Sanity-check reachability independently of the workflow before relying
-   on it: `psql "postgresql://<user>:<password>@<host>:5432/<dbname>?sslmode=require"`
-   or, at minimum, `nc -zv <host> 5432` from any external machine.
+**If you already opened Postgres to external connections** while on the
+earlier direct-DB-connection design (firewall rule for 5432,
+`listen_addresses`, `pg_hba.conf` entry): none of that is needed anymore
+and it's worth reverting — closing 5432 back up in the firewall removes an
+attack surface that this design no longer requires. The `BLOG_DATABASE_URL`
+secret, if you added it, can be deleted from GitHub.
 
 **A direct push to `main` from the workflow's `GITHUB_TOKEN` requires that
 branch protection on `main` (if any) allows it.** If it doesn't, the push
 step fails loudly rather than silently losing content — the generated
 `BlogPost` rows are still in Postgres either way, just not yet built/shipped;
 re-run `build_blog_static.py` and push manually, or adjust branch protection.
+
+**A note on request duration:** `/admin/blog/generate` runs synchronously —
+the HTTP request doesn't return until the writer/QA calls finish (there's
+no background task queue in this codebase). Each post can mean up to 4
+OpenRouter round trips (writer, QA, and a retry of both). Keep
+`posts_per_run` low (the default is 1) so this stays well inside typical
+reverse-proxy timeout windows; if requests start timing out at the
+Apache/Passenger layer with a higher value, that's the fix.
 
 ## Extending it
 
@@ -134,9 +147,10 @@ re-run `build_blog_static.py` and push manually, or adjust branch protection.
   (comma-separated) in `backend/app/config.py` or via env var. Verify it's
   real RSS 2.0 first — `businessday.ng/feed/` was tried during design and
   403s to a generic fetch; Nairametrics and TechCabal are confirmed working.
-- **Add a topic**: add a row to `TOPICS` in
-  `backend/app/seed/seed_blog_topics.py`, or insert a `BlogTopic` directly
-  (`prompt`, `category`, `target_keywords`, `priority`).
+- **Add a topic**: use the "Content queue" panel in `admin.html`'s Blog tab
+  (add/remove pending topics without touching code), add a row to `TOPICS`
+  in `backend/app/seed/seed_blog_topics.py`, or insert a `BlogTopic`
+  directly (`prompt`, `category`, `target_keywords`, `priority`).
 - **Change the writer/QA model**: `OPENROUTER_WRITER_MODEL` /
   `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`), independently
   configurable even though both currently point at `openai/gpt-oss-20b:free`.
@@ -147,12 +161,25 @@ re-run `build_blog_static.py` and push manually, or adjust branch protection.
 
 ## Local dry run
 
+Two ways, matching the two data-source modes:
+
+**Direct DB (fastest for local dev):**
 ```
 cd backend
 export OPENROUTER_API_KEY=... DATABASE_URL=postgresql+psycopg://waterline:waterline@localhost:5432/waterline
 alembic upgrade head
 python -m app.seed.seed_blog_topics
 python scripts/generate_blog_posts.py --posts-per-run 1
-python scripts/build_blog_static.py
+python scripts/build_blog_static.py --source db
+python3 -m http.server 5500   # from repo root, then open /blog/
+```
+
+**Via the HTTP API (matches what production CI actually does):**
+```
+cd backend && uvicorn app.main:app --reload   # in one terminal, with OPENROUTER_API_KEY set
+# in another terminal:
+export BLOG_API_BASE=http://localhost:8001 ADMIN_API_USERNAME=... ADMIN_API_PASSWORD=...
+python scripts/trigger_blog_generation.py --posts-per-run 1
+python scripts/build_blog_static.py --source api
 python3 -m http.server 5500   # from repo root, then open /blog/
 ```

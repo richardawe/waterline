@@ -1,7 +1,12 @@
 """Admin-only control surface for the blog pipeline: view every post
 regardless of status, edit content, and force-publish/archive. This is the
 human safety valve for the auto-publish flow — exercised after the fact,
-per the notification a run posts to GitHub."""
+per the notification a run posts to GitHub.
+
+Also where generation itself now runs (`/generate`): the backend process
+already has `localhost` access to Postgres, so doing the OpenRouter
+writer/QA work here — triggered over HTTPS by CI — means the database never
+needs to be exposed to the internet. See docs/blog-pipeline.md."""
 
 import json
 from datetime import datetime, timezone
@@ -11,7 +16,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.blog.generator import generate_one
+from app.blog.openrouter_client import OpenRouterError
 from app.blog.sanitize import sanitize_html
+from app.blog.serialize import post_to_dict, topic_to_dict
 from app.db import get_db
 from app.models.blog import BlogPost, BlogTopic
 from app.schemas import BlogPostUpdate, BlogTopicCreate
@@ -19,29 +27,7 @@ from app.security import require_admin
 
 router = APIRouter(prefix="/admin/blog", tags=["admin-blog"], dependencies=[Depends(require_admin)])
 
-
-def _post_to_dict(post: BlogPost) -> dict:
-    return {
-        "id": post.id,
-        "slug": post.slug,
-        "title": post.title,
-        "meta_description": post.meta_description,
-        "excerpt": post.excerpt,
-        "tags": json.loads(post.tags_json) if post.tags_json else [],
-        "content_markdown": post.content_markdown,
-        "faq": json.loads(post.faq_json) if post.faq_json else [],
-        "news_refs": json.loads(post.news_refs_json) if post.news_refs_json else [],
-        "status": post.status,
-        "writer_model": post.writer_model,
-        "qa_model": post.qa_model,
-        "qa_verdict": json.loads(post.qa_verdict_json) if post.qa_verdict_json else None,
-        "qa_attempts": post.qa_attempts,
-        "word_count": post.word_count,
-        "reading_minutes": post.reading_minutes,
-        "published_at": post.published_at.isoformat() if post.published_at else None,
-        "created_at": post.created_at.isoformat() if post.created_at else None,
-        "updated_at": post.updated_at.isoformat() if post.updated_at else None,
-    }
+MAX_POSTS_PER_REQUEST = 3  # generation runs synchronously in this HTTP request — keep it bounded
 
 
 @router.get("/posts")
@@ -49,7 +35,7 @@ def list_posts(db: Session = Depends(get_db), status: str | None = None):
     stmt = select(BlogPost).order_by(BlogPost.created_at.desc())
     if status:
         stmt = stmt.where(BlogPost.status == status)
-    return [_post_to_dict(p) for p in db.execute(stmt).scalars()]
+    return [post_to_dict(p) for p in db.execute(stmt).scalars()]
 
 
 @router.get("/posts/{post_id}")
@@ -57,7 +43,7 @@ def get_post(post_id: str, db: Session = Depends(get_db)):
     post = db.get(BlogPost, post_id)
     if post is None:
         raise HTTPException(404, "post not found")
-    return _post_to_dict(post)
+    return post_to_dict(post)
 
 
 @router.patch("/posts/{post_id}")
@@ -84,7 +70,7 @@ def update_post(post_id: str, body: BlogPostUpdate, db: Session = Depends(get_db
 
     db.commit()
     db.refresh(post)
-    return _post_to_dict(post)
+    return post_to_dict(post)
 
 
 @router.post("/posts/{post_id}/publish")
@@ -97,7 +83,7 @@ def force_publish(post_id: str, db: Session = Depends(get_db)):
         post.published_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(post)
-    return _post_to_dict(post)
+    return post_to_dict(post)
 
 
 @router.post("/posts/{post_id}/archive")
@@ -108,18 +94,45 @@ def archive_post(post_id: str, db: Session = Depends(get_db)):
     post.status = "archived"
     db.commit()
     db.refresh(post)
-    return _post_to_dict(post)
+    return post_to_dict(post)
 
 
-def _topic_to_dict(topic: BlogTopic) -> dict:
+@router.post("/generate")
+def generate_posts(posts_per_run: int = 1, db: Session = Depends(get_db)):
+    """Runs writer -> QA -> publish/qa_failed synchronously, server-side,
+    where Postgres and OpenRouter are both already reachable. This is the
+    call CI makes over HTTPS instead of connecting to the database itself.
+
+    Runs in-request (no task queue in this codebase), so `posts_per_run` is
+    capped — a slow OpenRouter free-tier round trip times MAX_QA_ATTEMPTS
+    per post can otherwise run long enough to hit a reverse-proxy timeout.
+    """
+    n = max(1, min(posts_per_run, MAX_POSTS_PER_REQUEST))
+    published, qa_failed = [], []
+    try:
+        for _ in range(n):
+            post = generate_one(db)
+            if post is None:
+                break  # no more pending topics
+            (published if post.status == "published" else qa_failed).append(post)
+    except OpenRouterError as exc:
+        raise HTTPException(502, f"OpenRouter error: {exc}") from exc
+
     return {
-        "id": topic.id,
-        "prompt": topic.prompt,
-        "category": topic.category,
-        "target_keywords": topic.target_keywords,
-        "priority": topic.priority,
-        "status": topic.status,
+        "published": [post_to_dict(p) for p in published],
+        "qa_failed": [post_to_dict(p) for p in qa_failed],
     }
+
+
+@router.post("/seed-topics")
+def seed_topics():
+    """Idempotent — only inserts prompts from TOPICS that aren't already in
+    the queue. Lets CI top up the starter content calendar over HTTPS
+    without a direct DB connection, same as /generate."""
+    from app.seed.seed_blog_topics import seed
+
+    seed()
+    return {"seeded": True}
 
 
 @router.get("/topics")
@@ -127,7 +140,7 @@ def list_topics(db: Session = Depends(get_db), status: str | None = None):
     stmt = select(BlogTopic).order_by(BlogTopic.priority.desc(), BlogTopic.created_at)
     if status:
         stmt = stmt.where(BlogTopic.status == status)
-    return [_topic_to_dict(t) for t in db.execute(stmt).scalars()]
+    return [topic_to_dict(t) for t in db.execute(stmt).scalars()]
 
 
 @router.post("/topics")
@@ -146,7 +159,7 @@ def create_topic(body: BlogTopicCreate, db: Session = Depends(get_db)):
     db.add(topic)
     db.commit()
     db.refresh(topic)
-    return _topic_to_dict(topic)
+    return topic_to_dict(topic)
 
 
 @router.delete("/topics/{topic_id}")
