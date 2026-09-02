@@ -87,6 +87,37 @@ reachable from the public internet (GitHub-hosted runners, not `localhost`)
 — confirm your Postgres host allows external connections before relying on
 the scheduled runs.
 
+**Opening Postgres to external connections (cPanel/WHM):** the production
+server's Postgres, like most cPanel installs, defaults to accepting
+connections only from `localhost` — which is why `BLOG_DATABASE_URL` can't
+just reuse `localhost` the way the app's own `DATABASE_URL` does. To open
+it up (requires WHM/root access, or your host's support team):
+
+1. Check cPanel first for a **Remote PostgreSQL** panel (the Postgres
+   equivalent of the common "Remote MySQL" feature) — if present, this is
+   the self-service path: add access for the database user.
+2. If not available, via WHM/server root:
+   - `postgresql.conf` (typically `/var/lib/pgsql/data/postgresql.conf` or
+     `/var/lib/pgsql/<version>/data/postgresql.conf`): set
+     `listen_addresses = '*'`.
+   - `pg_hba.conf` (same directory): add a line scoping access to the
+     specific user/database rather than opening everything, e.g.
+     `host    <dbname>    <dbuser>    0.0.0.0/0    scram-sha-256`
+     (GitHub-hosted runners don't have a fixed, allowlist-able IP range, so
+     the password — and SSL — are the real security boundary here, not the
+     source IP).
+   - Restart PostgreSQL (`systemctl restart postgresql`, or via WHM's
+     "Restart Services").
+   - Open port 5432 in the firewall (CSF: add `5432` to `TCP_IN` in
+     `/etc/csf/csf.conf`, then `csf -r`; firewalld:
+     `firewall-cmd --permanent --add-port=5432/tcp && firewall-cmd --reload`).
+3. Use a strong, dedicated password for this user and append
+   `?sslmode=require` to `BLOG_DATABASE_URL` if the server supports SSL —
+   worth doing given the port faces the internet.
+4. Sanity-check reachability independently of the workflow before relying
+   on it: `psql "postgresql://<user>:<password>@<host>:5432/<dbname>?sslmode=require"`
+   or, at minimum, `nc -zv <host> 5432` from any external machine.
+
 **A direct push to `main` from the workflow's `GITHUB_TOKEN` requires that
 branch protection on `main` (if any) allows it.** If it doesn't, the push
 step fails loudly rather than silently losing content — the generated
