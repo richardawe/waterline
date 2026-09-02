@@ -31,7 +31,7 @@ to day.
 ## Architecture
 
 ```
-.github/workflows/blog.yml (cron, 3x/week, or workflow_dispatch)
+.github/workflows/blog.yml (cron, daily 08:00 UTC, or workflow_dispatch)
   1. alembic upgrade head                     — ensure blog_topic/blog_post tables exist
   2. python -m app.seed.seed_blog_topics       — idempotent: only inserts new prompts
   3. python scripts/generate_blog_posts.py     — for each of N pending topics:
