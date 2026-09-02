@@ -38,6 +38,7 @@ jobs:
       ADMIN_API_USERNAME: ${{ secrets.ADMIN_API_USERNAME }}
       ADMIN_API_PASSWORD: ${{ secrets.ADMIN_API_PASSWORD }}
       BLOG_SITE_BASE_URL: ${{ vars.BLOG_SITE_BASE_URL || 'https://waterline.ng' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # notify.py reads this directly; the `permissions:` block alone doesn't inject it into run steps
     steps:
       - uses: actions/checkout@v6
 
