@@ -56,9 +56,25 @@ to read when operating or extending the pipeline day to day.
   3. python scripts/build_blog_static.py           — GET /admin/blog/posts?status=published, regenerates
                                                        /blog/*, sitemap.xml, robots.txt from the response
   4. commit + push blog/, sitemap.xml, robots.txt to main
-       -> existing deploy.yml triggers on that push, FTPs the static site as always
+       -> explicitly dispatches deploy.yml via the API (only if something was
+          pushed) — see note below on why a plain push isn't enough
   5. notify.py                                      — opens a GitHub issue summarizing the run
 ```
+
+**Why `blog.yml` explicitly dispatches `deploy.yml` instead of just relying on
+its push to `main`:** GitHub Actions has a built-in anti-recursion guard — a
+push authenticated with a workflow's own `GITHUB_TOKEN` does **not** fire
+other workflows' `on: push` triggers (this is what stops automated commits
+from chaining into infinite workflow runs). `blog.yml`'s bot commit landed on
+`main` just fine the first time this was live, but `deploy.yml` silently
+never ran because of this — the content sat committed but unshipped with no
+error anywhere. The fix: `blog.yml`'s last step calls
+`POST /repos/{repo}/actions/workflows/deploy.yml/dispatches` directly
+(needs the `actions: write` permission, already set), which — being an
+explicit `workflow_dispatch` via the API rather than an automatic `push`
+event — is exempt from that guard. It only fires when the commit step
+actually pushed something (`steps.publish.outputs.pushed == 'true'`), so a
+day with no new topics doesn't force an unnecessary backend restart.
 
 `admin.html`'s **Blog** tab (`/admin/blog/*` API, admin-authenticated) shows
 every post regardless of status, with QA notes, and lets you edit content,

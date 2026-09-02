@@ -26,6 +26,7 @@ concurrency:
 permissions:
   contents: write
   issues: write
+  actions: write # to dispatch deploy.yml explicitly — see note below
 
 jobs:
   generate:
@@ -68,6 +69,7 @@ jobs:
         run: python scripts/build_blog_static.py --source api
 
       - name: Commit and push generated static files
+        id: publish
         working-directory: .
         run: |
           git config user.name "waterline-blog-bot"
@@ -75,11 +77,13 @@ jobs:
           git add blog/ sitemap.xml robots.txt
           if git diff --cached --quiet; then
             echo "No static content changes to publish."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "Auto-publish blog content"
           for attempt in 1 2 3 4; do
             if git push origin HEAD:main; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
               break
             fi
             echo "Push failed (attempt $attempt), retrying..."
@@ -87,3 +91,22 @@ jobs:
             git fetch origin main
             git rebase origin/main
           done
+
+      - name: Trigger the frontend deploy
+        if: steps.publish.outputs.pushed == 'true'
+        run: |
+          # A push made with this workflow's own GITHUB_TOKEN does NOT fire
+          # other workflows' `on: push` triggers — GitHub's built-in
+          # anti-recursion guard (see
+          # https://docs.github.com/en/actions/reference/events-that-trigger-workflows#triggering-a-workflow-from-a-workflow).
+          # That means the commit above would silently never reach
+          # production without this: explicitly dispatch deploy.yml, which
+          # is exempt from that guard since it's a workflow_dispatch call
+          # via the API rather than a push event. Only runs when something
+          # was actually pushed, so a no-op day doesn't force an unnecessary
+          # backend restart.
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches" \
+            -d '{"ref":"main"}'
