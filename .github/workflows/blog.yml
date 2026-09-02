@@ -1,0 +1,88 @@
+name: Generate blog posts
+
+# Auto-publish pipeline: generates posts via OpenRouter, QA-reviews them,
+# rebuilds the static /blog site, and pushes straight to main — which is
+# what triggers deploy.yml's existing FTP job, so publishing a post is just
+# "another push of static files" with no changes needed there. See
+# docs/blog-pipeline.md for the full design and the human-review safety net
+# (admin.html's Blog tab) that this relies on since there is no pre-publish
+# approval gate.
+
+on:
+  schedule:
+    - cron: "0 8 * * 1,3,5" # Mon/Wed/Fri 08:00 UTC
+  workflow_dispatch:
+    inputs:
+      posts_per_run:
+        description: "How many posts to attempt to generate this run"
+        required: false
+        default: "2"
+
+concurrency:
+  group: blog-generation
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.BLOG_DATABASE_URL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      BLOG_SITE_BASE_URL: ${{ vars.BLOG_SITE_BASE_URL || 'https://waterline.ng' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Require blog secrets
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::BLOG_DATABASE_URL and OPENROUTER_API_KEY secrets are required (see docs/blog-pipeline.md)."
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: python -m pip install -r requirements.txt
+
+      - name: Apply pending migrations
+        run: alembic upgrade head
+
+      - name: Seed content-calendar topics (idempotent — only inserts new prompts)
+        run: python -m app.seed.seed_blog_topics
+
+      - name: Generate posts (writer -> QA -> publish/qa_failed)
+        run: python scripts/generate_blog_posts.py --posts-per-run "${{ github.event.inputs.posts_per_run || '2' }}"
+
+      - name: Rebuild static /blog site
+        run: python scripts/build_blog_static.py
+
+      - name: Commit and push generated static files
+        working-directory: .
+        run: |
+          git config user.name "waterline-blog-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add blog/ sitemap.xml robots.txt
+          if git diff --cached --quiet; then
+            echo "No static content changes to publish."
+            exit 0
+          fi
+          git commit -m "Auto-publish blog content"
+          for attempt in 1 2 3 4; do
+            if git push origin HEAD:main; then
+              break
+            fi
+            echo "Push failed (attempt $attempt), retrying..."
+            sleep $((attempt * 2))
+            git fetch origin main
+            git rebase origin/main
+          done

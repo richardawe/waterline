@@ -20,6 +20,12 @@ A loan-book structured-finance platform for Nigerian lenders, in three parts:
 3. **SPV structuring** (`admin.html` only — no public UI yet) — eligibility
    screening, tranche sizing (Senior/Mezz/Equity), and a monthly cashflow
    waterfall simulation (`backend/app/spv/`).
+4. **Automated finance blog** (`/blog/`, public) — SEO/AEO content on credit,
+   loans and finance in Nigeria/Africa, written by a free OpenRouter model,
+   QA-reviewed by a second model against curated facts + fetched news, and
+   auto-published as static HTML via `.github/workflows/blog.yml`. Full
+   reference: `docs/blog-pipeline.md`. Human safety valve: `admin.html`'s
+   Blog tab (edit/force-publish/archive any post after the fact).
 
 ## Architecture
 
@@ -119,3 +125,5 @@ backend.
 - Backend local setup: `backend/README.md`
 - WCDS spec/validation rules: `standards/wcds/`, `backend/app/ingest/`
 - SPV eligibility/sizing/waterfall logic: `backend/app/spv/`
+- Blog pipeline (generation/QA/publish, secrets, how to extend):
+  `docs/blog-pipeline.md`

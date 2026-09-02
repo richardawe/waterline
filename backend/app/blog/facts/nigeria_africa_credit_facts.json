@@ -1,0 +1,90 @@
+[
+  {
+    "id": "cbn-regulator",
+    "category": "regulation",
+    "keywords": ["cbn", "central bank", "regulator", "regulation", "nigeria banking"],
+    "fact": "The Central Bank of Nigeria (CBN) is Nigeria's banking and monetary regulator, responsible for licensing deposit money banks, microfinance banks and setting the Monetary Policy Rate (MPR).",
+    "as_of": "2026",
+    "source": "cbn.gov.ng"
+  },
+  {
+    "id": "credit-bureaus-nigeria",
+    "category": "credit-score",
+    "keywords": ["credit bureau", "credit score", "crc", "firstcentral", "creditregistry"],
+    "fact": "Nigeria has three CBN-licensed private credit bureaus: CRC Credit Bureau, FirstCentral Credit Bureau, and CreditRegistry. Lenders report repayment history to these bureaus, which compile individual and business credit reports used in loan underwriting.",
+    "as_of": "2026",
+    "source": "cbn.gov.ng list of licensed credit bureaus"
+  },
+  {
+    "id": "microfinance-banks",
+    "category": "lending",
+    "keywords": ["microfinance", "mfb", "smes", "small business loan"],
+    "fact": "Microfinance banks (MFBs) in Nigeria are licensed and supervised by the CBN under a tiered structure (Unit, State, National) and primarily serve individuals and micro/small businesses that commercial banks often find too costly to underwrite.",
+    "as_of": "2026",
+    "source": "cbn.gov.ng microfinance policy framework"
+  },
+  {
+    "id": "gsi-loan-recovery",
+    "category": "loan-recovery",
+    "keywords": ["gsi", "global standing instruction", "loan default", "recovery", "nibss"],
+    "fact": "The CBN's Global Standing Instruction (GSI) policy lets participating banks recover non-performing loan balances by debiting a defaulting borrower's other linked accounts across the banking system, via NIBSS infrastructure, after due process and notice.",
+    "as_of": "2026",
+    "source": "cbn.gov.ng GSI guidelines"
+  },
+  {
+    "id": "fccpc-digital-lending",
+    "category": "regulation",
+    "keywords": ["digital lending", "loan app", "fccpc", "predatory lending"],
+    "fact": "The Federal Competition and Consumer Protection Commission (FCCPC), together with CBN, issued guidelines in 2022 requiring digital money lenders in Nigeria to register and be approved before operating, following widespread complaints about predatory loan apps.",
+    "as_of": "2022 guidelines, still in force as of 2026",
+    "source": "fccpc.gov.ng"
+  },
+  {
+    "id": "ndpa",
+    "category": "regulation",
+    "keywords": ["data protection", "ndpa", "privacy", "loan app data"],
+    "fact": "The Nigeria Data Protection Act (NDPA) 2023 governs how lenders and loan apps may collect, process and share borrowers' personal data, and is enforced by the Nigeria Data Protection Commission (NDPC).",
+    "as_of": "2023 act, in force",
+    "source": "ndpc.gov.ng"
+  },
+  {
+    "id": "boi",
+    "category": "sme-finance",
+    "keywords": ["bank of industry", "boi", "intervention fund", "sme funding"],
+    "fact": "The Bank of Industry (BOI) is Nigeria's oldest and largest development finance institution, providing long-term, low-interest financing to SMEs and industrial projects, often channelled through participating commercial and microfinance banks.",
+    "as_of": "2026",
+    "source": "boi.ng"
+  },
+  {
+    "id": "structured-finance-spv",
+    "category": "structured-finance",
+    "keywords": ["securitisation", "spv", "special purpose vehicle", "loan tape", "tranche"],
+    "fact": "In loan securitisation/structured finance, a lender sells or pledges a pool of eligible loans to a bankruptcy-remote Special Purpose Vehicle (SPV), which issues tranches (commonly Senior, Mezzanine, Equity) with different risk/return priority, ranked by seniority in a cashflow waterfall.",
+    "as_of": "2026",
+    "source": "general structured finance practice"
+  },
+  {
+    "id": "kenya-mobile-credit",
+    "category": "pan-africa",
+    "keywords": ["kenya", "m-pesa", "mobile credit", "mshwari", "fuliza"],
+    "fact": "Kenya's mobile-money-linked credit products (such as M-Shwari and Fuliza, built on the M-Pesa rails operated by Safaricom) pioneered using mobile-money transaction history rather than traditional collateral to underwrite short-term consumer credit in Africa.",
+    "as_of": "2026",
+    "source": "general public reporting on Kenyan mobile credit market"
+  },
+  {
+    "id": "south-africa-ncr",
+    "category": "pan-africa",
+    "keywords": ["south africa", "national credit regulator", "ncr", "credit act"],
+    "fact": "South Africa's National Credit Regulator (NCR), established under the National Credit Act 2005, regulates credit providers, credit bureaus and debt counsellors, and enforces affordability-assessment and reckless-lending rules.",
+    "as_of": "2026",
+    "source": "ncr.org.za"
+  },
+  {
+    "id": "ghana-credit-bureaus",
+    "category": "pan-africa",
+    "keywords": ["ghana", "bank of ghana", "credit bureau ghana"],
+    "fact": "The Bank of Ghana licenses and supervises credit bureaus operating in Ghana under the Credit Reporting Act, requiring regulated financial institutions to submit borrower data used for credit scoring.",
+    "as_of": "2026",
+    "source": "bog.gov.gh"
+  }
+]

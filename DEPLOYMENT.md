@@ -123,6 +123,24 @@ Frontend and backend deploy only after the test job passes.
 itself) — locally, `admin.html` falls back to `http://localhost:8001`. The workflow overwrites its own checkout's
 copy before uploading; it never commits the generated version back to git.
 
+## 5. Automated blog pipeline (separate workflow)
+
+`.github/workflows/blog.yml` runs on a schedule (and `workflow_dispatch`) —
+independent from the `main`-push deploy workflow above, though its own
+commits to `main` are what trigger that deploy for blog content. Full design
+in `docs/blog-pipeline.md`. Requires these on top of everything above:
+
+| Name | Kind | What |
+|---|---|---|
+| `BLOG_DATABASE_URL` | Secret | Same production Postgres `DATABASE_URL` already uses. |
+| `OPENROUTER_API_KEY` | Secret | OpenRouter API key for the writer/QA models. |
+| `BLOG_SITE_BASE_URL` | Variable | Public base URL, e.g. `https://waterline.ng` (defaults to that if unset). |
+
+It pushes generated `blog/`, `sitemap.xml` and `robots.txt` straight to
+`main` with the workflow's own `GITHUB_TOKEN` — if branch protection blocks
+direct pushes from Actions, that step will fail loudly (content stays saved
+in Postgres either way; nothing is silently lost).
+
 ## Known limitations, honestly
 
 - **No zero-downtime deploy.** Passenger restarts on `tmp/restart.txt`

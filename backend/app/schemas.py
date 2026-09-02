@@ -4,6 +4,15 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class BlogPostUpdate(BaseModel):
+    title: Optional[str] = None
+    meta_description: Optional[str] = None
+    excerpt: Optional[str] = None
+    content_markdown: Optional[str] = None
+    tags: Optional[list[str]] = None
+    faq: Optional[list[dict]] = None
+
+
 class DealCreate(BaseModel):
     originator_institution_id: str
     name: str
