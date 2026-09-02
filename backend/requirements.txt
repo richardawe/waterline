@@ -13,3 +13,4 @@ python-dateutil>=2.9
 a2wsgi>=1.10  # ASGI-to-WSGI bridge for cPanel/Passenger deployment (passenger_wsgi.py)
 pytest>=8.0
 httpx>=0.27
+markdown>=3.6  # renders BlogPost.content_markdown for the static blog build

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import deals, downloads, institutions, loan_tapes, spv
+from app.api import blog_admin, deals, downloads, institutions, loan_tapes, spv
 from app.config import get_settings
 
 settings = get_settings()
@@ -38,6 +38,7 @@ app.include_router(loan_tapes.router)
 app.include_router(loan_tapes.private_router)
 app.include_router(spv.router)
 app.include_router(downloads.router)
+app.include_router(blog_admin.router)
 
 
 @app.get("/health")

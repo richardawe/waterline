@@ -64,6 +64,14 @@
   .badge{ display:inline-flex; align-items:center; font-family:var(--font-head); font-size:11px; font-weight:500; padding:3px 10px; border-radius:var(--r-pill); white-space:nowrap; border:1px solid var(--border); color:var(--text-dim); }
   .badge-ok{ background:var(--green-soft); color:var(--green); border-color:transparent; }
   .badge-bad{ background:var(--red-soft); color:var(--red); border-color:transparent; }
+  .badge-warn{ background:var(--amber-soft); color:var(--amber); border-color:transparent; }
+
+  .blog-editor{ display:grid; gap:12px; margin-top:16px; }
+  .blog-editor textarea{ width:100%; min-height:320px; background:var(--bg); border:1px solid var(--border); color:var(--text); padding:12px; border-radius:var(--r-sm); font-family:var(--font-mono); font-size:12.5px; box-sizing:border-box; resize:vertical; }
+  .blog-qa-issues{ margin-top:10px; padding:10px 12px; border:1px solid rgba(248,113,113,0.25); border-radius:var(--r-md); background:var(--red-soft); color:var(--red); font-size:12.5px; }
+  .blog-qa-issues li{ margin-left:16px; }
+  .blog-news-list{ margin-top:8px; font-size:12px; color:var(--text-dim); }
+  .blog-news-list li{ margin-left:16px; margin-top:3px; }
 
   table.admin-table{ width:100%; border-collapse:collapse; font-size:13px; }
   table.admin-table th{ text-align:left; font-family:var(--font-head); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-faint); padding:8px 10px; border-bottom:1px solid var(--border-soft); font-weight:500; }
@@ -158,6 +166,7 @@
     <button class="workspace-tab" data-view="standard">Data Standard</button>
     <button class="workspace-tab" data-view="deals">Deals &amp; SPVs</button>
     <button class="workspace-tab" data-view="profile">Company Profile</button>
+    <button class="workspace-tab" data-view="blog">Blog</button>
   </div>
 
   <section class="admin-view active" data-admin-view="dashboard">
@@ -284,6 +293,12 @@
       <article class="profile-card"><h3>Richard Awe</h3><div class="profile-role">Co-founder</div><p>Financial-services and technology leader with experience across banking, central banking, government, ratings and software delivery.</p><div class="career"><div><span>Access Bank</span><span>2007–10</span></div><div><span>Barclays Bank</span><span>2010–14</span></div><div><span>HSBC</span><span>2015–19</span></div><div><span>Lloyds Banking Group</span><span>2019–20</span></div><div><span>European Central Bank</span><span>2020–21</span></div><div><span>HMRC</span><span>2022–23</span></div><div><span>3d7 Technologies</span><span>2024–25</span></div><div><span>Fitch Ratings</span><span>2025–present</span></div></div></article>
       <article class="profile-card"><h3>Abiodun Awe</h3><div class="profile-role">Co-founder</div><p>Markets-infrastructure and issuer-services specialist with experience across central banking, investment banking, custody and ratings.</p><div class="career"><div><span>Central Bank of Nigeria</span><span>2008–10</span></div><div><span>Morgan Stanley</span><span>2012–13</span></div><div><span>NatWest Markets</span><span>2013–18</span></div><div><span>BBC</span><span>2018–19</span></div><div><span>Co-op</span><span>2019–22</span></div><div><span>Equiniti</span><span>2021–22</span></div><div><span>BNY</span><span>2022–24</span></div><div><span>Fitch Ratings</span><span>2024–present</span></div></div></article>
     </div>
+  </section>
+
+  <section class="admin-view" data-admin-view="blog">
+    <div class="view-head"><div><h2>Blog</h2><p>Auto-generated posts publish without pre-approval once they pass automated QA — this is the safety valve: review, edit, force-publish or archive any post.</p></div><select id="blog-status-filter"><option value="">All statuses</option><option value="draft">Draft</option><option value="qa_failed">QA failed</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Title</th><th>Status</th><th>QA</th><th>Words</th><th>Published</th></tr></thead><tbody id="blog-tbody"></tbody></table></div>
+    <div id="blog-tbody-empty" class="empty-row" style="display:none;">No posts yet — the scheduled generation workflow will populate this.</div>
   </section>
 </div>
 
@@ -417,6 +432,89 @@ async function openMarketDetail(institutionId){
 }
 
 document.getElementById('market-search').addEventListener('input', e => renderMarket(e.target.value));
+
+// ---------- Blog ----------
+
+let BLOG_POSTS = [];
+const BLOG_STATUS_LABEL = { draft: 'Draft', qa_failed: 'QA failed', published: 'Published', archived: 'Archived' };
+const BLOG_STATUS_BADGE = { draft: 'badge-warn', qa_failed: 'badge-bad', published: 'badge-ok', archived: '' };
+
+async function loadBlogPosts(){
+  BLOG_POSTS = await api('/admin/blog/posts');
+  renderBlogTable();
+}
+
+function renderBlogTable(){
+  const filter = document.getElementById('blog-status-filter').value;
+  const rows = filter ? BLOG_POSTS.filter(p => p.status === filter) : BLOG_POSTS;
+  const tbody = document.getElementById('blog-tbody');
+  document.getElementById('blog-tbody-empty').style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = rows.map(p => `<tr data-id="${escapeHtml(p.id)}">
+    <td><strong>${escapeHtml(p.title)}</strong><div class="dim">/blog/${escapeHtml(p.slug)}/</div></td>
+    <td><span class="badge ${BLOG_STATUS_BADGE[p.status]||''}">${escapeHtml(BLOG_STATUS_LABEL[p.status]||p.status)}</span></td>
+    <td>${p.qa_verdict ? escapeHtml(p.qa_verdict.verdict||'—') : '—'} <span class="dim">(${p.qa_attempts||0})</span></td>
+    <td class="num-cell">${p.word_count||0}</td>
+    <td>${fmtDate(p.published_at)}</td>
+  </tr>`).join('');
+  tbody.querySelectorAll('tr').forEach(row => row.addEventListener('click', () => openBlogDetail(row.dataset.id)));
+}
+
+document.getElementById('blog-status-filter').addEventListener('change', renderBlogTable);
+
+async function openBlogDetail(postId){
+  const panel = document.getElementById('detail-panel');
+  panel.innerHTML = '<div class="detail-head"><h2>Loading…</h2></div>';
+  document.getElementById('overlay').classList.add('open');
+  try{
+    const p = await api(`/admin/blog/posts/${encodeURIComponent(postId)}`);
+    const qaIssues = (p.qa_verdict && p.qa_verdict.issues && p.qa_verdict.issues.length)
+      ? `<div class="blog-qa-issues"><strong>QA issues</strong><ul>${p.qa_verdict.issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul></div>` : '';
+    const newsRefs = (p.news_refs && p.news_refs.length)
+      ? `<div class="blog-news-list"><strong>News cited</strong><ul>${p.news_refs.map(n => `<li><a href="${escapeHtml(n.link)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a> — ${escapeHtml(n.source||'')}</li>`).join('')}</ul></div>` : '';
+    panel.innerHTML = `<div class="detail-head"><h2>Edit post</h2><button class="close-btn" id="close-btn">✕</button></div>
+      <div class="detail-meta"><span class="badge ${BLOG_STATUS_BADGE[p.status]||''}">${escapeHtml(BLOG_STATUS_LABEL[p.status]||p.status)}</span> · ${p.word_count} words · ${p.reading_minutes} min read · writer: ${escapeHtml(p.writer_model||'—')} · QA: ${escapeHtml(p.qa_model||'—')}</div>
+      ${qaIssues}
+      <div class="blog-editor">
+        <div class="field"><label for="be-title">Title</label><input id="be-title" type="text" value="${escapeHtml(p.title)}"></div>
+        <div class="field"><label for="be-meta">Meta description</label><input id="be-meta" type="text" value="${escapeHtml(p.meta_description)}" maxlength="200"></div>
+        <div class="field"><label for="be-excerpt">Excerpt</label><input id="be-excerpt" type="text" value="${escapeHtml(p.excerpt)}"></div>
+        <div class="field"><label for="be-body">Body (Markdown)</label><textarea id="be-body">${escapeHtml(p.content_markdown)}</textarea></div>
+        ${newsRefs}
+        <div class="form-actions">
+          <button class="btn btn-primary btn-sm" id="be-save">Save changes</button>
+          <button class="btn btn-outline btn-sm" id="be-publish">Force publish</button>
+          <button class="btn btn-danger btn-sm" id="be-archive">Archive</button>
+        </div>
+        <div id="be-result"></div>
+      </div>`;
+    document.getElementById('close-btn').addEventListener('click', closeOverlay);
+    document.getElementById('be-save').addEventListener('click', async () => {
+      const box = document.getElementById('be-result'), btn = document.getElementById('be-save');
+      btn.disabled = true;
+      try{
+        await api(`/admin/blog/posts/${encodeURIComponent(postId)}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+          title: document.getElementById('be-title').value,
+          meta_description: document.getElementById('be-meta').value,
+          excerpt: document.getElementById('be-excerpt').value,
+          content_markdown: document.getElementById('be-body').value,
+        }) });
+        box.innerHTML = '<div class="result-box">Saved.</div>';
+        await loadBlogPosts();
+      }catch(e){ box.innerHTML = `<div class="result-box" style="color:var(--red)">${escapeHtml(e.message)}</div>`; }
+      finally{ btn.disabled = false; }
+    });
+    document.getElementById('be-publish').addEventListener('click', async () => {
+      const box = document.getElementById('be-result');
+      try{ await api(`/admin/blog/posts/${encodeURIComponent(postId)}/publish`, { method:'POST' }); box.innerHTML = '<div class="result-box">Published. Re-run the static build to ship it.</div>'; await loadBlogPosts(); }
+      catch(e){ box.innerHTML = `<div class="result-box" style="color:var(--red)">${escapeHtml(e.message)}</div>`; }
+    });
+    document.getElementById('be-archive').addEventListener('click', async () => {
+      const box = document.getElementById('be-result');
+      try{ await api(`/admin/blog/posts/${encodeURIComponent(postId)}/archive`, { method:'POST' }); box.innerHTML = '<div class="result-box">Archived.</div>'; await loadBlogPosts(); }
+      catch(e){ box.innerHTML = `<div class="result-box" style="color:var(--red)">${escapeHtml(e.message)}</div>`; }
+    });
+  }catch(e){ panel.innerHTML=`<div class="detail-head"><h2>Could not load post</h2><button class="close-btn" id="close-btn">✕</button></div><p>${escapeHtml(e.message)}</p>`; document.getElementById('close-btn').addEventListener('click', closeOverlay); }
+}
 
 document.querySelectorAll('.workspace-tab').forEach(button => button.addEventListener('click', () => showAdminView(button.dataset.view)));
 function showAdminView(view){
@@ -790,11 +888,12 @@ async function enterWorkspace(){
   document.getElementById('dash-institutions').textContent = ADMIN_INSTITUTIONS.length;
   document.getElementById('dash-ratings').textContent = stats.rating_actions_count;
   document.getElementById('dash-instruments').textContent = stats.capital_market_instruments_count;
+  loadBlogPosts().catch(() => {}); // non-fatal — blog tab shows an empty table if this fails
   document.getElementById('login-gate').style.display = 'none';
   document.getElementById('api-ok').style.display = 'flex';
   document.getElementById('api-ok-text').textContent = 'Workspace connected';
   const requested = location.hash.slice(1);
-  if(['dashboard','market','standard','deals','profile'].includes(requested)) showAdminView(requested);
+  if(['dashboard','market','standard','deals','profile','blog'].includes(requested)) showAdminView(requested);
 }
 
 document.getElementById('login-form').addEventListener('submit', async event => {

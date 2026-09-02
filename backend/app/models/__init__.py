@@ -42,3 +42,4 @@ from app.models.deal import (  # noqa: F401
     WaterfallPeriod,
     WaterfallRun,
 )
+from app.models.blog import BlogPost, BlogTopic  # noqa: F401
