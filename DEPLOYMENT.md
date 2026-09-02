@@ -127,14 +127,21 @@ copy before uploading; it never commits the generated version back to git.
 
 `.github/workflows/blog.yml` runs on a schedule (and `workflow_dispatch`) —
 independent from the `main`-push deploy workflow above, though its own
-commits to `main` are what trigger that deploy for blog content. Full design
-in `docs/blog-pipeline.md`. Requires these on top of everything above:
+commits to `main` are what trigger that deploy for blog content. Generation
+itself runs *inside the backend* (triggered over HTTPS) rather than from a
+direct database connection in CI — the database is never exposed to the
+internet. Full design in `docs/blog-pipeline.md`. Requires these on top of
+everything above:
 
 | Name | Kind | What |
 |---|---|---|
-| `BLOG_DATABASE_URL` | Secret | Same production Postgres `DATABASE_URL` already uses. |
-| `OPENROUTER_API_KEY` | Secret | OpenRouter API key for the writer/QA models. |
-| `BLOG_SITE_BASE_URL` | Variable | Public base URL, e.g. `https://waterline.ng` (defaults to that if unset). |
+| `ADMIN_API_USERNAME` / `ADMIN_API_PASSWORD` | Secrets | Same admin API credentials `admin.html` already uses — copy from the cPanel environment variables of the same names. |
+| `BLOG_API_BASE` | Variable | Backend's public HTTPS base, e.g. `https://api.waterline.ng` (defaults to that if unset). |
+| `BLOG_SITE_BASE_URL` | Variable | Public site base URL, e.g. `https://waterline.ng` (defaults to that if unset). |
+
+`OPENROUTER_API_KEY` is a **server-side** requirement instead — a cPanel
+environment variable on the Python app, alongside `DATABASE_URL`, since the
+OpenRouter calls now happen in the backend process.
 
 It pushes generated `blog/`, `sitemap.xml` and `robots.txt` straight to
 `main` with the workflow's own `GITHUB_TOKEN` — if branch protection blocks

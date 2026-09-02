@@ -1,24 +1,35 @@
 """Generates the public static blog site (`/blog/*`, `sitemap.xml`,
-`robots.txt`, `/blog/rss.xml`) from published BlogPost rows in Postgres.
+`robots.txt`, `/blog/rss.xml`) from published BlogPost rows.
 
 Deliberately plain Python string templates, not Jinja2 — the rest of the
 frontend is hand-rolled static HTML with no build step or templating engine
-(see AGENTS.md), and one template doesn't justify a new dependency. Run from
-`backend/`: `python scripts/build_blog_static.py`.
+(see AGENTS.md), and one template doesn't justify a new dependency.
+
+Two data sources:
+- `api` (default, what CI uses): fetches published posts from the live
+  admin API over HTTPS (GET /admin/blog/posts?status=published) and
+  reconstructs transient BlogPost objects from the JSON — no direct
+  database connection, so this never needs Postgres exposed to the
+  internet. Needs BLOG_API_BASE/ADMIN_API_USERNAME/ADMIN_API_PASSWORD.
+- `db`: queries Postgres directly, for local dev convenience when the API
+  isn't running. Needs DATABASE_URL.
+
+Run from `backend/`: `python scripts/build_blog_static.py`.
 """
 
 import html as html_lib
 import json
+import os
 import sys
+from datetime import datetime
 from email.utils import format_datetime
 from pathlib import Path
 
+import httpx
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy import select
-
 from app.config import get_settings
-from app.db import SessionLocal
 from app.models.blog import BlogPost
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -245,19 +256,70 @@ def _build_rss(posts: list[BlogPost], base_url: str) -> str:
 """
 
 
-def build() -> None:
-    settings = get_settings()
-    base_url = settings.blog_site_base_url.rstrip("/")
+def _parse_dt(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
+
+
+def _post_from_api_dict(item: dict) -> BlogPost:
+    """Reconstructs a transient (unpersisted) BlogPost from the admin API's
+    JSON shape (app.blog.serialize.post_to_dict) so the template functions
+    below — which only ever read attributes, never touch the DB — work
+    identically regardless of data source."""
+    return BlogPost(
+        id=item["id"],
+        slug=item["slug"],
+        title=item["title"],
+        meta_description=item["meta_description"],
+        excerpt=item["excerpt"],
+        tags_json=json.dumps(item.get("tags") or []),
+        content_markdown=item["content_markdown"],
+        content_html=item.get("content_html"),
+        faq_json=json.dumps(item.get("faq") or []),
+        news_refs_json=json.dumps(item.get("news_refs") or []),
+        word_count=item.get("word_count", 0),
+        reading_minutes=item.get("reading_minutes", 1),
+        published_at=_parse_dt(item.get("published_at")),
+        updated_at=_parse_dt(item.get("updated_at")) or _parse_dt(item.get("published_at")),
+    )
+
+
+def _fetch_published_posts_via_api() -> list[BlogPost]:
+    base_url = os.environ.get("BLOG_API_BASE", "").rstrip("/")
+    username = os.environ.get("ADMIN_API_USERNAME")
+    password = os.environ.get("ADMIN_API_PASSWORD")
+    if not base_url or not username or not password:
+        raise SystemExit("BLOG_API_BASE, ADMIN_API_USERNAME and ADMIN_API_PASSWORD must all be set for --source api")
+
+    response = httpx.get(
+        f"{base_url}/admin/blog/posts", params={"status": "published"}, auth=(username, password), timeout=60
+    )
+    response.raise_for_status()
+    posts = [_post_from_api_dict(item) for item in response.json()]
+    posts.sort(key=lambda p: p.published_at or datetime.min, reverse=True)
+    return posts
+
+
+def _fetch_published_posts_via_db() -> list[BlogPost]:
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
 
     db = SessionLocal()
     try:
-        posts = list(
+        return list(
             db.execute(
                 select(BlogPost).where(BlogPost.status == "published").order_by(BlogPost.published_at.desc())
             ).scalars()
         )
     finally:
         db.close()
+
+
+def build(source: str = "api") -> None:
+    settings = get_settings()
+    base_url = settings.blog_site_base_url.rstrip("/")
+
+    posts = _fetch_published_posts_via_api() if source == "api" else _fetch_published_posts_via_db()
 
     BLOG_DIR.mkdir(exist_ok=True)
     (BLOG_DIR / "index.html").write_text(_build_index(posts, base_url))
@@ -275,4 +337,9 @@ def build() -> None:
 
 
 if __name__ == "__main__":
-    build()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", choices=["api", "db"], default=os.environ.get("BLOG_STATIC_SOURCE", "api"))
+    args = parser.parse_args()
+    build(args.source)

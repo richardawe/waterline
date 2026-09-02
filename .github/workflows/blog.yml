@@ -1,12 +1,13 @@
 name: Generate blog posts
 
-# Auto-publish pipeline: generates posts via OpenRouter, QA-reviews them,
-# rebuilds the static /blog site, and pushes straight to main — which is
-# what triggers deploy.yml's existing FTP job, so publishing a post is just
-# "another push of static files" with no changes needed there. See
-# docs/blog-pipeline.md for the full design and the human-review safety net
-# (admin.html's Blog tab) that this relies on since there is no pre-publish
-# approval gate.
+# Auto-publish pipeline: triggers generation on the live backend over HTTPS
+# (the backend already has localhost Postgres access, so this workflow never
+# connects to the database directly), rebuilds the static /blog site from
+# the same API, and pushes straight to main — which is what triggers
+# deploy.yml's existing FTP job, so publishing a post is just "another push
+# of static files" with no changes needed there. See docs/blog-pipeline.md
+# for the full design and the human-review safety net (admin.html's Blog
+# tab) that this relies on since there is no pre-publish approval gate.
 
 on:
   schedule:
@@ -16,7 +17,7 @@ on:
       posts_per_run:
         description: "How many posts to attempt to generate this run"
         required: false
-        default: "2"
+        default: "1"
 
 concurrency:
   group: blog-generation
@@ -33,16 +34,17 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: ${{ secrets.BLOG_DATABASE_URL }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      BLOG_API_BASE: ${{ vars.BLOG_API_BASE || 'https://api.waterline.ng' }}
+      ADMIN_API_USERNAME: ${{ secrets.ADMIN_API_USERNAME }}
+      ADMIN_API_PASSWORD: ${{ secrets.ADMIN_API_PASSWORD }}
       BLOG_SITE_BASE_URL: ${{ vars.BLOG_SITE_BASE_URL || 'https://waterline.ng' }}
     steps:
       - uses: actions/checkout@v6
 
       - name: Require blog secrets
         run: |
-          if [ -z "$DATABASE_URL" ] || [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error::BLOG_DATABASE_URL and OPENROUTER_API_KEY secrets are required (see docs/blog-pipeline.md)."
+          if [ -z "$ADMIN_API_USERNAME" ] || [ -z "$ADMIN_API_PASSWORD" ]; then
+            echo "::error::ADMIN_API_USERNAME and ADMIN_API_PASSWORD secrets are required (see docs/blog-pipeline.md) — same credentials admin.html already uses."
             exit 1
           fi
 
@@ -54,17 +56,15 @@ jobs:
 
       - run: python -m pip install -r requirements.txt
 
-      - name: Apply pending migrations
-        run: alembic upgrade head
-
       - name: Seed content-calendar topics (idempotent — only inserts new prompts)
-        run: python -m app.seed.seed_blog_topics
+        run: |
+          curl -sf -u "$ADMIN_API_USERNAME:$ADMIN_API_PASSWORD" -X POST "$BLOG_API_BASE/admin/blog/seed-topics"
 
-      - name: Generate posts (writer -> QA -> publish/qa_failed)
-        run: python scripts/generate_blog_posts.py --posts-per-run "${{ github.event.inputs.posts_per_run || '2' }}"
+      - name: Trigger generation on the backend (writer -> QA -> publish/qa_failed)
+        run: python scripts/trigger_blog_generation.py --posts-per-run "${{ github.event.inputs.posts_per_run || '1' }}"
 
-      - name: Rebuild static /blog site
-        run: python scripts/build_blog_static.py
+      - name: Rebuild static /blog site from the live API
+        run: python scripts/build_blog_static.py --source api
 
       - name: Commit and push generated static files
         working-directory: .

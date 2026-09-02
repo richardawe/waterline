@@ -1,5 +1,8 @@
-"""CI entrypoint: generate up to N posts in one run, then notify. Run as
-`python -m scripts.generate_blog_posts` (or `python scripts/generate_blog_posts.py`)
+"""Direct-database ops utility for local dev or a machine that already has
+`localhost` Postgres access (e.g. run on the server itself via cPanel
+Terminal). CI no longer uses this — it calls the /admin/blog/generate HTTPS
+endpoint instead (scripts/trigger_blog_generation.py) so it never needs a
+direct database connection. Run as `python scripts/generate_blog_posts.py`
 from `backend/`, with `DATABASE_URL`/`OPENROUTER_API_KEY` set."""
 
 import argparse
@@ -11,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.blog import notify
 from app.blog.generator import generate_one
+from app.blog.serialize import post_to_dict
 from app.db import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -24,7 +28,7 @@ def main(posts_per_run: int) -> None:
             post = generate_one(db)
             if post is None:
                 break  # no more pending topics
-            (published if post.status == "published" else qa_failed).append(post)
+            (published if post.status == "published" else qa_failed).append(post_to_dict(post))
     finally:
         db.close()
 
