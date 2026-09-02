@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Allow: /blog/
+Disallow: /preview/
+Disallow: /admin.html
+
+User-agent: GPTBot
+Allow: /
+Allow: /blog/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /blog/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /blog/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /blog/
+
+Sitemap: https://waterline.ng/sitemap.xml
