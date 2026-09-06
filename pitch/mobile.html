@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Waterline — Investor Overview (Mobile)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f8fa;--surface:#fff;--surface-subtle:#f1f4f7;--text:#10233f;--text-dim:#526176;--text-faint:#788599;
+  --border:#dce2e9;--border-strong:#c8d1dc;--accent:#155eef;--accent-hover:#0b4ed1;--accent-soft:#eaf1ff;
+  --navy:#0a1b33;--green:#18864b;--green-soft:#eaf7ef;--red:#c43232;--amber:#9a6700;
+  --r-sm:7px;--r-md:10px;--r-lg:14px;--r-xl:18px;--r-pill:999px;
+  --shadow-card:0 1px 2px rgba(16,35,63,.04),0 6px 18px rgba(16,35,63,.05);
+  --font-head:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);font-family:var(--font-head);color:var(--text);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;color:var(--navy);font-family:var(--font-head);font-weight:650;letter-spacing:-.02em}
+p{margin:0}
+img{max-width:100%}
+
+section{padding:44px 22px}
+section.tight{padding-top:0}
+section>*{max-width:416px;margin-left:auto;margin-right:auto}
+.kicker{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--accent);font-size:11.5px;font-weight:650;text-transform:uppercase;letter-spacing:.09em}
+.kicker:before{content:"";width:16px;height:1px;background:currentColor}
+h2.h{font-size:26px;line-height:1.2;letter-spacing:-.03em;margin-bottom:16px}
+.lede{color:var(--text-dim);font-size:15.5px;line-height:1.6;margin-bottom:22px}
+
+.chip{display:inline-flex;align-items:center;padding:4px 10px;border:1px solid var(--border);border-radius:var(--r-pill);background:var(--surface);color:var(--text-dim);font-size:11px;font-weight:600}
+.chip-accent{border-color:#bed1ff;background:var(--accent-soft);color:var(--accent)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-soft);display:inline-block}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card);break-inside:avoid;page-break-inside:avoid}
+
+/* divider between sections */
+.divider{height:1px;background:var(--border);margin:0 22px}
+
+/* ---- cover ---- */
+.s-cover{background:var(--navy);color:#fff;padding:56px 22px 44px}
+.s-cover .brand{display:flex;align-items:center;gap:10px;color:#fff;font-size:17px;font-weight:650;margin-bottom:60px}
+.s-cover .brand-mark{width:28px;height:28px;border-radius:8px;background:#fff;display:grid;place-items:center;color:var(--navy);font-size:13px;font-weight:800}
+.s-cover .stealth{display:inline-flex;align-items:center;gap:8px;margin-bottom:22px;padding:6px 11px;border:1px solid rgba(255,255,255,.18);border-radius:var(--r-pill);background:rgba(255,255,255,.06);color:#c9d6f5;font-size:11.5px;font-weight:650}
+.s-cover .stealth .status-dot{background:#4fd18b;box-shadow:0 0 0 3px rgba(79,209,139,.25)}
+.s-cover h1{color:#fff;font-size:36px;line-height:1.12;letter-spacing:-.03em}
+.s-cover .sub{margin-top:16px;color:#b7c2d9;font-size:16px;line-height:1.6}
+.s-cover .cover-foot{margin-top:48px;color:#8894ab;font-size:11.5px;font-family:var(--font-mono);line-height:1.7}
+
+/* ---- problem ---- */
+.pain-col{padding:22px;border-radius:var(--r-lg);border:1px solid var(--border);margin-bottom:16px}
+.pain-col.lender{background:var(--surface-subtle)}
+.pain-col.investor{background:var(--accent-soft);border-color:#bed1ff}
+.pain-col .role{font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.07em;color:var(--text-faint);margin-bottom:10px}
+.pain-col.investor .role{color:var(--accent)}
+.pain-col h3{font-size:16.5px;margin-bottom:14px;line-height:1.35}
+.pain-list{display:flex;flex-direction:column;gap:12px}
+.pain-item{display:flex;gap:9px;font-size:14px;color:var(--text-dim);line-height:1.55}
+.pain-item b{color:var(--navy)}
+.pain-item .dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--red);margin-top:6px}
+.pain-col.investor .dot{background:var(--accent)}
+
+/* ---- why now / generic num cards ---- */
+.stack{display:flex;flex-direction:column;gap:14px}
+.why-card{padding:20px}
+.why-card .num{color:var(--accent);font:600 11px var(--font-mono);margin-bottom:8px}
+.why-card h3{font-size:16px;margin-bottom:7px}
+.why-card p{color:var(--text-dim);font-size:14px;line-height:1.55}
+
+/* ---- solution line + pillars ---- */
+.solution-line{font-size:18px;line-height:1.5;color:var(--navy);font-weight:500;margin-bottom:22px}
+.solution-line b{color:var(--accent)}
+.pillar{padding:22px}
+.pillar .num-tag{color:var(--accent);font:600 11px var(--font-mono);margin-bottom:14px}
+.pillar h3{font-size:17px;margin-bottom:8px}
+.pillar p{color:var(--text-dim);font-size:14px;line-height:1.6}
+.pillar .tagline{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);color:var(--accent);font:600 11px var(--font-mono);letter-spacing:.02em}
+
+/* ---- how it works ---- */
+.flow-step{display:flex;gap:14px;align-items:flex-start}
+.flow-num{flex:none;width:30px;height:30px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font:600 12px var(--font-mono)}
+.flow-body{padding-bottom:6px}
+.flow-body strong{display:block;color:var(--navy);font-size:15.5px;margin-bottom:4px}
+.flow-body p{color:var(--text-dim);font-size:13.5px;line-height:1.55}
+.flow-connector{width:1px;background:var(--border);margin:2px 0 2px 15px;height:20px}
+
+/* ---- deep dives ---- */
+.deep-feat{display:flex;gap:12px;margin-bottom:14px}
+.deep-feat .fnum{flex:none;width:24px;height:24px;border-radius:7px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:600 11px var(--font-mono)}
+.deep-feat b{display:block;color:var(--navy);font-size:14px;margin-bottom:3px}
+.deep-feat span{color:var(--text-dim);font-size:13.5px;line-height:1.5}
+.deep-visual{padding:18px;margin-top:20px}
+.deep-visual .vhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.deep-visual .vhead b{font-size:13px;color:var(--navy)}
+.rule-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.rule-row:last-child{border:0}
+.rule-row span{color:var(--text-dim)}
+.rule-row b{color:var(--navy)}
+.rule-row .ok{color:var(--green);font-weight:600}
+.rule-row .flag{color:var(--amber);font-weight:600}
+
+.tranche-bar{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.tr-row{display:flex;align-items:center;gap:9px;font-size:11px}
+.tr-label{width:52px;color:var(--text-dim);font-family:var(--font-mono);font-size:10px}
+.tr-track{flex:1;height:18px;border-radius:5px;background:var(--surface-subtle);overflow:hidden;display:flex;border:1px solid var(--border)}
+.tr-fill{height:100%}
+.tr-amt{width:50px;text-align:right;color:var(--navy);font-family:var(--font-mono);font-size:10px;font-weight:600}
+.pool-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.pool-row:last-child{border:0}
+.pool-row span{color:var(--text-dim)}
+.pool-row strong{color:var(--navy)}
+
+/* ---- product mock ---- */
+.product-frame{padding:10px;border:1px solid var(--border);border-radius:16px;background:#e9edf2;box-shadow:0 14px 32px rgba(16,35,63,.12)}
+.product-window{overflow:hidden;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface)}
+.window-bar{height:30px;display:flex;align-items:center;gap:5px;padding:0 12px;border-bottom:1px solid var(--border);background:#fafbfc}
+.window-dot{width:6px;height:6px;border-radius:50%;background:#c6ced8}
+.preview-body{padding:16px}
+.preview-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;align-items:flex-start}
+.preview-title{font-weight:650;font-size:13px}
+.preview-period{color:var(--text-faint);font-size:10.5px;margin-top:2px}
+.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.metric{padding:10px 8px;border:1px solid var(--border);border-radius:8px}
+.metric strong{display:block;font-size:14.5px;color:var(--navy)}
+.metric span{font-size:9px;color:var(--text-faint);line-height:1.3;display:block;margin-top:2px}
+.pool{margin-top:13px;padding:13px;border:1px solid var(--border);border-radius:9px}
+
+/* ---- business model ---- */
+.bm-card{padding:20px}
+.bm-card .kick{font:600 10.5px var(--font-mono);color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.bm-card h3{font-size:16px;margin-bottom:7px}
+.bm-card p{color:var(--text-dim);font-size:13.5px;line-height:1.55}
+.model-line{color:var(--text-dim);font-size:15px;line-height:1.6;margin-bottom:20px}
+
+/* ---- moat ---- */
+.moat-item{padding:20px;display:flex;gap:13px;align-items:flex-start}
+.moat-item .ico{flex:none;width:30px;height:30px;border-radius:9px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--font-mono)}
+.moat-item h3{font-size:15px;margin-bottom:6px;line-height:1.35}
+.moat-item p{color:var(--text-dim);font-size:13.5px;line-height:1.55}
+
+/* ---- traction ---- */
+.status-item{display:flex;gap:11px;padding:16px 18px;align-items:flex-start}
+.status-item .chk{flex:none;width:20px;height:20px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:11px;font-weight:700;margin-top:1px}
+.status-item b{display:block;color:var(--navy);font-size:14px;margin-bottom:3px}
+.status-item span{color:var(--text-dim);font-size:13px;line-height:1.5}
+.stealth-note{margin-top:16px;padding:16px 18px;border-radius:var(--r-md);background:var(--accent-soft);border:1px solid #bed1ff;color:var(--text);font-size:13.5px;line-height:1.6}
+.stealth-note b{color:var(--accent)}
+
+/* ---- team ---- */
+.founder-card{padding:22px}
+.founder-card h3{font-size:18px}
+.founder-card .role{color:var(--accent);font:600 11px var(--font-mono);text-transform:uppercase;letter-spacing:.06em;margin:5px 0 12px}
+.founder-card .bio{color:var(--text-dim);font-size:13.5px;line-height:1.6;margin-bottom:15px}
+.career-row{display:flex;flex-wrap:wrap;gap:7px}
+.career-chip{padding:5px 10px;border:1px solid var(--border);border-radius:var(--r-pill);background:var(--surface-subtle);font-size:11px;color:var(--text-dim);font-weight:600}
+
+/* ---- vision ---- */
+.vision-line{font-size:19px;line-height:1.45;color:var(--navy);font-weight:500;margin-bottom:22px}
+.vision-line b{color:var(--accent)}
+.vstep{padding:18px;border-radius:var(--r-md);background:var(--surface-subtle);border:1px solid var(--border)}
+.vstep .vs-num{color:var(--text-faint);font:600 10.5px var(--font-mono);margin-bottom:6px}
+.vstep b{display:block;color:var(--navy);font-size:14.5px;margin-bottom:4px}
+.vstep span{color:var(--text-dim);font-size:13px;line-height:1.5}
+
+/* ---- closing ---- */
+.s-close{background:var(--navy);color:#fff;padding:52px 22px 60px}
+.s-close .brand{display:flex;align-items:center;gap:10px;color:#fff;font-size:17px;font-weight:650;margin-bottom:44px}
+.s-close .brand-mark{width:28px;height:28px;border-radius:8px;background:#fff;display:grid;place-items:center;color:var(--navy);font-size:13px;font-weight:800}
+.s-close h2{color:#fff;font-size:30px;line-height:1.2;letter-spacing:-.02em;margin-bottom:16px}
+.s-close p.lede2{color:#b7c2d9;font-size:15.5px;line-height:1.6}
+.close-actions{display:flex;flex-direction:column;gap:11px;margin-top:26px}
+.pill-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 18px;border-radius:var(--r-sm);font:600 14px var(--font-head);text-align:center}
+.pill-primary{background:var(--accent);color:#fff}
+.pill-outline{border:1px solid rgba(255,255,255,.28);color:#fff}
+.close-meta{margin-top:30px;color:#8894ab;font-size:11.5px;font-family:var(--font-mono);line-height:1.7}
+
+@media print{
+  .card,.pain-col,.status-item,.moat-item,.founder-card,.flow-step,.deep-visual,.product-frame,.vstep,.why-card,.bm-card,.pillar{break-inside:avoid;page-break-inside:avoid}
+  h2.h,.kicker{break-after:avoid;page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<section class="s-cover">
+  <div class="brand"><span class="brand-mark">W</span>Waterline</div>
+  <div class="stealth"><span class="status-dot"></span>Private preview · Operating in stealth</div>
+  <h1>Turn performing loans into dependable funding.</h1>
+  <p class="sub">Credit infrastructure that lets Nigerian lenders access institutional capital against their own loan books — without giving up equity.</p>
+  <div class="cover-foot">Company overview — for discussion purposes<br>Lagos, Nigeria · 2026</div>
+</section>
+
+<!-- PROBLEM -->
+<section>
+  <div class="kicker">The problem</div>
+  <h2 class="h">Nigerian lenders sit on good assets they can't fund cheaply — and investors want the yield but can't verify the book.</h2>
+  <div class="pain-col lender card">
+    <div class="role">Lender side</div>
+    <h3>Banks, MFBs, fintechs and leasing companies</h3>
+    <div class="pain-list">
+      <div class="pain-item"><span class="dot"></span><span><b>Funding is short-term and expensive</b> — deposits and short lines don't match the tenor of the loans they've already written.</span></div>
+      <div class="pain-item"><span class="dot"></span><span><b>Institutional capital is out of reach</b> — raising a bond, forward-flow or securitization needs a data room most lenders can't produce on their own.</span></div>
+      <div class="pain-item"><span class="dot"></span><span><b>Every structuring conversation starts from zero</b> — no shared data format, no reusable diligence trail, no comparable to point to.</span></div>
+    </div>
+  </div>
+  <div class="pain-col investor card">
+    <div class="role">Investor side</div>
+    <h3>Institutional investors and DFIs seeking Nigerian credit yield</h3>
+    <div class="pain-list">
+      <div class="pain-item"><span class="dot"></span><span><b>No standardized loan tape to underwrite against</b> — every lender's export is a different shape, in a different currency of trust.</span></div>
+      <div class="pain-item"><span class="dot"></span><span><b>No independent portfolio context</b> — assessing one lender's book means building institution-level comparables from scratch, deal by deal.</span></div>
+      <div class="pain-item"><span class="dot"></span><span><b>Structuring is bespoke and slow</b> — eligibility screening, tranching and cashflow modelling get rebuilt for every pool.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY NOW -->
+<section>
+  <div class="kicker">Why now</div>
+  <h2 class="h">The lending market has grown faster than the infrastructure that funds it.</h2>
+  <div class="stack">
+    <div class="why-card card"><div class="num">01</div><h3>A bigger, more diverse lending base</h3><p>Digital lenders, MFBs and leasing/asset-finance companies have originated at scale over the last decade, alongside the traditional banks — most of it funded on-balance-sheet.</p></div>
+    <div class="why-card card"><div class="num">02</div><h3>Off-balance-sheet funding is now the constraint</h3><p>Growth is capped less by origination capability and more by the ability to move performing loans off-balance-sheet into structures institutional capital will actually buy.</p></div>
+    <div class="why-card card"><div class="num">03</div><h3>No shared credit-data standard exists locally</h3><p>Unlike more developed securitization markets, there is no common loan-data format or standardized validation layer that a Nigerian lender's tape can be checked against before it reaches an investor.</p></div>
+    <div class="why-card card"><div class="num">04</div><h3>Deal teams still work like it's diligence-by-PDF</h3><p>Sourcing, benchmarking and structuring still run on scraped filings, static pitch decks and one-off spreadsheet models — rebuilt fresh for every transaction.</p></div>
+  </div>
+</section>
+
+<!-- SOLUTION -->
+<section>
+  <div class="kicker">The solution</div>
+  <h2 class="h">Waterline</h2>
+  <p class="solution-line">Waterline is <b>credit infrastructure</b> for Nigerian lenders — the data standard, market intelligence and deal-structuring layer that turns a performing loan book into a pool institutional capital can underwrite.</p>
+  <div class="stack">
+    <div class="pillar card"><div class="num-tag">01</div><h3>Market Intelligence</h3><p>Institution and portfolio-level data — NPL ratios, ratings, capital-markets activity — sourced from public filings, so sourcing and benchmarking start from evidence, not a pitch.</p><div class="tagline">SOURCING & BENCHMARKING</div></div>
+    <div class="pillar card"><div class="num-tag">02</div><h3>Data Standard (WCDS)</h3><p>A canonical loan-data schema and deterministic validation rulebook that maps a lender's raw tape into a clean, audit-ready loan book investors can actually underwrite.</p><div class="tagline">STANDARDIZATION</div></div>
+    <div class="pillar card"><div class="num-tag">03</div><h3>SPV Structuring</h3><p>Eligibility screening, Senior/Mezzanine/Equity tranche sizing and a cashflow waterfall simulation that turns a validated pool into a structured, investable transaction.</p><div class="tagline">DEAL EXECUTION</div></div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section>
+  <div class="kicker">How it works</div>
+  <h2 class="h">One workflow, from a raw loan tape to a closed, funded structure.</h2>
+  <div>
+    <div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>Discovery</strong><p>Lender shares a loan tape under NDA; Waterline reviews portfolio quality against market context from Tier 1 data.</p></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>Structure</strong><p>The tape is mapped and canonicalized against the Waterline Credit Data Standard (WCDS) into a clean, comparable loan book.</p></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-step"><div class="flow-num">3</div><div class="flow-body"><strong>Validate</strong><p>The book runs through a 30-rule validation and reconciliation engine; eligible facilities are screened and tranches sized.</p></div></div>
+    <div class="flow-connector"></div>
+    <div class="flow-step"><div class="flow-num">4</div><div class="flow-body"><strong>Close</strong><p>A cashflow waterfall is modelled across tranches and the structure is placed with investors — with investor-grade reporting throughout.</p></div></div>
+  </div>
+</section>
+
+<!-- WCDS -->
+<section>
+  <div class="kicker">Product — data standard</div>
+  <h2 class="h">The Waterline Credit Data Standard (WCDS)</h2>
+  <p class="lede">Every lender's export looks different. WCDS gives them one canonical shape — and a deterministic rulebook that catches the errors that would otherwise surface mid-deal.</p>
+  <div class="deep-feat"><div class="fnum">18</div><div><b>Canonical entities</b><span>Facility, FacilitySnapshot, Party, Collateral, Payment, Schedule, CreditRisk and more — a full loan data model, not a flat spreadsheet.</span></div></div>
+  <div class="deep-feat"><div class="fnum">30</div><div><b>Deterministic validation rules</b><span>Every tape is checked against the same 30-rule rulebook — no silent gaps, no "trust me" fields.</span></div></div>
+  <div class="deep-feat"><div class="fnum">→</div><div><b>Map → canonicalize → validate → reconcile</b><span>Raw CSV/XLSX in; a clean, control-totalled, audit-ready loan book out.</span></div></div>
+  <div class="deep-visual card">
+    <div class="vhead"><b>Validation summary</b><span class="chip chip-accent">Reconciled</span></div>
+    <div class="rule-row"><span>Control totals</span><b class="ok">Matched</b></div>
+    <div class="rule-row"><span>Facility status consistency</span><b class="ok">Pass</b></div>
+    <div class="rule-row"><span>Currency &amp; unit consistency</span><b class="ok">Pass</b></div>
+    <div class="rule-row"><span>DPD / arrears logic</span><b class="ok">Pass</b></div>
+    <div class="rule-row"><span>Concentration limits</span><b class="flag">Flagged — 2</b></div>
+    <div class="rule-row"><span>Deep entities</span><b style="color:var(--text-faint)">Skipped</b></div>
+  </div>
+</section>
+
+<!-- SPV -->
+<section>
+  <div class="kicker">Product — deal structuring</div>
+  <h2 class="h">SPV structuring &amp; cashflow waterfall</h2>
+  <p class="lede">Once a book is clean, Waterline turns it into a structure — the same eligibility, sizing and cashflow logic an arranger would build by hand, run consistently every time.</p>
+  <div class="deep-feat"><div class="fnum">1</div><div><b>Eligibility screening</b><span>Status, days-past-due, default, currency, tenor and concentration limits applied against configurable deal criteria.</span></div></div>
+  <div class="deep-feat"><div class="fnum">2</div><div><b>Tranche sizing</b><span>Senior, Mezzanine and Equity tranches sized off the eligible pool.</span></div></div>
+  <div class="deep-feat"><div class="fnum">3</div><div><b>Waterfall simulation</b><span>Monthly cashflow modelling with sequential-pay allocation and stress overlays, so the structure can be pressure-tested before a term sheet.</span></div></div>
+  <div class="deep-visual card">
+    <div class="vhead"><b>Illustrative pool</b><span class="chip">₦1.0bn pool</span></div>
+    <div class="tranche-bar">
+      <div class="tr-row"><span class="tr-label">SENIOR</span><div class="tr-track"><div class="tr-fill" style="width:75%;background:var(--accent)"></div></div><span class="tr-amt">₦750m</span></div>
+      <div class="tr-row"><span class="tr-label">MEZZ</span><div class="tr-track"><div class="tr-fill" style="width:15%;background:var(--amber)"></div></div><span class="tr-amt">₦150m</span></div>
+      <div class="tr-row"><span class="tr-label">EQUITY</span><div class="tr-track"><div class="tr-fill" style="width:10%;background:var(--navy)"></div></div><span class="tr-amt">₦100m</span></div>
+    </div>
+    <div class="pool" style="border:1px solid var(--border);border-radius:9px;margin-top:16px;padding:13px">
+      <div class="pool-row"><span>Weighted average yield</span><strong>27.8%</strong></div>
+      <div class="pool-row"><span>Indicative senior capacity</span><strong>₦750m</strong></div>
+      <div class="pool-row"><span>Investor reporting readiness</span><strong>Ready</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCT VISUAL -->
+<section>
+  <div class="kicker">Product — market intelligence</div>
+  <h2 class="h">A portfolio readiness view, backed by evidence — not a pitch.</h2>
+  <p class="lede">Every figure traces back to a source document via a provenance record, so it survives an investor's "where did this number come from?"</p>
+  <div class="product-frame">
+    <div class="product-window">
+      <div class="window-bar"><i class="window-dot"></i><i class="window-dot"></i><i class="window-dot"></i></div>
+      <div class="preview-body">
+        <div class="preview-head"><div><div class="preview-title">Portfolio readiness</div><div class="preview-period">Illustrative pool assessment</div></div><span class="chip chip-accent">Review complete</span></div>
+        <div class="metric-grid">
+          <div class="metric"><strong>₦1.0bn</strong><span>Eligible balance</span></div>
+          <div class="metric"><strong>4,281</strong><span>Facilities</span></div>
+          <div class="metric"><strong>92.4%</strong><span>Completeness</span></div>
+        </div>
+        <div class="pool">
+          <div class="pool-row"><span>Portfolio quality</span><strong>Within policy</strong></div>
+          <div class="pool-row"><span>Weighted average yield</span><strong>27.8%</strong></div>
+          <div class="pool-row"><span>Senior capacity</span><strong>₦750m</strong></div>
+          <div class="pool-row"><span>Reporting readiness</span><strong>Ready</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BUSINESS MODEL -->
+<section>
+  <div class="kicker">Business model</div>
+  <h2 class="h">Waterline is paid for infrastructure and execution — not for holding credit risk.</h2>
+  <p class="model-line">Waterline never takes the loans onto its own balance sheet. It is the standardization, intelligence and structuring layer that sits between a lender's book and the capital that funds it.</p>
+  <div class="stack">
+    <div class="bm-card card"><div class="kick">Standardization</div><h3>WCDS engagements</h3><p>Lenders and technical partners engage Waterline directly to standardize a loan book against WCDS — an independent, fee-based service, ahead of and outside of any funding deal.</p></div>
+    <div class="bm-card card"><div class="kick">Deal execution</div><h3>Structuring &amp; placement</h3><p>Origination and structuring fees on securitization / forward-flow transactions — screening, tranching, waterfall modelling and investor placement for a validated pool.</p></div>
+    <div class="bm-card card"><div class="kick">Ongoing infrastructure</div><h3>Data &amp; reporting</h3><p>Recurring fees for investor reporting, portfolio monitoring and market-intelligence access across the life of a structure.</p></div>
+  </div>
+</section>
+
+<!-- WHY WATERLINE -->
+<section>
+  <div class="kicker">Why Waterline</div>
+  <h2 class="h">Infrastructure, not another balance sheet.</h2>
+  <div class="stack">
+    <div class="moat-item card"><div class="ico">01</div><div><h3>A real data standard, not a spreadsheet template</h3><p>WCDS is a full canonical schema with a deterministic rulebook — built and tested end-to-end against synthetic loan tapes before it ever touches a real one.</p></div></div>
+    <div class="moat-item card"><div class="ico">02</div><div><h3>Intelligence and execution in one workflow</h3><p>Market intelligence, standardization and structuring live on one platform — most incumbents offer one of the three, requiring a lender to stitch the rest together.</p></div></div>
+    <div class="moat-item card"><div class="ico">03</div><div><h3>Founding team from both sides of the table</h3><p>Banking, ratings and central-banking experience across Nigerian and international institutions — the team has sat inside the institutions it now serves.</p></div></div>
+    <div class="moat-item card"><div class="ico">04</div><div><h3>Neutral by design</h3><p>Waterline doesn't originate or hold loans, so its incentives are aligned with getting the data and the structure right — not with maximizing its own book.</p></div></div>
+  </div>
+</section>
+
+<!-- TRACTION -->
+<section>
+  <div class="kicker">Where we are</div>
+  <h2 class="h">The platform is built. We're in private preview with a small group of lenders and investors.</h2>
+  <div class="stack">
+    <div class="status-item card"><div class="chk">✓</div><div><b>WCDS v0.1 published</b><span>Full canonical schema, field dictionary and 30-rule validation rulebook, specified and documented.</span></div></div>
+    <div class="status-item card"><div class="chk">✓</div><div><b>Ingestion pipeline live</b><span>Mapper, canonicalizer, validator and reconciler built and tested end-to-end against synthetic loan tapes.</span></div></div>
+    <div class="status-item card"><div class="chk">✓</div><div><b>SPV structuring engine live</b><span>Eligibility screening, tranche sizing and cashflow waterfall simulation, exposed via API.</span></div></div>
+    <div class="status-item card"><div class="chk">✓</div><div><b>Market intelligence database live</b><span>Institution and portfolio-level schema, seeded from public filings and rating actions.</span></div></div>
+  </div>
+  <div class="stealth-note"><b>Currently in stealth.</b> Waterline is operating a private preview with a small group of Nigerian lenders, institutional investors and transaction partners while the platform is pressure-tested ahead of a public launch.</div>
+</section>
+
+<!-- TEAM -->
+<section>
+  <div class="kicker">Team</div>
+  <h2 class="h">Founders who have sat on both sides of a credit transaction.</h2>
+  <div class="stack">
+    <div class="founder-card card">
+      <h3>Richard Awe</h3>
+      <div class="role">Co-founder</div>
+      <p class="bio">Financial-services and technology leader with experience across banking, central banking, government, ratings and software delivery.</p>
+      <div class="career-row">
+        <span class="career-chip">Access Bank</span><span class="career-chip">Barclays Bank</span><span class="career-chip">HSBC</span><span class="career-chip">Lloyds Banking Group</span><span class="career-chip">European Central Bank</span><span class="career-chip">HMRC</span><span class="career-chip">3d7 Technologies</span><span class="career-chip">Fitch Ratings</span>
+      </div>
+    </div>
+    <div class="founder-card card">
+      <h3>Abiodun Awe</h3>
+      <div class="role">Co-founder</div>
+      <p class="bio">Markets-infrastructure and issuer-services specialist with experience across central banking, investment banking, custody and ratings.</p>
+      <div class="career-row">
+        <span class="career-chip">Central Bank of Nigeria</span><span class="career-chip">Morgan Stanley</span><span class="career-chip">NatWest Markets</span><span class="career-chip">BBC</span><span class="career-chip">Co-op</span><span class="career-chip">Equiniti</span><span class="career-chip">BNY</span><span class="career-chip">Fitch Ratings</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VISION -->
+<section>
+  <div class="kicker">Vision</div>
+  <h2 class="h">The standard layer for African credit markets.</h2>
+  <p class="vision-line">Start as the <b>data and structuring infrastructure</b> for Nigerian lenders — become the layer every credit transaction on the continent gets checked against.</p>
+  <div class="stack">
+    <div class="vstep"><div class="vs-num">NOW</div><b>Nigeria, term loans &amp; leases</b><span>Deepen coverage across banks, MFBs, fintechs and leasing companies.</span></div>
+    <div class="vstep"><div class="vs-num">NEXT</div><b>More asset classes</b><span>Extend WCDS and structuring to trade finance, invoice discounting and consumer credit.</span></div>
+    <div class="vstep"><div class="vs-num">LATER</div><b>Pan-African coverage</b><span>Take the standard and the structuring workflow to other African credit markets facing the same funding gap.</span></div>
+  </div>
+</section>
+
+<!-- CLOSING -->
+<section class="s-close">
+  <div class="brand"><span class="brand-mark">W</span>Waterline</div>
+  <h2>We'd like to talk.</h2>
+  <p class="lede2">Waterline is in private preview and not currently running a funding process — but we're always glad to compare notes with investors and partners who work in Nigerian credit markets.</p>
+  <div class="close-actions">
+    <span class="pill-btn pill-primary">richard.awe@3d7tech.com</span>
+    <span class="pill-btn pill-outline">Request private preview access</span>
+  </div>
+  <div class="close-meta">Waterline · Lagos, Nigeria<br>Confidential — prepared for discussion purposes only</div>
+</section>
+
+</body>
+</html>
