@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Learn how loan securitisation works, the role of SPVs, tranches and cash‑flow waterfalls in turning a loan book into market‑based funding.">
+<title>Loan Securitisation Explained: How SPVs and Tranches Turn Loans into Funding — Waterline Blog</title>
+<link rel="canonical" href="https://waterline.ng/blog/loan-securitisation-explained-how-spvs-and-tranches-turn-loans-into-funding/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+.blog-wrap{padding:56px 0 90px}.blog-head{max-width:700px;margin-bottom:40px}
+.blog-head h1{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.blog-head p{margin-top:12px;color:var(--text-dim);font-size:16px}
+.blog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.blog-card{display:block;padding:22px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card);text-decoration:none}
+.blog-card .kicker{margin-bottom:10px}.blog-card h2{font-size:19px;line-height:1.3}.blog-card p{margin-top:9px;color:var(--text-dim);font-size:14px}
+.blog-card .meta{margin-top:14px;color:var(--text-faint);font-size:11px}
+.article-wrap{max-width:760px;margin:0 auto;padding:48px 0 90px}
+.article-head h1{font-size:clamp(28px,4vw,42px);line-height:1.15}
+.article-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;color:var(--text-faint);font-size:12px}
+.article-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.article-disclosure{margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-subtle);color:var(--text-dim);font-size:13px}
+.article-body{margin-top:34px;font-size:16px;line-height:1.75;color:var(--text)}
+.article-body h2{margin-top:38px;margin-bottom:12px;font-size:23px}.article-body h3{margin-top:26px;margin-bottom:10px;font-size:18px}
+.article-body p{margin-top:14px}.article-body ul,.article-body ol{margin-top:14px;padding-left:22px}.article-body li{margin-top:6px}
+.article-body a{color:var(--accent)}
+.faq-block{margin-top:40px;padding-top:30px;border-top:1px solid var(--border)}
+.faq-item{margin-top:16px}.faq-item strong{display:block;color:var(--navy);font-size:15px}.faq-item p{margin-top:6px;color:var(--text-dim);font-size:14px}
+.sources-block{margin-top:40px;padding-top:24px;border-top:1px solid var(--border);font-size:13px;color:var(--text-dim)}
+.sources-block li{margin-top:6px}
+.footer-row{display:flex;justify-content:space-between;gap:20px;align-items:center}.footer-row a{color:var(--text-dim);text-decoration:none}
+@media(max-width:720px){.blog-grid{grid-template-columns:1fr}.footer-row{align-items:flex-start;flex-direction:column}}
+</style>
+<meta property="og:type" content="article">
+<meta property="og:title" content="Loan Securitisation Explained: How SPVs and Tranches Turn Loans into Funding">
+<meta property="og:description" content="Learn how loan securitisation works, the role of SPVs, tranches and cash‑flow waterfalls in turning a loan book into market‑based funding.">
+<meta property="og:url" content="https://waterline.ng/blog/loan-securitisation-explained-how-spvs-and-tranches-turn-loans-into-funding/">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "Loan Securitisation Explained: How SPVs and Tranches Turn Loans into Funding", "description": "Learn how loan securitisation works, the role of SPVs, tranches and cash‑flow waterfalls in turning a loan book into market‑based funding.", "datePublished": "2026-09-13T10:35:22.508362-04:00", "dateModified": "2026-09-13T10:34:45.827140-04:00", "author": {"@type": "Organization", "name": "Waterline"}, "publisher": {"@type": "Organization", "name": "Waterline"}, "mainEntityOfPage": "https://waterline.ng/blog/loan-securitisation-explained-how-spvs-and-tranches-turn-loans-into-funding/"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is the main purpose of loan securitisation?", "acceptedAnswer": {"@type": "Answer", "text": "The main purpose is to convert illiquid loan assets into liquid securities that can be sold to investors, thereby providing the originator with funding while transferring credit risk to those who buy the tranches."}}, {"@type": "Question", "name": "Why is the Special Purpose Vehicle (SPV) important in a securitisation deal?", "acceptedAnswer": {"@type": "Answer", "text": "The SPV isolates the loan pool from the originator’s balance sheet, making it bankruptcy‑remote so that investors’ claims are protected even if the originator faces financial distress."}}, {"@type": "Question", "name": "How do tranches differ in a securitisation structure?", "acceptedAnswer": {"@type": "Answer", "text": "Tranches are ranked by seniority: senior tranches get paid first and have the lowest risk, mezzanine tranches sit in the middle, and equity tranches are paid last, bearing the highest risk but also the potential for higher returns."}}, {"@type": "Question", "name": "What is a cash‑flow waterfall and how does it affect investors?", "acceptedAnswer": {"@type": "Answer", "text": "A cash‑flow waterfall is the predetermined order in which loan collections are distributed: senior tranches receive payments first, followed by mezzanine, and finally equity. This structure aligns risk and return across the different investor classes."}}]}</script>
+</head>
+<body>
+<nav><div class="nav-inner"><a class="brand" href="/"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="/blog/">Blog</a><a href="/#access">Request access</a><a href="/preview/">Enter preview</a></div></div></nav>
+<main>
+<div class="wrap article-wrap">
+<article>
+<div class="article-head">
+<h1>Loan Securitisation Explained: How SPVs and Tranches Turn Loans into Funding</h1>
+<div class="article-meta"><span>13 September 2026</span><span>5 min read</span></div>
+<div class="article-tags"><span class="chip">loan securitisation</span><span class="chip">SPV</span><span class="chip">tranches</span><span class="chip">structured finance</span><span class="chip">African finance</span></div>
+<div class="article-disclosure">Drafted with AI assistance and reviewed by an automated fact-check pass against curated reference data and recent news — not personalized financial or legal advice. Verify current rates and regulations independently before relying on this for a decision.</div>
+</div>
+<div class="article-body"><p>Loan securitisation is a financing technique that transforms a portfolio of loans into tradable securities by moving the assets into a special purpose vehicle (SPV) that issues different classes of notes, known as tranches, to investors. The SPV is legally separate from the originator, making it bankruptcy‑remote so that the cash flows from the underlying loans are insulated from the originator’s financial health. Investors receive payments according to a pre‑agreed waterfall that gives senior tranches first claim on cash, followed by mezzanine and finally the equity tranche, which bears the most risk but also the upside.</p>
+<h2>How loan securitisation works</h2>
+<p>At its core, securitisation begins with a loan originator—such as a bank, microfinance institution, or fintech lender—identifying a pool of loans that share similar characteristics, for example, maturity, interest rate type, or borrower segment. The originator then sells or pledges this pool to an SPV. Because the SPV is a distinct legal entity, the loans are removed from the originator’s balance sheet, which can improve regulatory capital ratios and free up capacity for new lending.</p>
+<p>The SPV raises money by issuing securities to investors. These securities are not a single uniform product; they are divided into tranches that reflect different levels of risk and return. The cash generated by the underlying loan repayments is used to service these securities according to a predefined priority.</p>
+<h2>The role of the Special Purpose Vehicle (SPV)</h2>
+<p>The SPV serves three key functions:</p>
+<ol>
+<li><strong>Asset isolation</strong> – By holding the loans in a separate entity, the SPV shields them from the originator’s creditors. If the originator encounters financial difficulty, the loan pool remains intact within the SPV.</li>
+<li><strong>Bankruptcy remoteness</strong> – The SPV is structured with limited purpose and strict governance so that it is unlikely to be consolidated into the originator’s insolvency proceedings. This isolation is critical for investors who rely on the predictability of cash flows.</li>
+<li><strong>Facilitating tranche issuance</strong> – The SPV issues the various tranches of securities, each with its own contractual rights to the cash flows. The SPV also manages administrative tasks such as collecting payments from borrowers, distributing funds to investors, and maintaining records.</li>
+</ol>
+<p>Because the SPV does not engage in any other business activities, its risk profile is largely determined by the quality of the loan pool it holds.</p>
+<h2>Tranches and the cash‑flow waterfall</h2>
+<p>Tranches are the building blocks of a securitisation deal. Typically, a deal will have at least three layers:</p>
+<ul>
+<li><strong>Senior tranche</strong> – Receives the first claim on loan collections. It is usually rated the highest and offers the lowest yield, reflecting its lower risk.</li>
+<li><strong>Mezzanine tranche</strong> – Lies between senior and equity. It absorbs losses after the senior tranche is exhausted but before the equity tranche takes a hit. Consequently, it offers a moderate yield.</li>
+<li><strong>Equity tranche</strong> – Also called the junior or first‑loss tranche. It bears the initial losses from defaults or prepayments, but it also captures any excess cash after all senior and mezzanine obligations are met. This tranche is unrated or carries the lowest rating and offers the highest potential return.</li>
+</ul>
+<p>The cash‑flow waterfall dictates the order of payments. Each month (or quarter), the SPV collects repayments from the underlying loans. First, it covers any servicing fees and administrative expenses. Then, it pays interest and principal to the senior tranche holders. If funds remain, it moves to the mezzanine tranche, and finally to the equity tranche. If the loan pool underperforms, the waterfall may stop before reaching the lower tranches, protecting senior investors while the equity tranche absorbs the shortfall.</p>
+<h2>Benefits and considerations for originators and investors</h2>
+<p>For originators, securitisation can provide several advantages:
+- <strong>Funding diversification</strong> – Access to capital markets beyond traditional deposits or wholesale borrowing.
+- <strong>Balance‑sheet management</strong> – Reduction of loan exposure, which can help meet regulatory capital requirements.
+- <strong>Risk transfer</strong> – By selling the equity or mezzanine tranches, originators can offload a portion of credit risk while retaining servicing rights or a residual interest.</p>
+<p>Investors, meanwhile, gain exposure to a diversified pool of loans with a clear risk‑return profile. Senior tranches appeal to those seeking stable, lower‑yield income, while mezzanine and equity tranches attract investors willing to take on more risk for higher potential returns. The transparency of the waterfall structure allows investors to model expected cash flows under various scenarios.</p>
+<p>However, both parties must consider factors such as the quality of the underlying loans, the accuracy of cash‑flow projections, the legal robustness of the SPV structure, and the costs associated with setting up and maintaining the transaction. Proper due diligence and ongoing monitoring are essential to ensure that the securitisation performs as intended.</p>
+<h2>Typical steps in a securitisation transaction</h2>
+<p>While each deal is unique, the general process follows these stages:</p>
+<ol>
+<li><strong>Pool selection</strong> – The originator identifies and validates a loan portfolio that meets predefined eligibility criteria.</li>
+<li><strong>SPV formation</strong> – A bankruptcy‑remote SPV is created, often in a jurisdiction with favourable securitisation laws.</li>
+<li><strong>Asset transfer</strong> – Loans are sold or pledged to the SPV; the originator may retain a servicing role or a residual interest.</li>
+<li><strong>Tranche structuring</strong> – The SPV designs the senior, mezzanine and equity tranches, assigning credit ratings where appropriate.</li>
+<li><strong>Issuance and sale</strong> – Securities are offered to investors, typically through a private placement or public offering.</li>
+<li><strong>Closing and funding</strong> – Proceeds from the sale are transferred to the originator (or used to repay existing funding), and the SPV begins collecting loan repayments.</li>
+<li><strong>Ongoing management</strong> – The SPV (or a designated servicer) collects payments, runs the waterfall, reports to investors, and manages any delinquencies or defaults.</li>
+</ol>
+<p>Each step involves legal, accounting, and risk‑management considerations that help ensure the transaction’s integrity and the protection of all parties involved.</p>
+<p>Loan securitisation, therefore, is a structured‑finance tool that leverages the legal separation of an SPV and the risk‑layering of tranches to turn a static loan book into a dynamic source of funding. By aligning the interests of originators, investors, and the SPV, it enables more efficient capital allocation while providing a transparent mechanism for risk distribution.</p></div>
+<div class="faq-block"><h2>FAQ</h2><div class="faq-item"><strong>What is the main purpose of loan securitisation?</strong><p>The main purpose is to convert illiquid loan assets into liquid securities that can be sold to investors, thereby providing the originator with funding while transferring credit risk to those who buy the tranches.</p></div><div class="faq-item"><strong>Why is the Special Purpose Vehicle (SPV) important in a securitisation deal?</strong><p>The SPV isolates the loan pool from the originator’s balance sheet, making it bankruptcy‑remote so that investors’ claims are protected even if the originator faces financial distress.</p></div><div class="faq-item"><strong>How do tranches differ in a securitisation structure?</strong><p>Tranches are ranked by seniority: senior tranches get paid first and have the lowest risk, mezzanine tranches sit in the middle, and equity tranches are paid last, bearing the highest risk but also the potential for higher returns.</p></div><div class="faq-item"><strong>What is a cash‑flow waterfall and how does it affect investors?</strong><p>A cash‑flow waterfall is the predetermined order in which loan collections are distributed: senior tranches receive payments first, followed by mezzanine, and finally equity. This structure aligns risk and return across the different investor classes.</p></div></div>
+
+</article>
+</div>
+</main>
+<footer><div class="wrap footer-row"><span>© 2026 Waterline. Lagos, Nigeria.</span><a href="mailto:richard.awe@3d7tech.com">richard.awe@3d7tech.com</a></div></footer>
+<script>const toggle=document.getElementById('nav-toggle'),links=document.getElementById('nav-links');toggle.addEventListener('click',()=>{const open=links.classList.toggle('open');toggle.setAttribute('aria-expanded',String(open))});links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));</script>
+</body>
+</html>
