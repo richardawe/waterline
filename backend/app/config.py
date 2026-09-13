@@ -3,6 +3,12 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _model_chain(value: str) -> list[str]:
+    """A single model id and a comma-separated fallback chain are both valid
+    config — an existing deployment with one id set keeps working unchanged."""
+    return [m.strip() for m in value.split(",") if m.strip()]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -12,19 +18,23 @@ class Settings(BaseSettings):
     admin_api_username: str | None = None
     admin_api_password: str | None = None
 
-    # OpenRouter — free OSS model. minimax/minimax-m3:free is the one
-    # confirmed working as of 2026-09-02; openai/gpt-oss-20b:free (the
-    # original choice) was pulled from OpenRouter's free tier entirely, and
-    # several other free models 429 (upstream rate-limited) on the shared
-    # free pool. Same model id for both the writer and QA roles by design
-    # (env-configurable independently in case that ever needs to change) —
-    # free-tier availability rotates, so these are config-driven defaults,
-    # not hardcoded in the pipeline. If this starts failing, reproduce
-    # directly first (see docs/blog-pipeline.md) before assuming it's a
-    # code bug — it usually isn't.
+    # OpenRouter — free OSS models, as a comma-separated *fallback chain*
+    # tried left to right, not a single id. Free-tier availability rotates
+    # fast and a pulled model is indistinguishable from a typo from the
+    # outside: three separate slugs have now died under this pipeline
+    # (openai/gpt-oss-20b:free, deepseek/deepseek-chat-v3.1:free, then
+    # minimax/minimax-m3:free on 2026-09-08), each time taking daily
+    # generation down until someone noticed. A chain means one slug going
+    # away costs a fallback hop, not an outage.
+    #
+    # `openrouter/free` is deliberately last: it's OpenRouter's own router
+    # across whatever is currently free, so it stays resolvable even when
+    # every named slug above it has been pulled. Same chain for the writer
+    # and QA roles by design, independently env-configurable in case that
+    # ever needs to change.
     openrouter_api_key: str | None = None
-    openrouter_writer_model: str = "minimax/minimax-m3:free"
-    openrouter_qa_model: str = "minimax/minimax-m3:free"
+    openrouter_writer_model: str = "google/gemma-4-31b-it:free,nvidia/nemotron-3-super-120b-a12b:free,openrouter/free"
+    openrouter_qa_model: str = "google/gemma-4-31b-it:free,nvidia/nemotron-3-super-120b-a12b:free,openrouter/free"
 
     # Blog pipeline
     blog_site_base_url: str = "https://waterline.ng"
@@ -34,6 +44,14 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
+
+    @property
+    def openrouter_writer_models(self) -> list[str]:
+        return _model_chain(self.openrouter_writer_model)
+
+    @property
+    def openrouter_qa_models(self) -> list[str]:
+        return _model_chain(self.openrouter_qa_model)
 
     @property
     def blog_news_feeds(self) -> list[str]:

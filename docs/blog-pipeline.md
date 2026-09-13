@@ -1,16 +1,25 @@
 # Automated finance blog — pipeline reference
 
 An automated blog on credit, loans and personal/SME finance in Nigeria and
-across Africa, written by a free OpenRouter model (`minimax/minimax-m3:free`
-as of 2026-09-02 — free-tier availability on OpenRouter rotates fast; two
-earlier choices (`deepseek/deepseek-chat-v3.1:free`, then
-`openai/gpt-oss-20b:free`) both stopped working, one pulled from the free
-tier entirely, another hitting a shared-pool 429), reviewed by a second pass
+across Africa, written by a free OpenRouter model, reviewed by a second pass
 of the same model against a hard factual-grounding rubric, then
 auto-published as static HTML through the existing FTP deploy pipeline.
 This is the operational reference; the original design plan
 (context/trade-offs) lived in the session that built it — this doc is what
 to read when operating or extending the pipeline day to day.
+
+**The model is a fallback chain, not a single id.** Free-tier availability
+on OpenRouter rotates fast, and three separate slugs have now died under
+this pipeline — `openai/gpt-oss-20b:free` and
+`deepseek/deepseek-chat-v3.1:free` (pulled from the free tier / shared-pool
+429s), then `minimax/minimax-m3:free`, which stopped existing on 2026-09-08
+and broke daily generation for six consecutive runs. So
+`OPENROUTER_WRITER_MODEL` / `OPENROUTER_QA_MODEL` are **comma-separated
+lists tried left to right**, ending in `openrouter/free` — OpenRouter's own
+router across whatever is currently free, which stays resolvable even when
+every named slug ahead of it is gone. A single id is still valid config
+(it's just a chain of one), but don't deploy one: that's the shape that
+kept failing.
 
 ## Why the design looks like this
 
@@ -48,8 +57,9 @@ to read when operating or extending the pipeline day to day.
        (this step runs INSIDE the backend, on the server, not in CI)
        a. knowledge_base.relevant_facts()          — curated reference facts (backend/app/blog/facts/*.json)
        b. news_feed.fetch_recent_items()            — recent items from configured RSS feeds
-       c. writer pass (OpenRouter, minimax-m3:free) — drafts title/body/FAQ/news section as JSON
-       d. QA pass (OpenRouter, minimax-m3:free)     — reviews draft against the same facts/news; verdict JSON
+       c. writer pass (OpenRouter, first model in the writer chain that answers)
+                                                    — drafts title/body/FAQ/news section as JSON
+       d. QA pass (OpenRouter, same for the QA chain) — reviews draft against the same facts/news; verdict JSON
        e. fail -> feed QA issues back to the writer, retry once, then give up
        f. save BlogPost: status=published (QA pass) or qa_failed (still failing after retry)
        <- backend returns {published: [...], qa_failed: [...]} as JSON
@@ -169,42 +179,73 @@ Apache/Passenger layer with a higher value, that's the fix.
   (add/remove pending topics without touching code), add a row to `TOPICS`
   in `backend/app/seed/seed_blog_topics.py`, or insert a `BlogTopic`
   directly (`prompt`, `category`, `target_keywords`, `priority`).
-- **Change the writer/QA model**: `OPENROUTER_WRITER_MODEL` /
-  `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`), independently
-  configurable even though both currently point at `minimax/minimax-m3:free`.
-  Free-tier model availability on OpenRouter rotates fast — a model can go
-  from working to a hard 404 ("no longer free") or a 429 ("temporarily
-  rate-limited upstream, shared free pool") with no warning. **When
-  `/admin/blog/generate` 502s, don't guess from the outside — reproduce
-  directly on the server first**, where the real Python traceback is
-  visible instead of a generic 502 (a `502 Bad Gateway` from the endpoint is
-  always `OpenRouterError` — the model call itself failing — never a bug in
-  the request path around it):
-  ```
-  cd <app root> && source .venv/bin/activate
-  python -c "
-  from app.blog.openrouter_client import chat_completion
-  print(chat_completion('<candidate-model>:free', 'You are a helpful assistant.', 'Say hello in one sentence.'))
-  "
-  ```
-  Get the live list of what's currently actually free from OpenRouter's own
-  API (`https://openrouter.ai/api/v1/models`, filter for `pricing.prompt ==
-  "0"` — the `:free`-suffixed id alone isn't a reliable filter, some free
-  models don't use that suffix) rather than assuming a previously-known-good
-  slug still works. Once a candidate responds, verify it actually follows
-  the strict-JSON instruction before committing to it:
-  ```
-  python -c "
-  import json
-  from app.blog import knowledge_base, prompts
-  from app.blog.openrouter_client import chat_completion
-  facts = knowledge_base.relevant_facts('lending', 'loan')
-  user_prompt = prompts.build_writer_prompt('A test topic', 'lending', facts, [])
-  raw = chat_completion('<candidate-model>:free', prompts.WRITER_SYSTEM_PROMPT, user_prompt)
-  json.loads(raw)  # raises if the model didn't return clean JSON
-  print('OK')
-  "
-  ```
+- **Change or refresh the writer/QA model chain**: `OPENROUTER_WRITER_MODEL` /
+  `OPENROUTER_QA_MODEL` env vars (see `backend/.env.example`) — comma-separated,
+  tried left to right, independently configurable for the two roles. Keep
+  `openrouter/free` last (see the note at the top of this doc). Refresh the
+  named entries ahead of it when the logs show the chain falling through, using
+  the recipe under "When generation starts failing" below.
+
+## When generation starts failing
+
+A `502 Bad Gateway` from `/admin/blog/generate` is always `OpenRouterError`
+— the model call itself failing — never a bug in the request path around it.
+Work it in this order:
+
+1. **Read the failure issue.** `notify.py` opens a "Blog run failed" issue
+   per bad run, and it now carries the backend's response body, not just the
+   status line — so the actual reason (`... returned 404: No endpoints found
+   for model`, a 429, a bad key) is in the issue text. Before this was
+   included, six days of failures all read as an identical bare
+   "502 Bad Gateway" with nothing to act on; that is the whole reason the
+   body is there.
+2. **If it names a model, check whether that slug still exists.** Ask
+   OpenRouter's own API rather than assuming a previously-known-good slug
+   survived — this needs no API key:
+   ```
+   curl -s https://openrouter.ai/api/v1/models \
+     | python3 -c "import json,sys; print('\n'.join(m['id'] for m in json.load(sys.stdin)['data'] if m['pricing']['prompt'] == '0'))"
+   ```
+   Filter on `pricing.prompt == "0"`, not on the `:free` suffix — some free
+   models don't carry the suffix, and a `:free` id can outlive its free
+   pricing. A model missing from that list is gone: drop it from the chain
+   and put a current one at the front.
+3. **If the whole chain failed, the error lists every attempt** — if they
+   all 404, the chain is stale; if they all 429, the shared free pool is
+   saturated and the next scheduled run will likely recover on its own.
+4. **A 401/403 is the key, not the models.** The chain stops on those
+   without trying the rest, so the message names it directly: re-check
+   `OPENROUTER_API_KEY` in cPanel and restart the app.
+5. **Only then reproduce on the server**, where a real traceback is visible:
+   ```
+   cd <app root> && source .venv/bin/activate
+   python -c "
+   from app.blog.openrouter_client import chat_completion
+   print(chat_completion('<candidate-model>:free', 'You are a helpful assistant.', 'Say hello in one sentence.'))
+   "
+   ```
+   Once a candidate responds, verify it actually follows the strict-JSON
+   instruction before putting it at the front of the chain:
+   ```
+   python -c "
+   import json
+   from app.blog import knowledge_base, prompts
+   from app.blog.openrouter_client import chat_completion
+   facts = knowledge_base.relevant_facts('lending', 'loan')
+   user_prompt = prompts.build_writer_prompt('A test topic', 'lending', facts, [])
+   raw = chat_completion('<candidate-model>:free', prompts.WRITER_SYSTEM_PROMPT, user_prompt)
+   json.loads(raw)  # raises if the model didn't return clean JSON
+   print('OK')
+   "
+   ```
+   `generator._extract_json` tolerates fenced and prose-padded replies, so a
+   model that fails *this* strict check may still work in the pipeline — but
+   a model that passes it is the safer bet.
+
+A post records the model that actually wrote and reviewed it
+(`writer_model` / `qa_model`, visible in `admin.html`'s Blog tab), which
+with a fallback chain is not necessarily the first one configured. Those
+fields are how you tell whether the chain has been quietly falling through.
 
 ## Local dry run
 

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.blog import knowledge_base, news_feed, prompts
-from app.blog.openrouter_client import OpenRouterError, chat_completion
+from app.blog.openrouter_client import OpenRouterError, chat_completion_with_fallback
 from app.blog.sanitize import sanitize_html
 from app.config import get_settings
 from app.models.blog import BlogPost, BlogTopic
@@ -23,14 +23,31 @@ MAX_QA_ATTEMPTS = 2  # initial draft + one self-correction retry
 
 
 def _extract_json(raw: str) -> dict:
-    """Models sometimes wrap JSON in markdown fences despite instructions
-    not to — strip those before parsing, then fail loudly if it's still not
-    valid JSON rather than silently publishing garbage."""
+    """Pulls the JSON object out of a model reply, tolerating the two ways
+    models ignore the strict-JSON instruction: wrapping it in markdown
+    fences, and padding it with a sentence of preamble or a reasoning
+    trace. Tries the strictest reading first and only widens from there, so
+    a reply that *is* clean JSON is never reinterpreted — and if none of the
+    readings parse, it still fails loudly rather than silently publishing
+    garbage."""
     text = raw.strip()
-    fence_match = re.match(r"^```(?:json)?\s*(.*)```\s*$", text, re.DOTALL)
+
+    candidates = [text]
+    fence_match = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     if fence_match:
-        text = fence_match.group(1).strip()
-    return json.loads(text)
+        candidates.append(fence_match.group(1).strip())
+    if "{" in text and "}" in text:
+        candidates.append(text[text.index("{") : text.rindex("}") + 1])
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise json.JSONDecodeError(f"no JSON object found in model reply: {text[:300]}", text, 0)
 
 
 def _slugify(title: str) -> str:
@@ -76,15 +93,24 @@ def generate_one(db: Session) -> BlogPost | None:
     qa_verdict: dict = {"verdict": "fail", "issues": ["generation did not complete"]}
     attempts = 0
 
+    writer_model = settings.openrouter_writer_models[0]
+    qa_model = settings.openrouter_qa_models[0]
+
     for attempts in range(1, MAX_QA_ATTEMPTS + 1):
         user_prompt = prompts.build_writer_prompt(topic.prompt, topic.category, facts, news_items, qa_feedback)
-        raw_draft = chat_completion(settings.openrouter_writer_model, prompts.WRITER_SYSTEM_PROMPT, user_prompt)
-        draft = _extract_json(raw_draft)
+        written = chat_completion_with_fallback(
+            settings.openrouter_writer_models, prompts.WRITER_SYSTEM_PROMPT, user_prompt
+        )
+        writer_model = written.model
+        draft = _extract_json(written.content)
 
         existing_titles = _existing_published_titles(db)
         qa_user_prompt = prompts.build_qa_prompt(draft, facts, news_items, existing_titles)
-        raw_verdict = chat_completion(settings.openrouter_qa_model, prompts.QA_SYSTEM_PROMPT, qa_user_prompt)
-        qa_verdict = _extract_json(raw_verdict)
+        reviewed = chat_completion_with_fallback(
+            settings.openrouter_qa_models, prompts.QA_SYSTEM_PROMPT, qa_user_prompt
+        )
+        qa_model = reviewed.model
+        qa_verdict = _extract_json(reviewed.content)
 
         if qa_verdict.get("verdict") == "pass":
             break
@@ -105,8 +131,8 @@ def generate_one(db: Session) -> BlogPost | None:
         content_html=sanitize_html(markdown_lib.markdown(body_markdown, extensions=["fenced_code", "tables"])),
         faq_json=json.dumps(draft.get("faq", [])),
         news_refs_json=json.dumps(news_items),
-        writer_model=settings.openrouter_writer_model,
-        qa_model=settings.openrouter_qa_model,
+        writer_model=writer_model,
+        qa_model=qa_model,
         qa_verdict_json=json.dumps(qa_verdict),
         qa_attempts=attempts,
         word_count=word_count,

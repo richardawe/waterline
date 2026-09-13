@@ -67,3 +67,41 @@ def test_main_http_error_calls_notify_failure_and_returns_1(monkeypatch):
     ), patch.object(trigger_blog_generation.notify, "notify_failure") as mock_fail:
         assert trigger_blog_generation.main(1) == 1
     mock_fail.assert_called_once()
+
+
+def test_http_status_error_reports_the_response_body(monkeypatch):
+    """A bare "502 Bad Gateway" in the failure issue is undiagnosable — the
+    backend puts the actual OpenRouter reason (e.g. a model pulled from the
+    free tier) in the response body, so the notification has to carry it."""
+    monkeypatch.setenv("BLOG_API_BASE", "https://api.example.com")
+    monkeypatch.setenv("ADMIN_API_USERNAME", "admin")
+    monkeypatch.setenv("ADMIN_API_PASSWORD", "secret")
+
+    request = httpx.Request("POST", "https://api.example.com/admin/blog/generate")
+    response = httpx.Response(
+        502, request=request, json={"detail": "OpenRouter error: OpenRouter some/model:free returned 404"}
+    )
+
+    with patch.object(trigger_blog_generation.httpx, "post", return_value=response), patch.object(
+        trigger_blog_generation.notify, "notify_failure"
+    ) as mock_fail:
+        assert trigger_blog_generation.main(1) == 1
+
+    message = mock_fail.call_args[0][0]
+    assert "502" in message
+    assert "some/model:free returned 404" in message
+
+
+def test_transport_error_without_a_response_still_notifies(monkeypatch):
+    """httpx.ConnectError carries no response — formatting the detail must
+    not raise a second error on top of the original failure."""
+    monkeypatch.setenv("BLOG_API_BASE", "https://api.example.com")
+    monkeypatch.setenv("ADMIN_API_USERNAME", "admin")
+    monkeypatch.setenv("ADMIN_API_PASSWORD", "secret")
+
+    with patch.object(
+        trigger_blog_generation.httpx, "post", side_effect=httpx.ConnectError("boom")
+    ), patch.object(trigger_blog_generation.notify, "notify_failure") as mock_fail:
+        assert trigger_blog_generation.main(1) == 1
+
+    assert "boom" in mock_fail.call_args[0][0]
