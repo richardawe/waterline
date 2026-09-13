@@ -7,7 +7,22 @@ name: Deploy to cPanel
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      # `workflow_dispatch` resolves its `ref` to a SHA when the dispatch is
+      # *received*, so a caller that pushes and then immediately dispatches can
+      # race its own push and deploy the commit before it. blog.yml did exactly
+      # that on 2026-09-13: it pushed a new post, dispatched two seconds later,
+      # and this workflow deployed the parent commit — the post sat on main,
+      # correct and committed, but never reached production and 404'd on the
+      # live site with every job green. The dispatch API won't accept a raw SHA
+      # as `ref`, so the exact commit to deploy rides in as an input instead.
+      # Empty for a plain push or a hand-run dispatch, which both fall back to
+      # the ref's resolved SHA.
+      sha:
+        description: "Exact commit to deploy. Defaults to the tip of the dispatched ref."
+        required: false
+        default: ""
 
 concurrency:
   group: production-deploy
@@ -38,6 +53,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.sha || github.sha }} # see `inputs.sha` above
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -52,6 +69,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.sha || github.sha }} # see `inputs.sha` above
 
       - name: Validate frontend deployment target
         env:
@@ -129,6 +148,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.sha || github.sha }} # see `inputs.sha` above
 
       - name: Require complete server automation settings
         if: ${{ vars.ENABLE_BACKEND_DEPLOY == 'true' }}
