@@ -25,6 +25,24 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 300
 
 
+def _error_detail(exc: httpx.HTTPError) -> str:
+    """The status line alone says nothing actionable — a `502` from
+    /admin/blog/generate is the backend reporting an OpenRouter failure, and
+    the *reason* (model pulled from the free tier, rate limit, bad key) is
+    only in the response body. Without this, a run that broke because a model
+    slug disappeared reports as a bare "502 Bad Gateway" in the GitHub issue
+    and needs a server-side reproduction to diagnose; that cost this pipeline
+    six days of silent failures. Best-effort: never let formatting an error
+    raise a second one."""
+    response = getattr(exc, "response", None)
+    if response is None:
+        return ""
+    try:
+        return f"\nResponse body: {response.text[:1000]}"
+    except Exception:  # noqa: BLE001 - diagnostics must not mask the original failure
+        return ""
+
+
 def main(posts_per_run: int) -> int:
     base_url = os.environ.get("BLOG_API_BASE", "").rstrip("/")
     username = os.environ.get("ADMIN_API_USERNAME")
@@ -42,7 +60,7 @@ def main(posts_per_run: int) -> int:
         )
         response.raise_for_status()
     except httpx.HTTPError as exc:
-        message = f"POST {base_url}/admin/blog/generate failed: {exc}"
+        message = f"POST {base_url}/admin/blog/generate failed: {exc}{_error_detail(exc)}"
         logger.error(message)
         notify.notify_failure(message)
         return 1

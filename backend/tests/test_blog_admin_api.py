@@ -12,10 +12,14 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.blog_admin import create_topic, generate_posts, list_topics, remove_topic, seed_topics
-from app.blog.openrouter_client import OpenRouterError
+from app.blog.openrouter_client import ChatResult, OpenRouterError
 from app.models.blog import BlogTopic
 from app.schemas import BlogTopicCreate
 from tests.conftest import requires_db
+
+
+def _reply(content: str, model: str = "writer-model:free") -> ChatResult:
+    return ChatResult(model=model, content=content)
 
 
 def _draft_json(title: str = "How NIBSS instant payments work") -> str:
@@ -98,10 +102,10 @@ def test_generate_posts_endpoint_returns_published_and_qa_failed(db_session):
     db_session.add(BlogTopic(prompt="Explain NIBSS", category="regulation", target_keywords="nibss", priority=100))
     db_session.commit()
 
-    with patch("app.blog.generator.chat_completion") as mock_chat, patch(
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
         "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
     ):
-        mock_chat.side_effect = [_draft_json(), json.dumps({"verdict": "pass", "issues": []})]
+        mock_chat.side_effect = [_reply(_draft_json()), _reply(json.dumps({"verdict": "pass", "issues": []}))]
         result = generate_posts(posts_per_run=1, db=db_session)
 
     assert len(result["published"]) == 1
@@ -115,13 +119,13 @@ def test_generate_posts_endpoint_caps_at_max_per_request(db_session):
         db_session.add(BlogTopic(prompt=f"Topic {i}", category="lending", priority=100 - i))
     db_session.commit()
 
-    with patch("app.blog.generator.chat_completion") as mock_chat, patch(
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
         "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
     ):
         mock_chat.side_effect = [
-            _draft_json(title="T0"), json.dumps({"verdict": "pass", "issues": []}),
-            _draft_json(title="T1"), json.dumps({"verdict": "pass", "issues": []}),
-            _draft_json(title="T2"), json.dumps({"verdict": "pass", "issues": []}),
+            _reply(_draft_json(title="T0")), _reply(json.dumps({"verdict": "pass", "issues": []})),
+            _reply(_draft_json(title="T1")), _reply(json.dumps({"verdict": "pass", "issues": []})),
+            _reply(_draft_json(title="T2")), _reply(json.dumps({"verdict": "pass", "issues": []})),
         ]
         result = generate_posts(posts_per_run=10, db=db_session)  # asks for 10, only 3 allowed per request
 
@@ -134,7 +138,7 @@ def test_generate_posts_endpoint_raises_502_on_openrouter_error(db_session):
     db_session.add(BlogTopic(prompt="Explain something", category="lending", priority=100))
     db_session.commit()
 
-    with patch("app.blog.generator.chat_completion", side_effect=OpenRouterError("boom")), patch(
+    with patch("app.blog.generator.chat_completion_with_fallback", side_effect=OpenRouterError("boom")), patch(
         "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
     ):
         with pytest.raises(HTTPException) as exc:
