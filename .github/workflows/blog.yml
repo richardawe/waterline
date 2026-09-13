@@ -84,6 +84,11 @@ jobs:
           for attempt in 1 2 3 4; do
             if git push origin HEAD:main; then
               echo "pushed=true" >> "$GITHUB_OUTPUT"
+              # Capture the SHA *after* the push that succeeded: a retry
+              # rebases onto origin/main first, which rewrites HEAD. This is
+              # the commit the deploy below has to ship, and resolving "main"
+              # again later can race this very push.
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               break
             fi
             echo "Push failed (attempt $attempt), retrying..."
@@ -91,6 +96,14 @@ jobs:
             git fetch origin main
             git rebase origin/main
           done
+
+          # Without this the loop falls through with `pushed` unset and the
+          # step still exits 0 (the last command being a successful rebase),
+          # reporting a green run that published nothing.
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::Could not push generated content to main after 4 attempts."
+            exit 1
+          fi
 
       - name: Trigger the frontend deploy
         if: steps.publish.outputs.pushed == 'true'
@@ -105,8 +118,15 @@ jobs:
           # via the API rather than a push event. Only runs when something
           # was actually pushed, so a no-op day doesn't force an unnecessary
           # backend restart.
+          #
+          # The dispatch names the exact commit rather than letting deploy.yml
+          # resolve "main" itself: that resolution happens when the dispatch is
+          # received, which can land on the commit *before* the push above and
+          # ship a tree without the post that was just generated — it did on
+          # 2026-09-13, with every job green and the new post 404ing in
+          # production. See deploy.yml's `inputs.sha`.
           curl -sf -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches" \
-            -d '{"ref":"main"}'
+            -d "$(jq -nc --arg sha "${{ steps.publish.outputs.sha }}" '{ref: "main", inputs: {sha: $sha}}')"
