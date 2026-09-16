@@ -9,10 +9,12 @@ model that answers isn't necessarily the first one configured."""
 import json
 from unittest.mock import patch
 
+import pytest
+
 from sqlalchemy import update
 
 from app.blog.generator import generate_one
-from app.blog.openrouter_client import ChatResult
+from app.blog.openrouter_client import ChatResult, OpenRouterError
 from app.models.blog import BlogTopic
 from tests.conftest import requires_db
 
@@ -141,3 +143,77 @@ def test_post_records_the_model_that_actually_answered(db_session):
 
     assert post.writer_model == "fallback-writer:free"
     assert post.qa_model == "fallback-qa:free"
+
+
+@requires_db
+def test_unparseable_writer_reply_retries_instead_of_crashing(db_session):
+    """An unparseable reply used to escape as ValueError and surface as a bare
+    500 from /admin/blog/generate — no model named, no reason given."""
+    db_session.add(BlogTopic(prompt="Explain NDPA", category="regulation", target_keywords="ndpa", priority=100))
+    db_session.commit()
+
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
+        "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
+    ):
+        mock_chat.side_effect = [
+            _reply("Sure! Let me think about that for a moment."),  # no JSON at all
+            _reply(_draft_json(title="Recovered On Retry")),
+            _reply(json.dumps({"verdict": "pass", "issues": []})),
+        ]
+        post = generate_one(db_session)
+
+    assert post.status == "published"
+    assert post.title == "Recovered On Retry"
+
+
+@requires_db
+def test_writer_unparseable_on_every_attempt_raises_openrouter_error(db_session):
+    """No draft means no post to save — it should fail as a 502 naming the
+    model, not a 500 naming nothing."""
+    db_session.add(BlogTopic(prompt="Explain GSI", category="lending", priority=100))
+    db_session.commit()
+
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
+        "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
+    ):
+        mock_chat.side_effect = [_reply("not json"), _reply("still not json")]
+        with pytest.raises(OpenRouterError, match="unparseable JSON"):
+            generate_one(db_session)
+
+
+@requires_db
+def test_unparseable_qa_verdict_keeps_the_draft_for_review(db_session):
+    """The draft is fine; only the review is unreadable. Discarding a good post
+    over a malformed verdict throws away the expensive half of the work."""
+    db_session.add(BlogTopic(prompt="Explain BVN", category="lending", priority=100))
+    db_session.commit()
+
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
+        "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
+    ):
+        mock_chat.side_effect = [
+            _reply(_draft_json(title="Good Draft")),
+            _reply("the post looks fine to me honestly"),
+            _reply(_draft_json(title="Good Draft")),
+            _reply("still prose"),
+        ]
+        post = generate_one(db_session)
+
+    assert post is not None
+    assert post.status == "qa_failed"
+    assert post.title == "Good Draft"
+    assert "unparseable" in post.qa_verdict_json
+
+
+@requires_db
+def test_generation_requests_json_mode(db_session):
+    db_session.add(BlogTopic(prompt="Explain CRC", category="lending", priority=100))
+    db_session.commit()
+
+    with patch("app.blog.generator.chat_completion_with_fallback") as mock_chat, patch(
+        "app.blog.generator.news_feed.fetch_recent_items", return_value=[]
+    ):
+        mock_chat.side_effect = [_reply(_draft_json()), _reply(json.dumps({"verdict": "pass", "issues": []}))]
+        generate_one(db_session)
+
+    assert all(call[1].get("json_mode") is True for call in mock_chat.call_args_list)

@@ -165,6 +165,35 @@ OpenRouter round trips (writer, QA, and a retry of both). Keep
 reverse-proxy timeout windows; if requests start timing out at the
 Apache/Passenger layer with a higher value, that's the fix.
 
+**nginx cuts the request off at ~300s**, and two things keep that from
+costing a day's post:
+
+- *Reasoning is turned off in every request* (`NO_REASONING` in
+  `openrouter_client.py`). Every free text model on OpenRouter is now
+  reasoning-capable and most think by default — there is no plain instruct
+  model left to pick — and left alone they spend minutes narrating before
+  answering. That is what produced the 504 on 2026-09-16. The request also
+  caps `max_tokens` and asks for JSON mode where the model supports it.
+  These ride a *ladder*: on a 400/422 the client retries with one fewer
+  parameter rather than dropping all of them, so a provider that rejects the
+  reasoning flag doesn't also lose JSON mode.
+- *A timeout is reconciled, not trusted.* When nginx gives up, the backend
+  keeps going and usually commits the post a moment later — the answer is
+  lost, not the work. `trigger_blog_generation.py` snapshots the posts list
+  before triggering and, on a 504 or client timeout, polls it for up to 7
+  minutes; if the post landed, the run publishes it and reports success
+  instead of failing and opening an issue about work that succeeded. A 502
+  is deliberately *not* reconciled — that is the backend's own considered
+  "OpenRouter failed" answer, and nothing was written.
+
+**A malformed model reply is not a crash.** An unparseable writer reply is
+fed back as a failed attempt and retried; if every attempt is unparseable
+the endpoint answers 502 naming the model. An unparseable *QA verdict*
+keeps the draft and marks it `qa_failed` — a human can pass it in
+`admin.html` — rather than throwing away a good post over a bad review.
+Before this, either case escaped as a bare `500 Internal Server Error` with
+no indication of which model or prompt caused it (2026-09-16, run 25).
+
 ## Extending it
 
 - **Add a reference fact**: append an entry to
@@ -188,9 +217,15 @@ Apache/Passenger layer with a higher value, that's the fix.
 
 ## When generation starts failing
 
-A `502 Bad Gateway` from `/admin/blog/generate` is always `OpenRouterError`
-— the model call itself failing — never a bug in the request path around it.
-Work it in this order:
+Read the status code first — the three mean different things:
+
+| Status | What it is | Where to look |
+|---|---|---|
+| `502` | `OpenRouterError` — the model call failed. Never a bug in the request path around it. | The steps below |
+| `504` | nginx's ~300s ceiling, not the app. The post has usually landed anyway. | Reconciliation should have caught it; if the run still failed, nothing was generated |
+| `500` | An unhandled exception in the app — a real bug, not a model problem | Server logs; the generator now handles malformed replies, so a 500 means something else |
+
+For a `502`, work it in this order:
 
 1. **Read the failure issue.** `notify.py` opens a "Blog run failed" issue
    per bad run, and it now carries the backend's response body, not just the

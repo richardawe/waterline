@@ -115,3 +115,82 @@ def test_default_chain_ends_in_the_free_router():
     otherwise the chain has the same single-point-of-failure it replaced."""
     assert Settings().openrouter_writer_models[-1] == "openrouter/free"
     assert Settings().openrouter_qa_models[-1] == "openrouter/free"
+
+
+def _captured_payload(mock_post, call_index: int = 0) -> dict:
+    return mock_post.call_args_list[call_index][1]["json"]
+
+
+def test_request_turns_reasoning_off_and_caps_output():
+    """Left thinking, the free models burn past the 300s proxy ceiling — this
+    is the flag that keeps generation inside the window."""
+    with patch.object(openrouter_client.httpx, "post", return_value=_response(200)) as mock_post:
+        chat_completion_with_fallback(["m"], "sys", "user")
+
+    payload = _captured_payload(mock_post)
+    assert payload["reasoning"] == {"enabled": False, "effort": "none"}
+    assert payload["max_tokens"] == 8000
+
+
+def test_json_mode_is_requested_only_when_asked():
+    with patch.object(openrouter_client.httpx, "post", return_value=_response(200)) as mock_post:
+        chat_completion_with_fallback(["m"], "sys", "user", json_mode=True)
+    assert _captured_payload(mock_post)["response_format"] == {"type": "json_object"}
+
+    with patch.object(openrouter_client.httpx, "post", return_value=_response(200)) as mock_post:
+        chat_completion_with_fallback(["m"], "sys", "user")
+    assert "response_format" not in _captured_payload(mock_post)
+
+
+def test_rejecting_the_reasoning_flag_costs_only_that_flag():
+    """Not every upstream drops parameters it doesn't understand. A 400 should
+    cost one parameter, not the model and not the rest of the tuning — an
+    all-or-nothing retry would drop JSON mode too and undo half the fix."""
+    with patch.object(
+        openrouter_client.httpx,
+        "post",
+        side_effect=[_response(400, body="unknown parameter: reasoning"), _response(200, content="drafted")],
+    ) as mock_post:
+        result = chat_completion_with_fallback(["picky:free"], "sys", "user", json_mode=True)
+
+    assert result.model == "picky:free"
+    assert result.content == "drafted"
+    assert "reasoning" in _captured_payload(mock_post, 0)
+
+    retried = _captured_payload(mock_post, 1)
+    assert "reasoning" not in retried
+    assert retried["response_format"] == {"type": "json_object"}  # JSON mode survives
+    assert retried["max_tokens"] == 8000
+
+
+def test_ladder_drops_json_mode_before_giving_up_on_the_model():
+    with patch.object(
+        openrouter_client.httpx,
+        "post",
+        side_effect=[_response(400), _response(400), _response(200, content="drafted")],
+    ) as mock_post:
+        result = chat_completion_with_fallback(["picky:free"], "sys", "user", json_mode=True)
+
+    assert result.content == "drafted"
+    third = _captured_payload(mock_post, 2)
+    assert "response_format" not in third and "reasoning" not in third
+
+
+def test_bad_request_through_the_whole_ladder_moves_on_to_the_next_model():
+    """Three 400s exhaust a:free's variants (no json_mode -> 3 rungs); the
+    fourth call is b:free."""
+    with patch.object(
+        openrouter_client.httpx,
+        "post",
+        side_effect=[_response(400), _response(400), _response(400), _response(200)],
+    ):
+        assert chat_completion_with_fallback(["a:free", "b:free"], "sys", "user").model == "b:free"
+
+
+def test_empty_message_counts_as_a_model_failure():
+    """A model that spends its whole budget thinking returns 200 with an empty
+    message — handing "" back would surface as a JSON parse error much later."""
+    with patch.object(openrouter_client.httpx, "post", side_effect=[_response(200, content="   "), _response(200, content="real")]):
+        result = chat_completion_with_fallback(["quiet:free", "spare:free"], "sys", "user")
+    assert result.model == "spare:free"
+    assert result.content == "real"

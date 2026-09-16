@@ -105,3 +105,92 @@ def test_transport_error_without_a_response_still_notifies(monkeypatch):
         assert trigger_blog_generation.main(1) == 1
 
     assert "boom" in mock_fail.call_args[0][0]
+
+
+def _posts_response(posts):
+    r = Mock()
+    r.raise_for_status = Mock()
+    r.json.return_value = posts
+    return r
+
+
+def _env(monkeypatch):
+    monkeypatch.setenv("BLOG_API_BASE", "https://api.example.com")
+    monkeypatch.setenv("ADMIN_API_USERNAME", "admin")
+    monkeypatch.setenv("ADMIN_API_PASSWORD", "secret")
+
+
+def _gateway_timeout() -> httpx.HTTPStatusError:
+    request = httpx.Request("POST", "https://api.example.com/admin/blog/generate")
+    response = httpx.Response(504, request=request, text="<html>504 Gateway Time-out</html>")
+    return httpx.HTTPStatusError("504", request=request, response=response)
+
+
+def test_gateway_timeout_publishes_the_post_that_landed_anyway(monkeypatch):
+    """nginx gives up at ~300s but the backend keeps generating and commits the
+    post. Failing the run there would discard a post that exists and leave the
+    day unpublished."""
+    _env(monkeypatch)
+    before = [{"slug": "old", "status": "published", "title": "Old"}]
+    after = before + [{"slug": "new", "status": "published", "title": "New"}]
+
+    with patch.object(trigger_blog_generation.httpx, "get", side_effect=[_posts_response(before), _posts_response(after)]), \
+         patch.object(trigger_blog_generation.httpx, "post", side_effect=_gateway_timeout()), \
+         patch.object(trigger_blog_generation.notify, "notify_run_summary") as mock_summary, \
+         patch.object(trigger_blog_generation.notify, "notify_failure") as mock_fail, \
+         patch.object(trigger_blog_generation.time, "sleep"):
+        assert trigger_blog_generation.main(1) == 0
+
+    mock_fail.assert_not_called()
+    published, qa_failed = mock_summary.call_args[0]
+    assert [p["slug"] for p in published] == ["new"]
+    assert qa_failed == []
+
+
+def test_gateway_timeout_with_nothing_generated_still_fails(monkeypatch):
+    """A timeout that really produced nothing must stay a failure — otherwise
+    a dead backend reports green forever."""
+    _env(monkeypatch)
+    before = [{"slug": "old", "status": "published"}]
+
+    with patch.object(trigger_blog_generation.httpx, "get", return_value=_posts_response(before)), \
+         patch.object(trigger_blog_generation.httpx, "post", side_effect=_gateway_timeout()), \
+         patch.object(trigger_blog_generation.notify, "notify_failure") as mock_fail, \
+         patch.object(trigger_blog_generation, "RECONCILE_TIMEOUT", 0), \
+         patch.object(trigger_blog_generation.time, "sleep"):
+        assert trigger_blog_generation.main(1) == 1
+
+    assert "504" in mock_fail.call_args[0][0]
+
+
+def test_timeout_reconciliation_reports_a_qa_failed_post(monkeypatch):
+    _env(monkeypatch)
+    before = []
+    after = [{"slug": "draft", "status": "qa_failed", "title": "Draft", "qa_verdict": "fail"}]
+
+    with patch.object(trigger_blog_generation.httpx, "get", side_effect=[_posts_response(before), _posts_response(after)]), \
+         patch.object(trigger_blog_generation.httpx, "post", side_effect=_gateway_timeout()), \
+         patch.object(trigger_blog_generation.notify, "notify_run_summary") as mock_summary, \
+         patch.object(trigger_blog_generation.time, "sleep"):
+        assert trigger_blog_generation.main(1) == 0
+
+    published, qa_failed = mock_summary.call_args[0]
+    assert published == []
+    assert [p["slug"] for p in qa_failed] == ["draft"]
+
+
+def test_a_502_is_not_reconciled(monkeypatch):
+    """502 is the backend's own considered answer that OpenRouter failed —
+    nothing was written, so there is nothing to go looking for."""
+    _env(monkeypatch)
+    request = httpx.Request("POST", "https://api.example.com/admin/blog/generate")
+    response = httpx.Response(502, request=request, json={"detail": "OpenRouter error: boom"})
+
+    with patch.object(trigger_blog_generation.httpx, "get", return_value=_posts_response([])), \
+         patch.object(trigger_blog_generation.httpx, "post", return_value=response), \
+         patch.object(trigger_blog_generation.notify, "notify_failure") as mock_fail, \
+         patch.object(trigger_blog_generation.time, "sleep") as mock_sleep:
+        assert trigger_blog_generation.main(1) == 1
+
+    mock_sleep.assert_not_called()  # no polling — it went straight to failure
+    assert "OpenRouter error: boom" in mock_fail.call_args[0][0]

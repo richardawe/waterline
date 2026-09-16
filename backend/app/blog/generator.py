@@ -99,22 +99,50 @@ def generate_one(db: Session) -> BlogPost | None:
     for attempts in range(1, MAX_QA_ATTEMPTS + 1):
         user_prompt = prompts.build_writer_prompt(topic.prompt, topic.category, facts, news_items, qa_feedback)
         written = chat_completion_with_fallback(
-            settings.openrouter_writer_models, prompts.WRITER_SYSTEM_PROMPT, user_prompt
+            settings.openrouter_writer_models, prompts.WRITER_SYSTEM_PROMPT, user_prompt, json_mode=True
         )
         writer_model = written.model
-        draft = _extract_json(written.content)
+        try:
+            draft = _extract_json(written.content)
+        except ValueError as exc:
+            # A reply we can't parse is a failed attempt, not a crashed
+            # request: feed the complaint back to the writer and let the
+            # retry stand. Letting ValueError escape turned the endpoint into
+            # a bare 500 with no clue which model or prompt caused it.
+            logger.warning("writer %s returned unparseable JSON: %s", written.model, exc)
+            qa_verdict = {"verdict": "fail", "issues": [f"writer returned unparseable JSON: {exc}"]}
+            qa_feedback = ["Your previous reply was not valid JSON. Reply with a JSON object and nothing else."]
+            continue
 
         existing_titles = _existing_published_titles(db)
         qa_user_prompt = prompts.build_qa_prompt(draft, facts, news_items, existing_titles)
         reviewed = chat_completion_with_fallback(
-            settings.openrouter_qa_models, prompts.QA_SYSTEM_PROMPT, qa_user_prompt
+            settings.openrouter_qa_models, prompts.QA_SYSTEM_PROMPT, qa_user_prompt, json_mode=True
         )
         qa_model = reviewed.model
-        qa_verdict = _extract_json(reviewed.content)
+        try:
+            qa_verdict = _extract_json(reviewed.content)
+        except ValueError as exc:
+            # The draft is fine; only the review is unreadable. Keep the draft
+            # and let it fail QA — a human can pass it in admin.html — rather
+            # than discarding a good post over a malformed verdict.
+            logger.warning("QA %s returned unparseable JSON: %s", reviewed.model, exc)
+            qa_verdict = {"verdict": "fail", "issues": [f"QA returned unparseable JSON: {exc}"]}
+            qa_feedback = qa_verdict["issues"]
+            continue
 
         if qa_verdict.get("verdict") == "pass":
             break
         qa_feedback = qa_verdict.get("issues") or ["QA failed with no listed issues"]
+
+    if not draft:
+        # Every attempt came back unparseable, so there is no post to save.
+        # Raised as an OpenRouterError so the endpoint answers 502 with the
+        # model and reason in it, the way every other model failure does.
+        raise OpenRouterError(
+            f"writer returned unparseable JSON on all {MAX_QA_ATTEMPTS} attempts "
+            f"(last model {writer_model}): {qa_verdict.get('issues')}"
+        )
 
     slug = _unique_slug(db, _slugify(draft.get("title", topic.prompt)))
     body_markdown = draft.get("body_markdown", "")
