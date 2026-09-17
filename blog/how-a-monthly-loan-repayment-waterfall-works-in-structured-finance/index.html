@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Learn how cash flows from loan repayments are distributed through senior, mezzanine and equity tranches in a structured finance waterfall.">
+<title>How a Monthly Loan Repayment Waterfall Works in Structured Finance — Waterline Blog</title>
+<link rel="canonical" href="https://waterline.ng/blog/how-a-monthly-loan-repayment-waterfall-works-in-structured-finance/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+.blog-wrap{padding:56px 0 90px}.blog-head{max-width:700px;margin-bottom:40px}
+.blog-head h1{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.blog-head p{margin-top:12px;color:var(--text-dim);font-size:16px}
+.blog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.blog-card{display:block;padding:22px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card);text-decoration:none}
+.blog-card .kicker{margin-bottom:10px}.blog-card h2{font-size:19px;line-height:1.3}.blog-card p{margin-top:9px;color:var(--text-dim);font-size:14px}
+.blog-card .meta{margin-top:14px;color:var(--text-faint);font-size:11px}
+.article-wrap{max-width:760px;margin:0 auto;padding:48px 0 90px}
+.article-head h1{font-size:clamp(28px,4vw,42px);line-height:1.15}
+.article-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;color:var(--text-faint);font-size:12px}
+.article-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.article-disclosure{margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-subtle);color:var(--text-dim);font-size:13px}
+.article-body{margin-top:34px;font-size:16px;line-height:1.75;color:var(--text)}
+.article-body h2{margin-top:38px;margin-bottom:12px;font-size:23px}.article-body h3{margin-top:26px;margin-bottom:10px;font-size:18px}
+.article-body p{margin-top:14px}.article-body ul,.article-body ol{margin-top:14px;padding-left:22px}.article-body li{margin-top:6px}
+.article-body a{color:var(--accent)}
+.faq-block{margin-top:40px;padding-top:30px;border-top:1px solid var(--border)}
+.faq-item{margin-top:16px}.faq-item strong{display:block;color:var(--navy);font-size:15px}.faq-item p{margin-top:6px;color:var(--text-dim);font-size:14px}
+.sources-block{margin-top:40px;padding-top:24px;border-top:1px solid var(--border);font-size:13px;color:var(--text-dim)}
+.sources-block li{margin-top:6px}
+.footer-row{display:flex;justify-content:space-between;gap:20px;align-items:center}.footer-row a{color:var(--text-dim);text-decoration:none}
+@media(max-width:720px){.blog-grid{grid-template-columns:1fr}.footer-row{align-items:flex-start;flex-direction:column}}
+</style>
+<meta property="og:type" content="article">
+<meta property="og:title" content="How a Monthly Loan Repayment Waterfall Works in Structured Finance">
+<meta property="og:description" content="Learn how cash flows from loan repayments are distributed through senior, mezzanine and equity tranches in a structured finance waterfall.">
+<meta property="og:url" content="https://waterline.ng/blog/how-a-monthly-loan-repayment-waterfall-works-in-structured-finance/">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "How a Monthly Loan Repayment Waterfall Works in Structured Finance", "description": "Learn how cash flows from loan repayments are distributed through senior, mezzanine and equity tranches in a structured finance waterfall.", "datePublished": "2026-09-17T09:12:45.662841-04:00", "dateModified": "2026-09-17T09:11:45.691244-04:00", "author": {"@type": "Organization", "name": "Waterline"}, "publisher": {"@type": "Organization", "name": "Waterline"}, "mainEntityOfPage": "https://waterline.ng/blog/how-a-monthly-loan-repayment-waterfall-works-in-structured-finance/"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is a loan repayment waterfall?", "acceptedAnswer": {"@type": "Answer", "text": "A loan repayment waterfall is the predefined order in which monthly cash flows from a pool of loans are distributed to different investor tranches, starting with the most senior and ending with the most junior."}}, {"@type": "Question", "name": "Who gets paid first in the waterfall?", "acceptedAnswer": {"@type": "Answer", "text": "The senior tranche investors are paid first, receiving their promised interest and principal before any other class receives cash."}}, {"@type": "Question", "name": "What happens if cash flows are insufficient to cover all tranches?", "acceptedAnswer": {"@type": "Answer", "text": "Cash is allocated to the senior tranche first; if there is not enough to satisfy the senior claim, mezzanine and equity investors may receive reduced or no payments for that month, and any shortfall is usually addressed by built‑in credit protections."}}, {"@type": "Question", "name": "How does the SPV fit into the waterfall process?", "acceptedAnswer": {"@type": "Answer", "text": "The SPV holds the loan pool and issues the tranches; it collects borrower payments and then distributes them according to the waterfall rules, keeping the cash flows separate from the originator’s affairs."}}]}</script>
+</head>
+<body>
+<nav><div class="nav-inner"><a class="brand" href="/"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="/blog/">Blog</a><a href="/#access">Request access</a><a href="/preview/">Enter preview</a></div></div></nav>
+<main>
+<div class="wrap article-wrap">
+<article>
+<div class="article-head">
+<h1>How a Monthly Loan Repayment Waterfall Works in Structured Finance</h1>
+<div class="article-meta"><span>17 September 2026</span><span>5 min read</span></div>
+<div class="article-tags"><span class="chip">structured finance</span><span class="chip">loan repayment</span><span class="chip">waterfall</span><span class="chip">SPV</span><span class="chip">tranches</span></div>
+<div class="article-disclosure">Drafted with AI assistance and reviewed by an automated fact-check pass against curated reference data and recent news — not personalized financial or legal advice. Verify current rates and regulations independently before relying on this for a decision.</div>
+</div>
+<div class="article-body"><p>In a structured‑finance transaction, the monthly repayments that borrowers make on their loans are not paid directly to the original lender. Instead, the cash flows are collected by a special purpose vehicle (SPV) and then distributed to investors according to a pre‑arranged priority known as the repayment waterfall. The waterfall ensures that those who took the least risk – the senior tranche investors – receive their share first, followed by mezzanine investors, and finally the equity holders who bear the most risk. This step‑by‑step allocation continues each month until the loan pool is fully repaid or the waterfall rules dictate otherwise.</p>
+<h2>What a Waterfall Is</h2>
+<h3>Basic idea</h3>
+<p>A repayment waterfall is a set of rules that decides how each month’s cash inflow from the underlying loan pool is split among different classes of investors. Think of it as a series of buckets arranged in order of seniority. Money fills the top bucket first; only when that bucket is full does any excess spill over to the next bucket down, and so on. The buckets represent the tranches – senior, mezzanine and equity – each with its own claim on the cash flows.</p>
+<h3>Legal foundation</h3>
+<p>The waterfall is documented in the transaction’s legal agreements, which specify the exact sequence of payments, any triggers that can alter the order, and the treatment of excess cash after all obligations are met. These provisions are designed to be clear and enforceable, giving investors confidence that the promised priority will be respected even if the underlying loans experience performance stress.</p>
+<h2>How the Monthly Payments Flow</h2>
+<h3>Senior tranche</h3>
+<p>The senior tranche represents the lowest‑risk portion of the capital structure. Investors in this tranche are entitled to receive their scheduled interest and principal payments before any other class gets anything. The waterfall first allocates enough cash to cover the senior tranche’s promised coupon and any scheduled principal amortization for that month. If the cash available exceeds what the senior tranche needs, the surplus moves down to the next level.</p>
+<h3>Mezzanine tranche</h3>
+<p>Once the senior tranche’s obligations are satisfied, any remaining cash flows move to the mezzanine tranche. Mezzanine investors sit in the middle of the risk spectrum: they are paid after senior holders but before equity holders. Their payments include interest and, depending on the deal structure, a portion of principal. Because they are subordinate to senior claims, mezzanine investors accept higher risk in exchange for the possibility of higher yields.</p>
+<h3>Equity tranche</h3>
+<p>The equity tranche absorbs the first losses and receives the residual cash after senior and mezzanine claims have been met. Equity holders are paid last, and their returns are highly variable – they may receive nothing in a month if cash is insufficient, or they may receive a large surplus when the loan pool performs well. This tranche also provides the loss‑absorbing buffer that protects the senior and mezzanine classes from defaults.</p>
+<h2>Why the Order Matters</h2>
+<p>The sequential payment structure protects senior investors by giving them a claim on the cash flows that is senior to all other classes. This seniority reduces their risk of loss, which is why senior tranches typically carry lower expected returns. Conversely, mezzanine and equity investors accept higher risk in exchange for the possibility of higher yields, knowing that they will only be paid after the senior claims are satisfied. The waterfall also creates a built‑in mechanism for dealing with excess cash: after all promised payments are made, any remaining funds can be used to accelerate principal repayment, build reserves, or be distributed to equity holders according to the deal’s waterfall rules.</p>
+<h2>Role of the SPV</h2>
+<p>The special purpose vehicle is a bankruptcy‑remote entity created solely to hold the loan pool and issue the tranches. By isolating the assets from the originator’s balance sheet, the SPV ensures that the cash flows from the loans are available exclusively to satisfy the waterfall obligations, even if the originator encounters financial distress. Investors rely on the SPV’s legal separation to trust that the promised payment priority will be honored. The SPV also handles administrative tasks such as collecting borrower payments, maintaining records, and reporting to investors.</p>
+<h2>What Happens When Cash Is Short</h2>
+<p>If the monthly cash inflow from the borrowers is insufficient to meet the senior tranche’s full obligation, the waterfall directs all available cash to the senior class first. The senior tranche may receive a partial payment, and any shortfall typically rolls over or is covered by any credit enhancement (such as over‑collateralization or reserve accounts) built into the deal. Only after the senior tranche is made whole (or the available cash is exhausted) does the waterfall consider mezzanine or equity payments, which may be reduced or skipped entirely in that month. This hierarchy ensures that the most protected investors bear the least impact of a temporary cash shortfall.</p>
+<h2>FAQ</h2>
+<p><strong>What is a loan repayment waterfall?</strong>
+A loan repayment waterfall is the predefined order in which monthly cash flows from a pool of loans are distributed to different investor tranches, starting with the most senior and ending with the most junior.</p>
+<p><strong>Who gets paid first in the waterfall?</strong>
+The senior tranche investors are paid first, receiving their promised interest and principal before any other class receives cash.</p>
+<p><strong>What happens if cash flows are insufficient to cover all tranches?</strong>
+Cash is allocated to the senior tranche first; if there is not enough to satisfy the senior claim, mezzanine and equity investors may receive reduced or no payments for that month, and any shortfall is usually addressed by built‑in credit protections.</p>
+<p><strong>How does the SPV fit into the waterfall process?</strong>
+The SPV holds the loan pool and issues the tranches; it collects borrower payments and then distributes them according to the waterfall rules, keeping the cash flows separate from the originator’s affairs.</p></div>
+<div class="faq-block"><h2>FAQ</h2><div class="faq-item"><strong>What is a loan repayment waterfall?</strong><p>A loan repayment waterfall is the predefined order in which monthly cash flows from a pool of loans are distributed to different investor tranches, starting with the most senior and ending with the most junior.</p></div><div class="faq-item"><strong>Who gets paid first in the waterfall?</strong><p>The senior tranche investors are paid first, receiving their promised interest and principal before any other class receives cash.</p></div><div class="faq-item"><strong>What happens if cash flows are insufficient to cover all tranches?</strong><p>Cash is allocated to the senior tranche first; if there is not enough to satisfy the senior claim, mezzanine and equity investors may receive reduced or no payments for that month, and any shortfall is usually addressed by built‑in credit protections.</p></div><div class="faq-item"><strong>How does the SPV fit into the waterfall process?</strong><p>The SPV holds the loan pool and issues the tranches; it collects borrower payments and then distributes them according to the waterfall rules, keeping the cash flows separate from the originator’s affairs.</p></div></div>
+
+</article>
+</div>
+</main>
+<footer><div class="wrap footer-row"><span>© 2026 Waterline. Lagos, Nigeria.</span><a href="mailto:richard.awe@3d7tech.com">richard.awe@3d7tech.com</a></div></footer>
+<script>const toggle=document.getElementById('nav-toggle'),links=document.getElementById('nav-links');toggle.addEventListener('click',()=>{const open=links.classList.toggle('open');toggle.setAttribute('aria-expanded',String(open))});links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));</script>
+</body>
+</html>
