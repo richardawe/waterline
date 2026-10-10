@@ -2,6 +2,7 @@
 messages straight into the (rolled-back) test session."""
 
 import json
+import uuid
 from datetime import date, datetime, time, timedelta
 
 from app.collections import crypto, totp
@@ -78,15 +79,13 @@ def make_batch(db, client: Client, rules: dict | None = None) -> UploadBatch:
     return batch
 
 
-_counter = [0]
 
 
 def make_account(db, client: Client, batch: UploadBatch | None = None, *, balance=150_000_00, status=AccountStatus.ACTIVE,
                  email=None, phone="+2348031234567", name="Adaeze Okafor") -> DebtorAccount:
     batch = batch or make_batch(db, client)
-    _counter[0] += 1
     account = DebtorAccount(
-        client_id=client.id, batch_id=batch.id, reference_code=f"WL-T{_counter[0]:05d}",
+        client_id=client.id, batch_id=batch.id, reference_code=f"WL-T{uuid.uuid4().hex[:8].upper()}",  # random: never collides with leftover rows
         debtor_name=name, phone=phone, phone_index=crypto.blind_index(phone), email=email,
         description="School fees – 2nd term 2025/26", dependant_first_name="Tolu",
         original_amount=balance, balance=balance, status=status, access_token=crypto.new_token(),

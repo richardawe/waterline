@@ -42,7 +42,9 @@ A loan-book structured-finance platform for Nigerian lenders, in three parts:
 - **Frontend**: plain static HTML + vanilla JS, no build step, no framework.
   `index.html` is the public stealth page, `preview/index.html` is the
   password-protected product preview, and `admin.html` is the unified internal
-  workspace. Shared look via `assets/theme.css`. Each
+  workspace. Shared look: `assets/tokens.css` (design tokens, loaded first on
+  every page) + `assets/theme.css` (main site/blog/admin) or
+  `collections/assets/cl.css` — see `docs/design-system.md`. Each
   API-calling page reads `window.WATERLINE_API_BASE` (set by
   `assets/config.js`, falls back to `http://localhost:8001` for local dev).
 - **Backend**: FastAPI + SQLAlchemy + Postgres (`backend/app/`), routes in

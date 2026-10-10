@@ -1,0 +1,94 @@
+/* Waterline design system — "Hybrid" direction (see docs/design-system.md).
+ *
+ *   Tools (admin, ops, client portal, debtor page): calm, neutral, precise.
+ *   Marketing heroes (.glow): dark water-coloured surface with drifting light.
+ *   Motion: only where it explains a state change (count-ups, confirm tick,
+ *   toasts, the waterline meter) — always off under prefers-reduced-motion.
+ *
+ * Loaded first by every page; assets/theme.css (main site, blog, admin) and
+ * collections/assets/cl.css (Collections) build on these tokens. Fonts are
+ * linked per page: Geist + Geist Mono everywhere, Bricolage Grotesque only on
+ * marketing pages (the debtor payment page loads Geist alone).
+ */
+:root{
+  /* neutrals — a faint green bias toward the accent, never pure grey */
+  --bg:#f6f7f6;--surface:#ffffff;--surface-subtle:#f1f4f2;
+  --text:#0d1311;--text-dim:#56615b;--text-faint:#6a746f;
+  --border:#e2e7e4;--border-strong:#cdd5d0;
+  --navy:#0b1a17;                       /* headings / ink (name kept for existing pages) */
+  /* brand */
+  --accent:#0f5f4d;--accent-hover:#0b4a3c;--accent-soft:#e5f1ec;--accent-ink:#ffffff;
+  --water:#2a86a8;--water-deep:#1c6584;--water-soft:#e5f2f7;
+  /* semantic */
+  --green:#18794a;--green-soft:#e7f5ec;--red:#b42318;--red-soft:#fdecea;--amber:#8a5a00;--amber-soft:#fff5dc;
+  /* glow (marketing) surface */
+  --glow-bg:#061a1d;--glow-ink:#e9f3f1;--glow-dim:#a8c4bf;--glow-mint:#7fe7c8;--glow-line:rgba(233,243,241,.18);
+  /* shape */
+  --r-sm:7px;--r-md:10px;--r-lg:12px;--r-xl:16px;--r-pill:999px;
+  --shadow-card:0 1px 2px rgba(11,26,23,.04);--shadow-pop:0 18px 44px rgba(11,26,23,.14);
+  /* type */
+  --font-display:"Bricolage Grotesque","Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-head:"Geist",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-body:var(--font-head);
+  --font-mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  /* motion */
+  --ease-out:cubic-bezier(.2,.8,.2,1);--ease-spring:cubic-bezier(.3,1.5,.5,1);
+  --dur-fast:.15s;--dur:.3s;--dur-slow:1.2s;
+  /* legacy aliases used by older pages */
+  --panel:var(--surface);--panel-2:var(--surface-subtle);--content-bg:var(--surface);--border-soft:var(--border);
+  --ring:var(--border-strong);--indigo:var(--accent);--indigo-soft:var(--accent-soft);
+}
+
+/* cross-page fade (browsers without support just navigate normally) */
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}
+
+::selection{background:#cfe8de;color:var(--navy)}
+.num,.tabular{font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------- glow hero (marketing pages only) */
+.glow{position:relative;isolation:isolate;overflow:hidden;background:var(--glow-bg);color:var(--glow-ink)}
+.glow::before{content:"";position:absolute;inset:-40%;z-index:-1;pointer-events:none;background:
+  radial-gradient(38% 34% at 22% 32%,rgba(54,211,171,.26),transparent 70%),
+  radial-gradient(34% 30% at 82% 22%,rgba(58,167,201,.26),transparent 70%),
+  radial-gradient(44% 40% at 62% 88%,rgba(25,120,140,.30),transparent 70%);
+  animation:wl-drift 20s ease-in-out infinite alternate}
+@keyframes wl-drift{to{transform:translate3d(6%,-4%,0) rotate(8deg)}}
+.glow h1,.glow h2{color:var(--glow-ink);font-family:var(--font-display);font-weight:800;letter-spacing:-.04em}
+.glow p,.glow .lede{color:var(--glow-dim)}
+.glow a:not(.btn){color:var(--glow-ink)}
+.glow .eyebrow,.glow .kicker{color:var(--glow-mint)}
+.glow .btn-primary,.glow .btn:not(.ghost):not(.btn-outline){background:var(--glow-ink);color:var(--glow-bg);border-color:transparent;box-shadow:none}
+.glow .btn-outline,.glow .btn.ghost{background:transparent;color:var(--glow-ink);border:1px solid var(--glow-line)}
+.glow .btn-outline:hover,.glow .btn.ghost:hover{background:rgba(233,243,241,.08)}
+.glow .muted,.glow .small-note,.glow .free{color:var(--glow-dim)}
+.display{font-family:var(--font-display);font-weight:800;letter-spacing:-.04em}
+
+/* ---------------------------------------------------------------- motion primitives */
+.press{transition:transform var(--dur-fast) var(--ease-spring)}
+.press:active{transform:scale(.96)}
+.tick{display:inline-block;width:14px;height:14px;vertical-align:-2px}
+.tick path{stroke-dasharray:24;stroke-dashoffset:24;animation:wl-draw .35s .05s ease forwards}
+@keyframes wl-draw{to{stroke-dashoffset:0}}
+.reveal-up{animation:wl-rise .5s var(--ease-out) both}
+@keyframes wl-rise{from{opacity:.001;transform:translateY(8px)}to{opacity:1;transform:none}}
+.toast-spring{animation:wl-toast .45s var(--ease-spring) both}
+@keyframes wl-toast{from{transform:translate(-50%,140%);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+/* ---------------------------------------------------------------- the waterline meter: recovery shown as water level */
+.tank{position:relative;height:96px;border-radius:var(--r-lg);background:var(--water-soft);border:1px solid #cfe3ec;overflow:hidden}
+.tank .water{position:absolute;left:0;right:0;bottom:0;height:var(--level,0%);background:linear-gradient(180deg,var(--water),var(--water-deep));transition:height var(--dur-slow) var(--ease-out)}
+.tank .water::before{content:"";position:absolute;left:-50%;top:-4px;width:200%;height:8px;
+  background:radial-gradient(14px 4px at 14px 4px,var(--water) 98%,transparent) 0 0/28px 8px repeat-x;animation:wl-wave 3.6s linear infinite}
+@keyframes wl-wave{to{transform:translateX(28px)}}
+.tank .tank-label{position:absolute;left:12px;top:9px;z-index:1;font-size:.78rem;color:#2e4650}
+.tank .tank-value{position:absolute;right:12px;top:4px;z-index:1;font:700 1.45rem/1.3 var(--font-head);color:var(--navy);font-variant-numeric:tabular-nums}
+.tank .tank-mark{position:absolute;left:0;right:0;border-top:1px dashed rgba(11,26,23,.3);z-index:1}
+.tank .tank-mark span{position:absolute;right:8px;top:-15px;font-size:.66rem;color:#2e4650}
+
+@media (prefers-reduced-motion:reduce){
+  @view-transition{navigation:none}
+  .glow::before,.tank .water::before,.tick path,.reveal-up,.toast-spring{animation:none!important}
+  .tick path{stroke-dashoffset:0}
+  .press,.tank .water{transition:none!important}
+}

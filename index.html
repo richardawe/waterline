@@ -7,33 +7,33 @@
 <title>Waterline — Credit infrastructure for Nigerian lenders</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/theme.css?v=__ASSET_VERSION__">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css?v=__ASSET_VERSION__"><link rel="stylesheet" href="assets/theme.css?v=__ASSET_VERSION__">
 <style>
-  .hero{padding:92px 0 72px;background:linear-gradient(180deg,#fff 0%,var(--bg) 100%);border-bottom:1px solid var(--border)}
+  .hero{padding:92px 0 72px}
   .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:72px;align-items:center}
-  .stealth{display:inline-flex;align-items:center;gap:9px;margin-bottom:24px;padding:7px 11px;border:1px solid #bed1ff;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:650}
+  .stealth{display:inline-flex;align-items:center;gap:9px;margin-bottom:24px;padding:7px 11px;border:1px solid var(--glow-line);border-radius:var(--r-pill);background:rgba(127,231,200,.08);color:var(--glow-mint);font-size:12px;font-weight:650}
   .hero h1{max-width:680px;font-size:clamp(40px,5.4vw,68px);line-height:1.03;letter-spacing:-.055em}
   .hero-copy{max-width:620px;margin-top:24px;color:var(--text-dim);font-size:18px;line-height:1.65}.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}.small-note{margin-top:15px;color:var(--text-faint);font-size:12px}
-  .product-frame{padding:12px;border:1px solid var(--border);border-radius:20px;background:#e9edf2;box-shadow:0 28px 70px rgba(16,35,63,.14)}
-  .product-window{overflow:hidden;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface)}.window-bar{height:38px;display:flex;align-items:center;gap:6px;padding:0 14px;border-bottom:1px solid var(--border);background:#fafbfc}.window-dot{width:7px;height:7px;border-radius:50%;background:#c6ced8}
+  .product-frame{padding:12px;border:1px solid var(--border);border-radius:20px;background:rgba(233,243,241,.06);border-color:var(--glow-line);box-shadow:0 28px 70px rgba(0,0,0,.35)}
+  .product-window{color:var(--text);overflow:hidden;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface)}.window-bar{height:38px;display:flex;align-items:center;gap:6px;padding:0 14px;border-bottom:1px solid var(--border);background:var(--surface-subtle)}.window-dot{width:7px;height:7px;border-radius:50%;background:var(--border-strong)}
   .preview-body{padding:20px}.preview-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:18px}.preview-title{font-weight:650}.preview-period{color:var(--text-faint);font-size:11px}.metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.metric{padding:12px;border:1px solid var(--border);border-radius:9px}.metric strong{display:block;font-size:18px;color:var(--navy)}.metric span{font-size:10px;color:var(--text-faint)}
   .pool{margin-top:14px;padding:15px;border:1px solid var(--border);border-radius:10px}.pool-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px}.pool-row:last-child{border:0}.pool-row span{color:var(--text-dim)}.pool-row strong{color:var(--navy)}
   section{padding:84px 0}.section-head{max-width:650px;margin-bottom:38px}.section-head h2{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.section-head p{margin-top:14px;color:var(--text-dim);font-size:16px}
   .three-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.product-card{padding:25px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card)}.product-card .num{margin-bottom:30px;color:var(--accent);font:600 12px var(--font-mono)}.product-card h3{font-size:18px}.product-card p{margin-top:9px;color:var(--text-dim);font-size:14px}
   .flow{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}.flow-item{padding:24px;border-right:1px solid var(--border)}.flow-item:last-child{border:0}.flow-item span{display:block;margin-bottom:16px;color:var(--text-faint);font:600 11px var(--font-mono)}.flow-item strong{display:block;color:var(--navy)}.flow-item p{margin-top:6px;color:var(--text-dim);font-size:13px}
-  .access-panel{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;padding:42px;border:1px solid #b8cdf9;border-radius:var(--r-xl);background:#edf3ff}.access-panel h2{font-size:clamp(27px,3.5vw,40px)}.access-panel p{max-width:650px;margin-top:12px;color:var(--text-dim)}.access-actions{display:flex;flex-direction:column;gap:10px;min-width:190px}.access-email{margin-top:12px!important;font-size:13px}.access-email a{color:var(--accent);font-weight:600;text-decoration:none}
+  .access-panel{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;padding:42px;border:1px solid #bfdccf;border-radius:var(--r-xl);background:var(--accent-soft)}.access-panel h2{font-size:clamp(27px,3.5vw,40px)}.access-panel p{max-width:650px;margin-top:12px;color:var(--text-dim)}.access-actions{display:flex;flex-direction:column;gap:10px;min-width:190px}.access-email{margin-top:12px!important;font-size:13px}.access-email a{color:var(--accent);font-weight:600;text-decoration:none}
   .footer-row{display:flex;justify-content:space-between;gap:20px;align-items:center}.footer-row a{color:var(--text-dim);text-decoration:none}
   .reveal{opacity:0;transform:translateY(10px);transition:opacity .45s ease,transform .45s ease}.reveal.visible{opacity:1;transform:none}
   @media(max-width:850px){.hero-grid{grid-template-columns:1fr;gap:48px}.three-grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr 1fr}.flow-item:nth-child(2){border-right:0}.flow-item{border-bottom:1px solid var(--border)}.access-panel{grid-template-columns:1fr}}
   @media(max-width:560px){.hero{padding:64px 0 52px}.hero h1{font-size:41px}.metric-grid,.flow{grid-template-columns:1fr}.flow-item{border-right:0}.access-panel{padding:28px}.footer-row{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
-<body>
+<body class="marketing">
 <nav><div class="nav-inner"><a class="brand" href="/"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="/blog/">Blog</a><a href="#access">Request access</a><a href="/preview/">Enter preview</a></div></div></nav>
 
 <main>
-  <section class="hero">
+  <section class="hero glow">
     <div class="wrap hero-grid">
       <div>
         <div class="stealth"><span class="status-dot"></span>Private preview · Operating in stealth</div>

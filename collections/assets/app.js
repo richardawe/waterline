@@ -84,22 +84,35 @@
 
   pages.dashboard = function () {
     return get('/dashboard').then(function (d) {
-      var s = d.accounts_by_status || {};
+      var s = d.accounts_by_status || {}, t = ME.segment.terms;
+      var pct = Math.round(d.recovery_rate * 1000) / 10;
       view.innerHTML = '<h1>Dashboard</h1>' +
         (d.awaiting_count ? '<div class="banner warn"><b>' + d.awaiting_count + ' payment' + (d.awaiting_count > 1 ? 's' : '') + ' waiting for you to confirm</b> — check your bank and <a href="/collections/app/confirmations/">confirm or reject</a>.</div>' : '') +
-        (d.open_disputes ? '<div class="banner warn"><b>' + d.open_disputes + ' open quer' + (d.open_disputes > 1 ? 'ies' : 'y') + '</b> — messages to these people are paused until you <a href="/collections/app/disputes/">resolve them</a>.</div>' : '') +
+        (d.open_disputes ? '<div class="banner warn"><b>' + d.open_disputes + ' open quer' + (d.open_disputes > 1 ? 'ies' : 'y') + '</b> — messages to these ' + esc(t.debtors) + ' are paused until you <a href="/collections/app/disputes/">resolve them</a>.</div>' : '') +
+        '<div class="card waterline-card"><div class="tank" role="img" aria-label="' + pct + ' percent of uploaded balances recovered">' +
+          '<span class="tank-label">Recovered of ' + naira(d.total_uploaded) + ' uploaded</span>' +
+          '<span class="tank-value" data-count="' + pct + '" data-decimals="1" data-suffix="%">' + pct.toFixed(1) + '%</span>' +
+          '<div class="water"></div></div></div>' +
         '<div class="stats">' +
-        stat(naira(d.total_uploaded), 'Total uploaded') + stat(naira(d.total_recovered), 'Recovered (confirmed)') +
-        stat((d.recovery_rate * 100).toFixed(1) + '%', 'Recovery rate') + stat(naira(d.awaiting_confirmation), 'Awaiting your confirmation') +
-        stat(d.open_disputes, 'Open disputes') + stat(d.active_plans, 'Active payment plans') + stat(naira(d.fees_this_month), 'Fees this month') +
+        countStat(d.total_recovered, 'Recovered (confirmed)') + countStat(d.awaiting_confirmation, 'Awaiting your confirmation') +
+        stat(d.open_disputes, 'Open disputes') + stat(d.active_plans, 'Active payment plans') + countStat(d.fees_this_month, 'Fees this month') +
         '</div>' +
         '<div class="card"><h2>Accounts by status</h2>' +
         (Object.keys(s).length ? '<div class="row-btns">' + Object.keys(s).map(function (k) {
           return '<a class="pill" style="text-decoration:none;font-size:.85rem;padding:6px 12px" href="/collections/app/accounts/?status=' + encodeURIComponent(k) + '">' + esc(k) + ': ' + s[k] + '</a>';
         }).join('') + '</div>' : '<p class="muted">No accounts yet. <a href="/collections/app/uploads/new/">Upload your first list</a>.</p>') + '</div>' +
         '<div class="row-btns"><a class="btn" href="/collections/app/uploads/new/">Upload balances</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn ghost" href="/collections/app/accounts/">View accounts</a></div>';
+      if (window.WLMotion) {
+        WLMotion.countAll(view);
+        WLMotion.fill(CL.$('.tank', view), pct);
+      } else {
+        var w = CL.$('.tank .water', view); if (w) w.style.setProperty('--level', pct + '%');
+      }
     });
   };
+  function countStat(kobo, label) {
+    return '<div class="stat"><b class="num" data-count="' + kobo + '" data-money>' + naira(kobo) + '</b><span>' + esc(label) + '</span></div>';
+  }
   function stat(v, label) { return '<div class="stat"><b>' + esc(v) + '</b><span>' + esc(label) + '</span></div>'; }
 
   pages.uploads = function () {
@@ -343,7 +356,12 @@
       var c = CL.$('[data-confirm]', row), r = CL.$('[data-reject]', row), v = CL.$('[data-reverse]', row);
       if (c) c.onclick = function () {
         CL.busy(c, true, 'Confirming…');
-        post('/payments/' + id + '/confirm', { amount_received: CL.$('[data-amt]', row).value }).then(function () { CL.toast('Payment confirmed'); reload(); }).catch(function (e) { CL.busy(c, false); fail(e); });
+        post('/payments/' + id + '/confirm', { amount_received: CL.$('[data-amt]', row).value }).then(function () {
+          c.disabled = false;
+          if (window.WLMotion) WLMotion.tick(c, 'Confirmed'); else c.textContent = 'Confirmed';
+          CL.toast('Payment confirmed');
+          setTimeout(reload, window.WLMotion && !WLMotion.reduce ? 700 : 0);
+        }).catch(function (e) { CL.busy(c, false); fail(e); });
       };
       if (r) r.onclick = function () {
         var note = prompt('Anything to add? (optional)') || null;

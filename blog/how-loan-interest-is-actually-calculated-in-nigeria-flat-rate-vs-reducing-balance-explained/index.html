@@ -8,11 +8,12 @@
 <link rel="canonical" href="https://waterline.ng/blog/how-loan-interest-is-actually-calculated-in-nigeria-flat-rate-vs-reducing-balance-explained/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/theme.css">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/theme.css">
 <style>
-.blog-wrap{padding:56px 0 90px}.blog-head{max-width:700px;margin-bottom:40px}
-.blog-head h1{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.blog-head p{margin-top:12px;color:var(--text-dim);font-size:16px}
+.blog-hero{padding:64px 0 56px}.blog-wrap{padding:40px 0 90px}.blog-head{max-width:700px}
+.blog-card{transition:border-color var(--dur-fast),transform var(--dur-fast) var(--ease-out)}.blog-card:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+.blog-head h1{font-size:clamp(29px,3.7vw,44px);line-height:1.12}.blog-head p{margin-top:12px;color:var(--glow-dim);font-size:16px}
 .blog-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 .blog-card{display:block;padding:22px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);box-shadow:var(--shadow-card);text-decoration:none}
 .blog-card .kicker{margin-bottom:10px}.blog-card h2{font-size:19px;line-height:1.3}.blog-card p{margin-top:9px;color:var(--text-dim);font-size:14px}
@@ -41,7 +42,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "How Loan Interest Is Actually Calculated in Nigeria: Flat Rate vs Reducing Balance Explained", "description": "Learn how Nigerian lenders calculate loan interest using flat rate vs reducing balance methods, with examples and tips to compare offers fairly.", "datePublished": "2026-09-03T08:42:15.761630-04:00", "dateModified": "2026-09-03T08:41:41.971145-04:00", "author": {"@type": "Organization", "name": "Waterline"}, "publisher": {"@type": "Organization", "name": "Waterline"}, "mainEntityOfPage": "https://waterline.ng/blog/how-loan-interest-is-actually-calculated-in-nigeria-flat-rate-vs-reducing-balance-explained/"}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Which interest method is cheaper for borrowers?", "acceptedAnswer": {"@type": "Answer", "text": "For the same quoted rate, the reducing balance method is usually cheaper because interest is charged only on the outstanding principal. A flat rate looks simpler but costs more in total because the full principal is used for the calculation throughout the loan's life."}}, {"@type": "Question", "name": "Can the same loan quote mean different things at different lenders?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Two lenders can advertise the same percentage rate and the same monthly repayment, but one may be using flat-rate interest while the other uses reducing balance. Comparing the total cost in naira, and the APR where disclosed, is the only reliable way to tell which is actually more expensive."}}, {"@type": "Question", "name": "Do Nigerian microfinance banks use flat or reducing balance rates?", "acceptedAnswer": {"@type": "Answer", "text": "Microfinance banks in Nigeria, which are licensed and supervised by the Central Bank of Nigeria under a tiered Unit, State and National structure, serve borrowers that commercial banks often consider too costly to underwrite. Like other lenders, MFBs vary in how they compute interest, so borrowers should always ask which method is being used and request a full amortisation schedule before signing."}}, {"@type": "Question", "name": "How can I quickly tell which method a lender is using?", "acceptedAnswer": {"@type": "Answer", "text": "Ask the lender for the total interest payable over the full loan term. If that figure is close to (rate x principal x years), it is a flat-rate loan. If it is noticeably lower, the lender is almost certainly using a reducing balance or declining-balance method."}}]}</script>
 </head>
-<body>
+<body class="marketing">
 <nav><div class="nav-inner"><a class="brand" href="/"><span class="brand-mark">W</span>Waterline</a><button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false">☰</button><div class="nav-links" id="nav-links"><a href="/blog/">Blog</a><a href="/#access">Request access</a><a href="/preview/">Enter preview</a></div></div></nav>
 <main>
 <div class="wrap article-wrap">

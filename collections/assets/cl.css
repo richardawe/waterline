@@ -1,16 +1,16 @@
-/* Waterline Collections — standalone, system fonts only (fast on low-end Android over mobile data). */
+/* Waterline Collections — Hybrid design system (assets/tokens.css + this file). */
+/* Tokens come from /assets/tokens.css (shared with the main site); these
+   aliases keep Collections' shorter names working. */
 :root{
-  --bg:#f6f7f4;--surface:#fff;--subtle:#eef1ec;--text:#18261f;--dim:#4d5d55;--faint:#6b7a72;
-  --border:#d9dfd9;--strong:#bcc6bf;--accent:#0f6b4f;--accent-hover:#0a5840;--accent-soft:#e3f2ec;
-  --navy:#10251c;--red:#b42318;--red-soft:#fdecea;--amber:#8a5a00;--amber-soft:#fff5dc;--blue:#1d4ed8;--blue-soft:#e8efff;
-  --r:10px;--shadow:0 1px 2px rgba(16,37,28,.05),0 6px 18px rgba(16,37,28,.05);
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --subtle:var(--surface-subtle);--dim:var(--text-dim);--faint:var(--text-faint);--strong:var(--border-strong);
+  --blue:var(--water-deep);--blue-soft:var(--water-soft);
+  --r:var(--r-md);--shadow:var(--shadow-card);--font:var(--font-body);
 }
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 var(--font);-webkit-font-smoothing:antialiased}
-h1,h2,h3{color:var(--navy);line-height:1.2;margin:0 0 .5em;letter-spacing:-.01em}h1{font-size:1.75rem}h2{font-size:1.3rem}h3{font-size:1.05rem}
+h1,h2,h3{color:var(--navy);line-height:1.2;margin:0 0 .5em;letter-spacing:-.02em;font-weight:600;text-wrap:balance}h1{font-size:1.75rem}h2{font-size:1.3rem}h3{font-size:1.05rem}
 p{margin:0 0 .8em}a{color:var(--accent)}img{max-width:100%}
-:focus-visible{outline:3px solid rgba(15,107,79,.35);outline-offset:2px}
+:focus-visible{outline:3px solid rgba(15,95,77,.3);outline-offset:2px}
 .wrap{width:min(1080px,100% - 32px);margin:0 auto}.narrow{width:min(560px,100% - 32px);margin:0 auto}
 .muted{color:var(--dim)}.small{font-size:.875rem}.tiny{font-size:.78rem}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .right{text-align:right}.center{text-align:center}.hidden{display:none!important}.nowrap{white-space:nowrap}
@@ -48,7 +48,7 @@ textarea{min-height:90px;resize:vertical}input[type=file]{font:inherit;max-width
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px}.stat b{display:block;font-size:1.3rem;color:var(--navy)}.stat span{font-size:.82rem;color:var(--dim)}
 .banner{border-radius:var(--r);padding:12px 14px;margin-bottom:16px;border:1px solid}
-.banner.info{background:var(--blue-soft);border-color:#c7d6ff;color:#183a8f}.banner.warn{background:var(--amber-soft);border-color:#f1d79a;color:#5c3d00}
+.banner.info{background:var(--blue-soft);border-color:#cfe3ec;color:#17475c}.banner.warn{background:var(--amber-soft);border-color:#f1d79a;color:#5c3d00}
 .banner.bad{background:var(--red-soft);border-color:#f5c2bd;color:#7a1a12}.banner.ok{background:var(--accent-soft);border-color:#b8dcc9;color:#0b4a37}
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.76rem;font-weight:600;background:var(--subtle);color:var(--dim);white-space:nowrap}
 .pill.green{background:var(--accent-soft);color:var(--accent)}.pill.red{background:var(--red-soft);color:var(--red)}.pill.amber{background:var(--amber-soft);color:var(--amber)}.pill.blue{background:var(--blue-soft);color:var(--blue)}
@@ -67,3 +67,15 @@ tr.err-row td{background:#fff8f7}tr.dup-row td{background:#fffbea}
 main{padding:22px 0 48px}
 footer.site{border-top:1px solid var(--border);padding:22px 0;color:var(--dim);font-size:.88rem}
 footer.site a{color:var(--dim)}
+
+/* Hybrid: display headlines on public pages, motion on buttons, numbers that line up */
+.marketing h1,.marketing h2{font-family:var(--font-display);font-weight:700;letter-spacing:-.035em}
+.btn{transition:background var(--dur-fast),transform var(--dur-fast) var(--ease-spring)}.btn:active{transform:scale(.96)}
+.stat b,.amount,td.right{font-variant-numeric:tabular-nums}
+.stat b{font-weight:650;letter-spacing:-.02em}
+.card,.stat{box-shadow:none}
+.bar{background:rgba(255,255,255,.88);backdrop-filter:blur(14px)}
+.logo-mark{background:var(--navy)}
+.toast{animation:wl-toast .45s var(--ease-spring) both}
+.waterline-card .tank{margin-top:4px}
+@media (prefers-reduced-motion:reduce){.btn,.toast{transition:none;animation:none}}
