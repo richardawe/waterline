@@ -98,6 +98,7 @@ def _page_shell(title: str, description: str, canonical: str, extra_head: str, b
 <link rel="stylesheet" href="/assets/tokens.css"><link rel="stylesheet" href="/assets/theme.css">
 <style>{PAGE_STYLE}</style>
 {extra_head}
+<script src="/assets/clarity.js" async></script>
 </head>
 <body class="marketing">
 {NAV}

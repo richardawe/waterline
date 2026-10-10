@@ -14,6 +14,7 @@
 <script src="/assets/config.js?v=__ASSET_VERSION__"></script>
 <script src="/collections/assets/cl.js?v=__ASSET_VERSION__" defer></script>
 <script src="/collections/assets/auth.js?v=__ASSET_VERSION__" defer></script>
+<script src="/assets/clarity.js?v=__ASSET_VERSION__" async></script>
 </head>
 <body data-page="reset" class="marketing">
 <header class="bar"><div class="wrap bar-in">
@@ -23,14 +24,14 @@
 <main><div class="narrow">
 <div id="request" class="hidden">
 <h1>Reset your password</h1>
-<form id="forgot" class="card" novalidate>
+<form id="forgot" data-clarity-mask="true" class="card" novalidate>
   <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email"></div>
   <div id="form-msg"></div>
   <button class="btn block" type="submit">Send reset link</button>
 </form></div>
 <div id="choose" class="hidden">
 <h1 id="choose-title">Choose a new password</h1>
-<form id="newpass" class="card" novalidate>
+<form id="newpass" data-clarity-mask="true" class="card" novalidate>
   <div class="field"><label for="password">New password</label><input id="password" name="password" type="password" minlength="10" required autocomplete="new-password"><div class="hint">At least 10 characters, mixing letters with numbers or symbols.</div></div>
   <div id="form-msg2"></div>
   <button class="btn block" type="submit">Save password</button>

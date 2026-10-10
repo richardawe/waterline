@@ -14,6 +14,7 @@
 <script src="/assets/config.js?v=__ASSET_VERSION__"></script>
 <script src="/collections/assets/cl.js?v=__ASSET_VERSION__" defer></script>
 <script src="/collections/assets/auth.js?v=__ASSET_VERSION__" defer></script>
+<script src="/assets/clarity.js?v=__ASSET_VERSION__" async></script>
 </head>
 <body data-page="login" class="marketing">
 <header class="bar"><div class="wrap bar-in">
@@ -22,7 +23,7 @@
 </div></header>
 <main><div class="narrow">
 <h1>Log in</h1>
-<form id="login" class="card" novalidate>
+<form id="login" data-clarity-mask="true" class="card" novalidate>
   <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email"></div>
   <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" required autocomplete="current-password"></div>
   <div id="form-msg"></div>
