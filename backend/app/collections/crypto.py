@@ -11,7 +11,6 @@ import hmac
 import secrets
 import time
 
-from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import Text
 from sqlalchemy.types import TypeDecorator
 
@@ -30,7 +29,13 @@ def _secret(name: str) -> str:
     return f"{_DEV_SECRET}:{name}"
 
 
-def _fernet() -> Fernet:
+def _fernet():
+    # Imported here, not at module load: app.models imports this module, so a
+    # top-level import would stop the whole API (admin, blog) from starting on
+    # a server where `cryptography` isn't installed yet. Only Collections
+    # features need it.
+    from cryptography.fernet import Fernet
+
     digest = hashlib.sha256(_secret("collections_encryption_key").encode()).digest()
     return Fernet(base64.urlsafe_b64encode(digest))
 
@@ -44,6 +49,8 @@ def encrypt(value: str | None) -> str | None:
 def decrypt(value: str | None) -> str | None:
     if value is None:
         return None
+    from cryptography.fernet import InvalidToken
+
     try:
         return _fernet().decrypt(value.encode()).decode()
     except InvalidToken as exc:  # wrong key or tampered row — never return ciphertext as data
