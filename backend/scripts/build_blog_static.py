@@ -103,7 +103,7 @@ def _page_shell(title: str, description: str, canonical: str, extra_head: str, b
 <main>
 {body}
 </main>
-<footer><div class="wrap footer-row"><span>© 2026 Waterline. Lagos, Nigeria.</span><a href="mailto:richard.awe@3d7tech.com">richard.awe@3d7tech.com</a></div></footer>
+<footer><div class="wrap footer-row"><span>© 2026 Waterline. Lagos, Nigeria.</span><a href="/collections/">Waterline Collections: recover unpaid school fees and service charges</a><a href="mailto:richard.awe@3d7tech.com">richard.awe@3d7tech.com</a></div></footer>
 {NAV_SCRIPT}
 </body>
 </html>
@@ -208,7 +208,7 @@ def _build_article(post: BlogPost, base_url: str) -> str:
 
 
 def _build_sitemap(posts: list[BlogPost], base_url: str) -> str:
-    urls = [f"{base_url}/", f"{base_url}/blog/", f"{base_url}/collections/"] + [f"{base_url}/blog/{p.slug}/" for p in posts]
+    urls = [f"{base_url}/", f"{base_url}/blog/", f"{base_url}/collections/", f"{base_url}/collections/schools/", f"{base_url}/collections/estates/"] + [f"{base_url}/blog/{p.slug}/" for p in posts]
     entries = "".join(f"<url><loc>{_escape(u)}</loc></url>" for u in urls)
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{entries}</urlset>\n'
 

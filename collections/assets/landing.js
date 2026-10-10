@@ -24,8 +24,14 @@
 
   CL.api('/collections/public/config').then(function (c) {
     segs = c.segments;
-    var e = CL.$('[data-email]'); e.textContent = c.contact_email; e.href = 'mailto:' + c.contact_email;
-    CL.$('[data-whatsapp]').textContent = c.contact_whatsapp;
+    CL.$$('[data-email]').forEach(function (e) { e.textContent = c.contact_email; e.href = 'mailto:' + c.contact_email; });
+    // the number lives in Ops → Config (contact_whatsapp); the page ships with it so it reads right before this loads
+    var digits = String(c.contact_whatsapp || '').replace(/\D/g, '');
+    if (digits.length >= 10) {
+      CL.$$('[data-whatsapp]').forEach(function (el) { el.textContent = c.contact_whatsapp; });
+      CL.$$('[data-wa-link]').forEach(function (a) { a.href = 'https://wa.me/' + digits; });
+      CL.$$('[data-tel-link]').forEach(function (a) { a.href = 'tel:+' + digits; });
+    }
     // live segments first; the headline fee is the live segments' flat default
     var ordered = segs.filter(function (s) { return s.status === 'live'; }).concat(segs.filter(function (s) { return s.status !== 'live'; }));
     CL.$('#segs').innerHTML = ordered.map(card).join('');

@@ -50,6 +50,7 @@ def test_nothing_queued_unless_client_approved(cl_db, status):
 
 
 def test_no_queue_on_sunday_or_public_holiday(cl_db):
+    settings_store.set_value(cl_db, "enforce_contact_window", True)
     client, _ = make_client(cl_db)
     account = make_account(cl_db, client)
     sunday = MON - timedelta(days=1)
@@ -60,6 +61,7 @@ def test_no_queue_on_sunday_or_public_holiday(cl_db):
 
 
 def test_mark_sent_refused_outside_contact_hours(cl_db):
+    settings_store.set_value(cl_db, "enforce_contact_window", True)
     client, _ = make_client(cl_db)
     account = make_account(cl_db, client)
     outreach.build_queue(cl_db, wat(MON, 6))
@@ -270,3 +272,18 @@ def test_stale_queue_items_expire_next_day(cl_db):
     [item] = queued(cl_db, account)
     outreach.build_queue(cl_db, wat(MON + timedelta(days=1), 8))
     assert item.status == "Skipped" and item.skip_reason.startswith("Expired")
+
+
+def test_contact_window_not_enforced_by_default(cl_db):
+    """Owner decision 2026-10-10: ops may send at any hour unless the
+    enforce_contact_window switch is turned on in Config. Frequency limits
+    still apply."""
+    client, _ = make_client(cl_db)
+    account = make_account(cl_db, client)
+    sunday = MON - timedelta(days=1)
+    outreach.build_queue(cl_db, wat(sunday, 21))
+    [item] = queued(cl_db, account, sunday)
+    outreach.mark_sent(cl_db, item, "WhatsApp", audit.SYSTEM, now=wat(sunday, 22, 30))
+    assert item.status == "Sent"
+    outreach.build_queue(cl_db, wat(MON, 6))
+    assert queued(cl_db, account, MON) == []  # the sequence still applies: next reminder is due on day 3

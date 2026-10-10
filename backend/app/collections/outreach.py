@@ -277,7 +277,8 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
     today = lagos_date(now)
     holidays = settings_store.holidays(db)
     expired = expire_stale(db, today)
-    if not is_contact_day(today, holidays):  # Sundays and holidays: nobody, whatever the segment
+    enforce = bool(settings_store.get(db, "enforce_contact_window"))
+    if enforce and not is_contact_day(today, holidays):  # Sundays and holidays: nobody, whatever the segment
         db.flush()
         return {"date": today.isoformat(), "created": 0, "expired": expired, "reason": "no outreach on Sundays or public holidays"}
     templates.ensure_defaults(db)
@@ -308,7 +309,7 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
         if client.segment not in policies:
             policies[client.segment] = segments.policy(db, client.segment)
         policy = policies[client.segment]
-        if not is_contact_day(today, holidays, policy):
+        if enforce and not is_contact_day(today, holidays, policy):
             skipped["not a contact day for this segment"] = skipped.get("not a contact day for this segment", 0) + 1
             continue
         why = contactable(account, client) or (service.open_dispute(db, account) and "open dispute") or None
@@ -366,7 +367,8 @@ def _check_sendable(db: Session, item: OutreachItem, now: datetime) -> tuple[Deb
         raise OutreachRefused("This item is from an earlier day's queue.")
     client_row = db.get(Client, item.client_id)
     policy = segments.policy(db, client_row.segment)
-    if not in_contact_window(now, settings_store.holidays(db), policy):
+    enforce = bool(settings_store.get(db, "enforce_contact_window"))
+    if enforce and not in_contact_window(now, settings_store.holidays(db), policy):
         start, end = policy["contact_start"], policy["contact_end"]
         raise OutreachRefused(f"Messages for this client can only go out {start}–{end} WAT on contact days "
                               "(8am–7pm, Monday to Saturday at most; never public holidays).")

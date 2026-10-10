@@ -103,6 +103,9 @@ def test_waitlist(cl_api, cl_db):
 
 
 def test_segment_policy_override_tightens_contact_window(cl_api, cl_db):
+    from app.collections import settings_store
+
+    settings_store.set_value(cl_db, "enforce_contact_window", True)
     _, admin = make_ops(cl_db)
     r = cl_api.put("/collections/ops/segments/estate", json={"policy_overrides": {"contact_start": "07:00"}}, headers=admin)
     assert r.status_code == 422

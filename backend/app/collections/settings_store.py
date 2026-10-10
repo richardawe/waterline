@@ -20,7 +20,12 @@ DEFAULTS: dict = {
     "retention_months": 12,
     "email_fallback_enabled": True,
     "contact_email": "collections@waterline.ng",
-    "contact_whatsapp": "+234 000 000 0000",
+    "contact_whatsapp": "+234 809 410 4100",
+    # When true, messages can only be marked sent inside each segment's contact
+    # window (baseline 08:00–19:00 WAT, Mon–Sat, no public holidays) and no queue
+    # is built on Sundays/holidays. Off by owner decision (2026-10-10); the public
+    # pages therefore make no fixed-hours promise. Turn on before lenders go live.
+    "enforce_contact_window": False,
     "waterline_bank_details": {
         "bank_name": "To be configured",
         "account_number": "0000000000",

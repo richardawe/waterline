@@ -46,7 +46,7 @@
   R.overview = function () {
     return get('/overview').then(function (o) {
       view.innerHTML = '<h1>Today — ' + CL.date(o.today) + '</h1>' +
-        '<div class="banner ' + (o.in_contact_window ? 'ok' : 'warn') + '">' + (o.in_contact_window ? 'Inside the contact window (8am–7pm WAT, Mon–Sat).' : 'Outside the contact window — messages can\'t be marked sent right now.') + '</div>' +
+        (o.contact_window_enforced ? '<div class="banner ' + (o.in_contact_window ? 'ok' : 'warn') + '">' + (o.in_contact_window ? 'Inside the contact window (8am–7pm WAT, Mon–Sat).' : 'Outside the contact window — messages can\'t be marked sent right now.') + '</div>' : '') +
         '<div class="stats">' +
         s(o.pending_approvals, 'Pending approvals', '#approvals') + s(o.queue_remaining, 'Messages left to send today', '#queue') +
         s(o.overdue_confirmations, 'Confirmations overdue (5+ working days)', '#followups') + s(o.stale_disputes, 'Disputes open 10+ working days', '#followups') +
@@ -182,7 +182,7 @@
       var queued = q.items.filter(function (i) { return i.status === 'Queued'; });
       var done = q.items.filter(function (i) { return i.status !== 'Queued'; });
       view.innerHTML = '<h1>Outreach queue — ' + CL.date(q.date) + '</h1>' +
-        '<div class="banner ' + (q.in_contact_window ? 'ok' : 'warn') + '">' + (q.in_contact_window ? 'Inside the contact window. Send from the Waterline phone, then mark each one.' : 'Outside 8am–7pm WAT Mon–Sat (or a public holiday). Sending is blocked.') + '</div>' +
+        (q.contact_window_enforced ? '<div class="banner ' + (q.in_contact_window ? 'ok' : 'warn') + '">' + (q.in_contact_window ? 'Inside the contact window. Send from the Waterline phone, then mark each one.' : 'Outside 8am–7pm WAT Mon–Sat (or a public holiday). Sending is blocked.') + '</div>' : '<p class="muted small">Send each message from the Waterline phone, then mark it sent.</p>') +
         '<div class="row-btns" style="margin-bottom:14px"><button class="btn ghost" id="build">Build / refresh today\'s queue</button><span class="small muted" style="align-self:center">' + queued.length + ' to send · ' + done.length + ' done</span></div>' +
         (queued.length ? queued.map(function (i) {
           return '<div class="card" data-item="' + i.id + '"><h3>' + esc(i.debtor_name) + ' <span class="small muted">' + esc(i.phone) + '</span></h3>' +

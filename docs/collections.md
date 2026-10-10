@@ -145,8 +145,12 @@ have tightened it (see Segments).
 
 - Contact window is 08:00–19:00 WAT, Monday to Saturday, with no public
   holidays. The holiday list is the `public_holidays` config (moveable feasts
-  are estimates, so update them yearly). Sending outside the window is
-  refused at **mark-sent time**, not just at queue build.
+  are estimates, so update them yearly). **Only enforced when the
+  `enforce_contact_window` config is true — off by default since 2026-10-10
+  (owner decision), so the queue builds every day and messages can be marked
+  sent at any time.** When on, sending outside the window is refused at
+  **mark-sent time**, not just at queue build. Turn it on before opening the
+  lender segment (CBN/FCCPC conduct rules expect fixed contact hours).
 - At most 1 message per day. This is also a database unique constraint on
   (account, day).
 - At most 2 messages per rolling 7 days. The window is **7 WAT calendar

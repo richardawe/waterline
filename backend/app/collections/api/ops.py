@@ -94,6 +94,7 @@ def overview(ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_d
     return {
         "today": today,
         "in_contact_window": in_contact_window(now, settings_store.holidays(db)),
+        "contact_window_enforced": bool(settings_store.get(db, "enforce_contact_window")),
         "pending_approvals": pending,
         "flagged_clients": flagged,
         "queue_remaining": outreach.queue_count(db, today),
@@ -296,6 +297,7 @@ def queue(day: date | None = None, status: str | None = None, ctx: OpsContext = 
     return {
         "date": day,
         "in_contact_window": in_contact_window(now, settings_store.holidays(db)),
+        "contact_window_enforced": bool(settings_store.get(db, "enforce_contact_window")),
         "items": [_queue_row(db, i, a, c) for i, a, c in rows],
         "skip_reasons": outreach.SKIP_REASONS,
         "reply_categories": outreach.REPLY_CATEGORIES,
