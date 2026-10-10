@@ -14,3 +14,5 @@ a2wsgi>=1.10  # ASGI-to-WSGI bridge for cPanel/Passenger deployment (passenger_w
 pytest>=8.0
 httpx>=0.27
 markdown>=3.6  # renders BlogPost.content_markdown for the static blog build
+bcrypt>=4.1  # Collections password hashing
+cryptography>=42  # Collections field encryption at rest (Fernet)

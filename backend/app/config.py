@@ -41,6 +41,22 @@ class Settings(BaseSettings):
     blog_news_feed_urls: str = "https://nairametrics.com/feed/,https://techcabal.com/feed/"
     blog_news_max_age_days: int = 14
 
+    # Waterline Collections (see docs/collections.md). Keys fall back to
+    # development-only values outside production and are required in it.
+    collections_encryption_key: str | None = None  # encrypts phones, emails, bank details at rest
+    collections_signing_key: str | None = None  # blind indexes + signed proof URLs
+    collections_site_base_url: str = "http://localhost:5500"  # where /collections pages are served
+    collections_api_base_url: str = "http://localhost:8001"  # used to build signed file URLs
+    collections_storage_dir: str = "private_uploads"  # proofs/evidence; never inside the web docroot
+    collections_cron_token: str | None = None  # bearer token for scheduled job endpoints
+    collections_ops_alert_email: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "Waterline Collections <collections@mail.waterline.ng>"
+    smtp_use_ssl: bool = False
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]

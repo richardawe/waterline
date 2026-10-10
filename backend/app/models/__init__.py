@@ -43,3 +43,22 @@ from app.models.deal import (  # noqa: F401
     WaterfallRun,
 )
 from app.models.blog import BlogPost, BlogTopic  # noqa: F401
+from app.collections.models import (  # noqa: F401
+    AuditLog,
+    AuthSession,
+    AuthToken,
+    Client,
+    ClientUser,
+    ConfigEntry,
+    DebtorAccount,
+    DebtorPayment,
+    Dispute,
+    EmailMessage,
+    Invoice,
+    InvoiceLine,
+    MessageTemplate,
+    OpsUser,
+    OutreachItem,
+    PaymentPlan,
+    UploadBatch,
+)
