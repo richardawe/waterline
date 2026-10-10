@@ -26,6 +26,10 @@ A loan-book structured-finance platform for Nigerian lenders, in three parts:
    auto-published as static HTML via `.github/workflows/blog.yml`. Full
    reference: `docs/blog-pipeline.md`. Human safety valve: `admin.html`'s
    Blog tab (edit/force-publish/archive any post after the fact).
+5. **Waterline Collections** (`/collections/`, public + client app + ops
+   console + debtor payment links) — a standalone fee-recovery product for
+   schools/estates/gyms. Own tables (`cl_*`), own auth, own UI; must carry no
+   lender/loan-book language. Full reference: `docs/collections.md`.
 
 ## Architecture
 

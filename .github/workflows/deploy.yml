@@ -103,6 +103,7 @@ jobs:
       - name: Version frontend assets
         run: |
           sed -i "s/__ASSET_VERSION__/${GITHUB_SHA}/g" index.html preview/index.html admin.html
+          find collections -name '*.html' -exec sed -i "s/__ASSET_VERSION__/${GITHUB_SHA}/g" {} +
 
       - name: Render private preview access
         run: |
@@ -207,6 +208,7 @@ jobs:
             **/.pytest_cache/**
             **/.env
             **/tests/**
+            **/private_uploads/**
 
       - name: Install dependencies, migrate, and restart on cPanel
         if: ${{ vars.ENABLE_BACKEND_DEPLOY == 'true' }}

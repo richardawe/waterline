@@ -205,7 +205,7 @@ def _build_article(post: BlogPost, base_url: str) -> str:
 
 
 def _build_sitemap(posts: list[BlogPost], base_url: str) -> str:
-    urls = [f"{base_url}/", f"{base_url}/blog/"] + [f"{base_url}/blog/{p.slug}/" for p in posts]
+    urls = [f"{base_url}/", f"{base_url}/blog/", f"{base_url}/collections/"] + [f"{base_url}/blog/{p.slug}/" for p in posts]
     entries = "".join(f"<url><loc>{_escape(u)}</loc></url>" for u in urls)
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{entries}</urlset>\n'
 
@@ -216,6 +216,9 @@ Allow: /
 Allow: /blog/
 Disallow: /preview/
 Disallow: /admin.html
+Disallow: /collections/app/
+Disallow: /collections/ops/
+Disallow: /collections/p/
 
 User-agent: GPTBot
 Allow: /

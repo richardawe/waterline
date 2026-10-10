@@ -1,0 +1,17 @@
+# Waterline Collections — pretty URLs for the static pages.
+RewriteEngine On
+RewriteBase /collections/
+
+# /collections/p/<token> → debtor payment page (the page reads the token from the path)
+RewriteRule ^p/[A-Za-z0-9_-]{32,64}/?$ p/index.html [L]
+
+# /collections/app/accounts/<uuid> → account detail page
+RewriteRule ^app/accounts/[0-9a-f-]{36}/?$ app/accounts/view/index.html [L]
+
+<IfModule mod_headers.c>
+  # Payment links are capabilities: never leak them in a Referer header.
+  <FilesMatch "^index\.html$">
+    Header always set Referrer-Policy "no-referrer"
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

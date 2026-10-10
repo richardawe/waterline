@@ -48,6 +48,7 @@ def test_build_robots_allows_blog_and_ai_crawlers_blocks_private_pages():
     robots = build_blog_static._build_robots("https://waterline.ng")
     assert "Disallow: /preview/" in robots
     assert "Disallow: /admin.html" in robots
+    assert "Disallow: /collections/p/" in robots  # debtor payment links are private
     assert "GPTBot" in robots
     assert "Sitemap: https://waterline.ng/sitemap.xml" in robots
 

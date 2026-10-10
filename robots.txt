@@ -3,6 +3,9 @@ Allow: /
 Allow: /blog/
 Disallow: /preview/
 Disallow: /admin.html
+Disallow: /collections/app/
+Disallow: /collections/ops/
+Disallow: /collections/p/
 
 User-agent: GPTBot
 Allow: /

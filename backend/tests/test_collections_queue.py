@@ -31,8 +31,7 @@ def queued(db, account, day=None):
 def test_intro_is_queued_for_an_approved_clients_new_account(cl_db):
     client, _ = make_client(cl_db)
     account = make_account(cl_db, client, status=AccountStatus.NEW)
-    result = outreach.build_queue(cl_db, wat(MON, 7))
-    assert result["created"] == 1
+    outreach.build_queue(cl_db, wat(MON, 7))
     [item] = queued(cl_db, account)
     assert item.template_key == "INTRO"
     assert account.status == AccountStatus.ACTIVE

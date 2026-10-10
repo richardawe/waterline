@@ -148,6 +148,12 @@ It pushes generated `blog/`, `sitemap.xml` and `robots.txt` straight to
 direct pushes from Actions, that step will fail loudly (content stays saved
 in Postgres either way; nothing is silently lost).
 
+## 6. Waterline Collections
+
+New server `.env` keys (encryption/signing keys are required in production),
+a cPanel cron for the daily job, and a first ops user — see the deployment
+checklist in `docs/collections.md`.
+
 ## Known limitations, honestly
 
 - **No zero-downtime deploy.** Passenger restarts on `tmp/restart.txt`
