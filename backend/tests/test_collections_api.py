@@ -248,6 +248,30 @@ def test_upload_row_cap_and_extra_columns(cl_api, cl_db):
     assert r.status_code == 422 and "employer" in r.json()["detail"]
 
 
+def test_client_adds_one_debtor_by_hand(cl_api, cl_db):
+    client, user = make_client(cl_db)
+    h = client_headers(cl_db, user)
+    fields = {"debtor_name": "Kemi Bello", "phone": "0803 555 1234", "description": "School fees – 1st term",
+              "amount_owed": "85,000", "dependant_first_name": "Tobi", "due_date": "2026-11-30"}
+    r = cl_api.post("/collections/client/accounts", json={"fields": fields, "attest": False}, headers=h)
+    assert r.status_code == 422 and "attestation" in r.json()["detail"]
+    r = cl_api.post("/collections/client/accounts", json={"fields": fields, "attest": True}, headers=h)
+    assert r.status_code == 201, r.text
+    account = cl_db.get(DebtorAccount, r.json()["account"]["id"])
+    assert account.client_id == client.id and account.status == AccountStatus.NEW
+    assert account.balance == 85_000_00 and account.phone == "+2348035551234" and account.due_date == date(2026, 11, 30)
+    assert account.batch.file_name == "Added by hand" and account.batch.attested_at is not None
+    # the same person again is a duplicate, like in an upload
+    r = cl_api.post("/collections/client/accounts", json={"fields": fields, "attest": True}, headers=h)
+    assert r.status_code == 409
+    # field errors come back per field; extra columns (third parties) are refused outright
+    r = cl_api.post("/collections/client/accounts", json={"fields": {**fields, "phone": "123", "amount_owed": "0"}, "attest": True}, headers=h)
+    assert r.status_code == 422 and set(r.json()["detail"]["fields"]) == {"phone"}
+    r = cl_api.post("/collections/client/accounts", json={"fields": {**fields, "guarantor_phone": "08030000001"}, "attest": True}, headers=h)
+    assert r.status_code == 422 and "guarantor_phone" in r.json()["detail"]
+    assert cl_db.execute(select(AuditLog).where(AuditLog.action == "account.added_manually", AuditLog.entity_id == account.id)).scalar_one()
+
+
 # ---------------------------------------------------------------- debtor page
 
 

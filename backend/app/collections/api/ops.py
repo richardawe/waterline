@@ -7,6 +7,7 @@ import csv
 import io
 import json
 from datetime import date, time, timedelta
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -20,6 +21,7 @@ from app.collections import (
     crypto,
     fees,
     outreach,
+    prospects,
     segments,
     serialize,
     service,
@@ -37,12 +39,17 @@ from app.collections.models import (
     FeeProposal,
     Invoice,
     MessageTemplate,
+    OpsUser,
     OutreachItem,
+    Prospect,
+    ProspectList,
+    ProspectTouch,
     SegmentSetting,
     UploadBatch,
     WaitlistEntry,
 )
 from app.collections.phone import normalise_phone
+from app.collections.upload import EMAIL_RE
 from app.collections.timeutil import (
     in_contact_window,
     lagos_date,
@@ -648,6 +655,209 @@ def waitlist_status(entry_id: str, body: WaitlistStatusIn, ctx: OpsContext = Dep
                  before={"status": before}, after={"status": body.status})
     db.commit()
     return {"id": entry.id, "status": entry.status}
+
+
+# ---------------------------------------------------------------- prospects (Waterline's own sales outreach)
+
+
+def _prospect_row(db: Session, p: Prospect) -> dict:
+    wa = prospects.whatsapp_number(p)
+    return {
+        "id": p.id, "list_id": p.list_id, "segment": p.segment, "org_name": p.org_name, "org_type": p.org_type,
+        "city": p.city, "address": p.address, "contact_name": p.contact_name, "contact_role": p.contact_role,
+        "contact_confirmed": p.contact_confirmed, "email": p.email, "phone": p.phone, "phone_note": p.phone_note,
+        "whatsapp": wa, "fit": p.fit, "fit_note": p.fit_note, "source": p.source, "status": p.status,
+        "notes": p.notes, "next_follow_up": p.next_follow_up, "last_contacted_at": p.last_contacted_at,
+        "unanswered": prospects.unanswered_count(db, p), "created_at": p.created_at,
+    }
+
+
+def _touch_row(t: ProspectTouch, names: dict) -> dict:
+    return {"id": t.id, "channel": t.channel, "template_key": t.template_key, "subject": t.subject, "body": t.body,
+            "status": t.status, "error": t.error, "by": names.get(t.ops_user_id), "created_at": t.created_at}
+
+
+def _prospect_act(db: Session, fn, *args, **kwargs):
+    try:
+        result = fn(*args, **kwargs)
+    except prospects.ProspectRefused as exc:
+        db.commit()  # keep a failed-send record
+        raise HTTPException(409, str(exc)) from exc
+    return result
+
+
+@router.get("/prospects")
+def list_prospects(list_id: str | None = None, status: str | None = None, segment: str | None = None,
+                   ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    lists = db.execute(select(ProspectList).order_by(ProspectList.created_at)).scalars().all()
+    stmt = select(Prospect)
+    if list_id:
+        stmt = stmt.where(Prospect.list_id == list_id)
+    if status:
+        stmt = stmt.where(Prospect.status == status)
+    if segment:
+        stmt = stmt.where(Prospect.segment == segment)
+    fit_order = {"High": 0, "Medium": 1, "Low": 2}
+    rows = sorted(db.execute(stmt).scalars(), key=lambda p: (fit_order.get(p.fit or "", 3), p.org_name.lower()))
+    return {
+        "lists": [{"id": pl.id, "name": pl.name, "description": pl.description} for pl in lists],
+        "statuses": list(prospects.STATUSES),
+        "prospects": [_prospect_row(db, p) for p in rows],
+    }
+
+
+class ProspectIn(BaseModel):
+    list_id: str | None = None
+    segment: str
+    org_name: str = Field(min_length=2, max_length=200)
+    org_type: str | None = Field(None, max_length=300)
+    city: str | None = Field(None, max_length=80)
+    address: str | None = Field(None, max_length=300)
+    contact_name: str | None = Field(None, max_length=160)
+    contact_role: str | None = Field(None, max_length=120)
+    contact_confirmed: bool = False
+    email: str | None = Field(None, max_length=254)
+    phone: str | None = Field(None, max_length=30)
+    phone_note: str | None = Field(None, max_length=120)
+    fit: str | None = None
+    fit_note: str | None = Field(None, max_length=300)
+    source: str | None = Field(None, max_length=300)
+    status: str = "New"
+    notes: str | None = Field(None, max_length=4000)
+    next_follow_up: date | None = None
+
+
+def _apply_prospect(db: Session, p: Prospect, body: ProspectIn) -> None:
+    data = body.model_dump()
+    for k in ("org_type", "city", "address", "contact_name", "contact_role", "email", "phone", "phone_note",
+              "fit_note", "source", "notes"):
+        data[k] = (data[k] or "").strip() or None
+    if data["segment"] not in segments.SEGMENTS:
+        raise HTTPException(422, "Unknown segment.")
+    if data["status"] not in prospects.STATUSES:
+        raise HTTPException(422, "Unknown status.")
+    if data["fit"] not in (None, "", *prospects.FITS):
+        raise HTTPException(422, "Fit must be High, Medium or Low.")
+    data["fit"] = data["fit"] or None
+    if data["email"]:
+        data["email"] = data["email"].lower()
+        if not EMAIL_RE.match(data["email"]):
+            raise HTTPException(422, "That email address doesn't look right.")
+    if data["phone"]:
+        try:
+            data["phone"] = normalise_phone(data["phone"])
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+    if data["list_id"] and db.get(ProspectList, data["list_id"]) is None:
+        raise HTTPException(422, "Unknown list.")
+    for k, v in data.items():
+        setattr(p, k, v)
+
+
+@router.post("/prospects", status_code=201)
+def create_prospect(body: ProspectIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    p = Prospect()
+    _apply_prospect(db, p, body)
+    db.add(p)
+    db.flush()
+    audit.record(db, ctx.actor, "prospect.created", "Prospect", p.id, after={"org_name": p.org_name})
+    db.commit()
+    return _prospect_row(db, p)
+
+
+@router.put("/prospects/{prospect_id}")
+def update_prospect(prospect_id: str, body: ProspectIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    p = _get(db, Prospect, prospect_id)
+    before = {"status": p.status, "contact_confirmed": p.contact_confirmed}
+    _apply_prospect(db, p, body)
+    audit.record(db, ctx.actor, "prospect.updated", "Prospect", p.id, before=before,
+                 after={"status": p.status, "contact_confirmed": p.contact_confirmed})
+    db.commit()
+    return _prospect_row(db, p)
+
+
+@router.delete("/prospects/{prospect_id}")
+def delete_prospect(prospect_id: str, ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
+    """Erase an organisation and its history (e.g. on request). To stop
+    contact but remember not to try again, set "Do not contact" instead."""
+    p = _get(db, Prospect, prospect_id)
+    db.execute(ProspectTouch.__table__.delete().where(ProspectTouch.prospect_id == p.id))
+    db.delete(p)
+    audit.record(db, ctx.actor, "prospect.deleted", "Prospect", prospect_id)
+    db.commit()
+    return {"deleted": prospect_id}
+
+
+@router.get("/prospects/{prospect_id}")
+def get_prospect(prospect_id: str, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    p = _get(db, Prospect, prospect_id)
+    touches = db.execute(select(ProspectTouch).where(ProspectTouch.prospect_id == p.id)
+                         .order_by(ProspectTouch.created_at.desc())).scalars().all()
+    names = {u.id: u.name for u in db.execute(select(OpsUser)).scalars()}
+    blocked = {}
+    for channel in prospects.OUTBOUND:
+        try:
+            prospects.check_can_message(db, p, channel)
+        except prospects.ProspectRefused as exc:
+            blocked[channel] = str(exc)
+    return {"prospect": _prospect_row(db, p), "touches": [_touch_row(t, names) for t in touches],
+            "drafts": prospects.drafts(db, p, ctx.user.name), "blocked": blocked}
+
+
+class ProspectEmailIn(BaseModel):
+    subject: str
+    body: str
+    template_key: str = "custom"
+
+
+@router.post("/prospects/{prospect_id}/email")
+def email_prospect(prospect_id: str, body: ProspectEmailIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    p = _get(db, Prospect, prospect_id)
+    touch = _prospect_act(db, prospects.send_email, db, p, subject=body.subject, body=body.body,
+                          key=body.template_key[:20], ops_user_id=ctx.user.id)
+    audit.record(db, ctx.actor, "prospect.emailed", "Prospect", p.id, after={"subject": touch.subject})
+    db.commit()
+    return {"touch_id": touch.id, "status": p.status}
+
+
+class ProspectWhatsAppIn(BaseModel):
+    body: str
+    template_key: str = "custom"
+
+
+@router.post("/prospects/{prospect_id}/whatsapp-link")
+def prospect_whatsapp_link(prospect_id: str, body: ProspectWhatsAppIn, ctx: OpsContext = Depends(require_ops),
+                           db: Session = Depends(get_db)):
+    """The click-to-chat link with the exact text (footer included). Nothing is recorded until marked sent."""
+    p = _get(db, Prospect, prospect_id)
+    _prospect_act(db, prospects.check_can_message, db, p, "WhatsApp")
+    text = _prospect_act(db, prospects.whatsapp_text, db, body.body)
+    return {"url": f"https://wa.me/{prospects.whatsapp_number(p).lstrip('+')}?text={quote(text)}", "text": text}
+
+
+@router.post("/prospects/{prospect_id}/whatsapp-sent")
+def prospect_whatsapp_sent(prospect_id: str, body: ProspectWhatsAppIn, ctx: OpsContext = Depends(require_ops),
+                           db: Session = Depends(get_db)):
+    p = _get(db, Prospect, prospect_id)
+    touch = _prospect_act(db, prospects.mark_whatsapp_sent, db, p, body=body.body, key=body.template_key[:20],
+                          ops_user_id=ctx.user.id)
+    audit.record(db, ctx.actor, "prospect.whatsapp_sent", "Prospect", p.id, after={"touch": touch.id})
+    db.commit()
+    return {"touch_id": touch.id, "status": p.status}
+
+
+class ProspectLogIn(BaseModel):
+    channel: str  # Call / Reply / Note
+    body: str
+
+
+@router.post("/prospects/{prospect_id}/log")
+def prospect_log(prospect_id: str, body: ProspectLogIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    p = _get(db, Prospect, prospect_id)
+    touch = _prospect_act(db, prospects.log_touch, db, p, channel=body.channel, body=body.body, ops_user_id=ctx.user.id)
+    audit.record(db, ctx.actor, "prospect.logged", "Prospect", p.id, after={"channel": body.channel})
+    db.commit()
+    return {"touch_id": touch.id, "status": p.status}
 
 
 @router.get("/config")

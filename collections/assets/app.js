@@ -100,8 +100,8 @@
         '<div class="card"><h2>Accounts by status</h2>' +
         (Object.keys(s).length ? '<div class="row-btns">' + Object.keys(s).map(function (k) {
           return '<a class="pill" style="text-decoration:none;font-size:.85rem;padding:6px 12px" href="/collections/app/accounts/?status=' + encodeURIComponent(k) + '">' + esc(k) + ': ' + s[k] + '</a>';
-        }).join('') + '</div>' : '<p class="muted">No accounts yet. <a href="/collections/app/uploads/new/">Upload your first list</a>.</p>') + '</div>' +
-        '<div class="row-btns"><a class="btn" href="/collections/app/uploads/new/">Upload balances</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn ghost" href="/collections/app/accounts/">View accounts</a></div>';
+        }).join('') + '</div>' : '<p class="muted">No accounts yet. <a href="/collections/app/uploads/new/">Upload your first list</a> or <a href="/collections/app/uploads/new/?mode=one">add someone by hand</a>.</p>') + '</div>' +
+        '<div class="row-btns"><a class="btn" href="/collections/app/uploads/new/">Upload balances</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=one">Add one by hand</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn ghost" href="/collections/app/accounts/">View accounts</a></div>';
       if (window.WLMotion) {
         WLMotion.countAll(view);
         WLMotion.fill(CL.$('.tank', view), pct);
@@ -117,7 +117,7 @@
 
   pages.uploads = function () {
     return get('/uploads').then(function (rows) {
-      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Uploads</h1><div class="row-btns"><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn" href="/collections/app/uploads/new/">New upload</a></div></div>' +
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Uploads</h1><div class="row-btns"><a class="btn ghost" href="/collections/app/uploads/new/?mode=one">Add one by hand</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn" href="/collections/app/uploads/new/">New upload</a></div></div>' +
         (rows.length ? '<div class="card table-wrap"><table><thead><tr><th>File</th><th>Uploaded</th><th>Status</th><th class="right">Accounts</th><th>Rules</th><th></th></tr></thead><tbody>' +
           rows.map(function (b) {
             return '<tr><td>' + esc(b.file_name) + '</td><td class="nowrap">' + CL.date(b.created_at) + '</td><td>' + CL.pill(b.status === 'Preview' ? 'Draft' : b.status) + '</td>' +
@@ -153,12 +153,14 @@
   pages['upload-new'] = function () {
     var batchId = CL.param('batch');
     if (batchId) return get('/uploads/' + batchId).then(renderPreview);
-    var mode = CL.param('mode') === 'update' ? 'update' : 'new';
+    var mode = CL.param('mode') === 'update' ? 'update' : CL.param('mode') === 'one' ? 'one' : 'new';
     var seg = ME.segment, t = seg.terms;
+    if (mode === 'one') return addOne(seg);
     var cols = mode === 'update' ? seg.update_columns : seg.columns;
     view.innerHTML = '<h1>' + (mode === 'update' ? 'Update balances' : 'Upload balances') + '</h1>' +
       '<div class="tabs"><button data-mode="new"' + (mode === 'new' ? ' class="on"' : '') + '>Add new ' + esc(t.debtors) + '</button>' +
-      '<button data-mode="update"' + (mode === 'update' ? ' class="on"' : '') + '>Update existing balances</button></div>' +
+      '<button data-mode="update"' + (mode === 'update' ? ' class="on"' : '') + '>Update existing balances</button>' +
+      '<button data-mode="one">Add one ' + esc(t.debtor) + ' by hand</button></div>' +
       '<div class="card"><h2>1. Get the template</h2>' +
       (mode === 'new'
         ? '<p>Fill in one row per ' + esc(t.debtor) + ' who owes you. Only these columns are allowed — never add details of anyone other than the person who owes (no guarantors, relatives, employers or references).</p>'
@@ -167,7 +169,7 @@
       colList(cols) + '</div>' +
       '<form class="card" id="up"><h2>2. Upload your file</h2><div class="field"><label for="file">CSV or Excel (.xlsx) file</label><input id="file" name="file" type="file" accept=".csv,.xlsx" required></div>' +
       '<div id="up-msg"></div><button class="btn" type="submit">Check file</button></form>';
-    CL.$$('[data-mode]').forEach(function (b) { b.onclick = function () { location.search = b.dataset.mode === 'update' ? '?mode=update' : ''; }; });
+    modeTabs();
     CL.$$('[data-tpl]').forEach(function (b) {
       b.onclick = function () {
         CL.download('/collections/client/upload-template.' + b.dataset.tpl + '?mode=' + mode, 'client',
@@ -184,6 +186,46 @@
       }).catch(function (err) { CL.busy(btn, false); CL.$('#up-msg').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
     });
   };
+
+  function modeTabs() {
+    CL.$$('[data-mode]').forEach(function (b) { b.onclick = function () { location.search = b.dataset.mode === 'new' ? '' : '?mode=' + b.dataset.mode; }; });
+  }
+
+  var INPUT = { phone: 'type="tel" inputmode="tel" autocomplete="off"', email: 'type="email"', amount: 'type="text" inputmode="decimal" placeholder="e.g. 150000"', date: 'type="date"' };
+
+  /* one person typed in, for when a spreadsheet is overkill — same columns and checks as an upload */
+  function addOne(seg) {
+    var t = seg.terms;
+    view.innerHTML = '<h1>Add one ' + esc(t.debtor) + '</h1>' +
+      '<div class="tabs"><button data-mode="new">Add new ' + esc(t.debtors) + '</button><button data-mode="update">Update existing balances</button>' +
+      '<button data-mode="one" class="on">Add one ' + esc(t.debtor) + ' by hand</button></div>' +
+      '<form class="card" id="one" novalidate><p class="small muted" style="margin-top:0">Only the person who owes — never add guarantors, relatives, employers or references. We\'ll use your default recovery rules (change them in Settings).</p>' +
+      seg.columns.map(function (c) {
+        return '<div class="field"><label for="f-' + esc(c.name) + '">' + esc(c.label || c.name) + (c.required ? '' : ' <span class="muted">(optional)</span>') + '</label>' +
+          '<input id="f-' + esc(c.name) + '" name="' + esc(c.name) + '" ' + (INPUT[c.kind] || 'type="text"') + (c.required ? ' required' : '') + '>' +
+          (c.help && c.kind !== 'date' ? '<div class="small muted">' + esc(c.help) + '</div>' : '') + '</div>';
+      }).join('') +
+      '<label class="check"><input type="checkbox" id="one-attest"> ' + esc(ME.attestation) + '</label>' +
+      '<div id="one-msg"></div><div class="row-btns"><button class="btn" type="submit">Add ' + esc(t.debtor) + '</button>' +
+      '<a class="btn ghost" href="/collections/app/accounts/">Cancel</a></div></form>';
+    modeTabs();
+    var form = CL.$('#one');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      CL.showFieldErrors(form, {}); CL.$('#one-msg').innerHTML = '';
+      if (!CL.$('#one-attest').checked) { CL.$('#one-msg').innerHTML = '<div class="banner bad">Please tick the confirmation first.</div>'; return; }
+      var fields = {};
+      seg.columns.forEach(function (c) { var v = form.elements[c.name].value.trim(); if (v) fields[c.name] = v; });
+      var btn = form.querySelector('button[type=submit]'); CL.busy(btn, true, 'Adding…');
+      post('/accounts', { fields: fields, attest: true }).then(function (r) {
+        location.href = accountUrl(encodeURIComponent(r.account.id));
+      }).catch(function (err) {
+        CL.busy(btn, false);
+        if (err.detail && err.detail.fields) CL.showFieldErrors(form, err.detail.fields);
+        CL.$('#one-msg').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>';
+      });
+    });
+  }
 
   function renderPreview(r) {
     var b = r.batch, t = ME.segment.terms, upd = b.mode === 'update';
@@ -263,7 +305,7 @@
       var link = function (p) {
         var u = new URLSearchParams(location.search); Object.keys(p).forEach(function (k) { p[k] ? u.set(k, p[k]) : u.delete(k); }); return '?' + u.toString();
       };
-      view.innerHTML = '<h1>Accounts</h1>' +
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Accounts</h1><a class="btn sm" href="/collections/app/uploads/new/?mode=one">Add one by hand</a></div>' +
         '<div class="tabs">' + [''].concat(d.statuses).map(function (s) {
           return '<button data-s="' + esc(s) + '"' + (s === status ? ' class="on"' : '') + '>' + esc(s || 'All') + '</button>';
         }).join('') + '</div>' +

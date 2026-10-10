@@ -16,12 +16,14 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def _deliver(to: str, subject: str, body: str) -> None:
+def _deliver(to: str, subject: str, body: str, reply_to: str | None = None) -> None:
     settings = get_settings()
     msg = MimeMessage()
     msg["From"] = settings.smtp_from
     msg["To"] = to
     msg["Subject"] = subject
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.set_content(body)
     smtp_cls = smtplib.SMTP_SSL if settings.smtp_use_ssl else smtplib.SMTP
     with smtp_cls(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
@@ -32,7 +34,8 @@ def _deliver(to: str, subject: str, body: str) -> None:
         smtp.send_message(msg)
 
 
-def send(db: Session, to: str | None, subject: str, body: str, *, kind: str, client_id: str | None = None) -> EmailMessage | None:
+def send(db: Session, to: str | None, subject: str, body: str, *, kind: str, client_id: str | None = None,
+         reply_to: str | None = None) -> EmailMessage | None:
     if not to:
         return None
     row = EmailMessage(to_address=to, subject=subject, body=body, kind=kind, client_id=client_id)
@@ -42,7 +45,7 @@ def send(db: Session, to: str | None, subject: str, body: str, *, kind: str, cli
         logger.info("collections email (not sent, SMTP unconfigured): %s — %s", kind, subject)
         return row
     try:
-        _deliver(to, subject, body)
+        _deliver(to, subject, body, reply_to)
         row.status, row.sent_at = "Sent", utcnow()
     except Exception as exc:  # a mail outage must not roll back the business action
         row.status, row.error = "Failed", str(exc)[:500]

@@ -3,7 +3,7 @@
 from the lender product's schema."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -435,3 +435,66 @@ class AuditLog(Base):
     after: Mapped[Optional[str]] = mapped_column(Text)  # JSON
     ip: Mapped[Optional[str]] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+# ---------------------------------------------------------------- prospecting (Waterline's own sales outreach)
+
+
+class ProspectList(Base, TimestampMixin):
+    """A named batch of organisations we plan to approach, e.g. "First 20 Prospects"."""
+
+    __tablename__ = "cl_prospect_list"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class Prospect(Base, TimestampMixin):
+    """An organisation Waterline might sign up. Contact details are the
+    organisation's own published business contacts (official addresses and
+    lines, never personal ones), so they're stored in plain text and can be
+    seeded by migration. A named head is only used in a greeting once ops
+    have confirmed it (`contact_confirmed`)."""
+
+    __tablename__ = "cl_prospect"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    list_id: Mapped[Optional[str]] = mapped_column(ForeignKey("cl_prospect_list.id"), index=True)
+    segment: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    org_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    org_type: Mapped[Optional[str]] = mapped_column(String(300))
+    city: Mapped[Optional[str]] = mapped_column(String(80))
+    address: Mapped[Optional[str]] = mapped_column(String(300))
+    contact_name: Mapped[Optional[str]] = mapped_column(String(160))
+    contact_role: Mapped[Optional[str]] = mapped_column(String(120))
+    contact_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    email: Mapped[Optional[str]] = mapped_column(String(254))
+    phone: Mapped[Optional[str]] = mapped_column(String(20))  # E.164
+    phone_note: Mapped[Optional[str]] = mapped_column(String(120))
+    fit: Mapped[Optional[str]] = mapped_column(String(10))  # High / Medium / Low
+    fit_note: Mapped[Optional[str]] = mapped_column(String(300))
+    source: Mapped[Optional[str]] = mapped_column(String(300))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="New", index=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    next_follow_up: Mapped[Optional[date]] = mapped_column(Date)
+    last_contacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class ProspectTouch(Base):
+    """Every message, call, reply or note on a prospect."""
+
+    __tablename__ = "cl_prospect_touch"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    prospect_id: Mapped[str] = mapped_column(ForeignKey("cl_prospect.id", ondelete="CASCADE"), nullable=False, index=True)
+    channel: Mapped[str] = mapped_column(String(10), nullable=False)  # Email / WhatsApp / Call / Note / Reply
+    template_key: Mapped[Optional[str]] = mapped_column(String(20))  # intro / follow_up / custom
+    subject: Mapped[Optional[str]] = mapped_column(String(300))
+    body: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="Sent")  # Sent / Failed / Logged
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    ops_user_id: Mapped[Optional[str]] = mapped_column(String(64))
+    # set in Python, not by now(): several touches in one transaction must still be ordered
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
+                                                 default=lambda: datetime.now(timezone.utc))

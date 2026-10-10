@@ -95,6 +95,41 @@ client's own reference.
 
 Disputed and closed accounts are refused.
 
+## Adding one person by hand
+
+`POST /collections/client/accounts` (Uploads → "Add one by hand") takes the
+segment's upload columns as a form. Same validation, duplicate check and
+attestation as a file; unknown fields (guarantors, relatives …) are refused.
+It's recorded as a one-row imported batch named "Added by hand", so audit,
+default recovery rules and the account timeline work the same.
+
+## Prospects (Waterline's own sales outreach)
+
+Ops → Prospects is a small CRM for organisations we want as clients. The
+migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
+`cl_prospect_touch` and loads "Waterline Collections — First 20 Prospects"
+(14 schools in Lagos/Abuja, 5 facility managers, 1 gym).
+
+- Only an organisation's official, published contacts — no personal emails
+  or numbers. Stored in plain text for that reason (and so the list can be
+  seeded by migration).
+- Named heads may be out of date: messages greet the role ("Dear Head of
+  School", "Dear Facility Manager") until ops tick "confirmed".
+- **Email** sends from the app via SMTP (kind `prospect` in `cl_email`) with
+  Reply-To set to the `contact_email` config, so replies land in the
+  Collections inbox. **WhatsApp** opens a click-to-chat link with the text
+  filled in on the Waterline phone or WhatsApp Web; ops then mark it sent.
+  There is no WhatsApp API integration.
+- Every message gets a fixed footer (3D7 Technologies Limited, RC 6979200,
+  contact number, and "reply 'no thanks'"). Ops can edit the body, not the
+  footer.
+- Rules (`prospects.check_can_message`): "Do not contact" blocks all
+  channels; one message per organisation per Lagos day; three unanswered
+  messages is the limit until a reply is logged.
+- Statuses: New → Contacted → Replied → Interested → Signed up, or Not
+  interested / Do not contact. Delete (Admin only) erases the organisation
+  and its history, for erasure requests.
+
 ## Map
 
 | Path | Who | File |

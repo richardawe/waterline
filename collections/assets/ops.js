@@ -4,12 +4,13 @@
   var ME = null;
   var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['replies', 'Replies'],
     ['followups', 'Follow-ups'], ['clients', 'Clients'], ['fees', 'Fee proposals'], ['invoices', 'Invoices'], ['segments', 'Segments'],
-    ['waitlist', 'Waitlist'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
+    ['waitlist', 'Waitlist'], ['prospects', 'Prospects'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
   var SEG_NAMES = {};
 
   function get(p) { return CL.api('/collections/ops' + p, { auth: 'ops' }); }
   function post(p, json) { return CL.api('/collections/ops' + p, { auth: 'ops', method: 'POST', json: json || {} }); }
   function put(p, json) { return CL.api('/collections/ops' + p, { auth: 'ops', method: 'PUT', json: json }); }
+  function del(p) { return CL.api('/collections/ops' + p, { auth: 'ops', method: 'DELETE' }); }
   function fail(e) { CL.toast(e.message || String(e)); }
   function tab() { return (location.hash || '#overview').slice(1).split('/')[0]; }
 
@@ -383,6 +384,158 @@
       });
     });
   };
+
+  /* ------------------------------------------------------------ prospects: Waterline's own sales outreach */
+  var P_STATUS_CLASS = { New: '', Contacted: 'blue', Replied: 'amber', Interested: 'green', 'Signed up': 'green', 'Not interested': '', 'Do not contact': 'red' };
+  var FIT_CLASS = { High: 'green', Medium: 'amber', Low: '' };
+  function ppill(s) { return '<span class="pill ' + (P_STATUS_CLASS[s] || '') + '">' + esc(s) + '</span>'; }
+
+  R.prospects = function () {
+    var id = (location.hash.split('/')[1] || '');
+    if (id === 'new') return prospectForm(null);
+    if (id) return prospectDetail(id);
+    var st = CL.param('pst') || '', list = CL.param('plist') || '';
+    return get('/prospects?' + (st ? 'status=' + encodeURIComponent(st) + '&' : '') + (list ? 'list_id=' + encodeURIComponent(list) : '')).then(function (d) {
+      var counts = {}; d.prospects.forEach(function (p) { counts[p.status] = (counts[p.status] || 0) + 1; });
+      var cur = d.lists.filter(function (l) { return l.id === list; })[0];
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Prospects</h1><a class="btn sm" href="#prospects/new">Add prospect</a></div>' +
+        '<p class="muted small">Schools, estates and other organisations we\'d like as clients. Email goes out from the app with replies to the Collections inbox; WhatsApp opens on this computer with the message filled in, then you mark it sent. Every message carries our company details and a way to opt out.</p>' +
+        '<div class="row-btns" style="margin-bottom:10px"><select id="plist" aria-label="List" style="max-width:360px;min-height:36px"><option value="">All lists</option>' +
+        d.lists.map(function (l) { return '<option value="' + esc(l.id) + '"' + (l.id === list ? ' selected' : '') + '>' + esc(l.name) + '</option>'; }).join('') + '</select></div>' +
+        (cur && cur.description ? '<details class="card" style="padding:12px 16px"><summary class="small"><b>About this list</b></summary><p class="small" style="margin:8px 0 0">' + esc(cur.description) + '</p></details>' : '') +
+        '<div class="tabs">' + [''].concat(d.statuses).map(function (x) {
+          return '<button data-pst="' + esc(x) + '"' + (x === st ? ' class="on"' : '') + '>' + esc(x || 'All') + (x && !st && counts[x] ? ' (' + counts[x] + ')' : '') + '</button>';
+        }).join('') + '</div>' +
+        '<div class="card table-wrap"><table><thead><tr><th>Organisation</th><th>Fit</th><th>Contact</th><th>Reach</th><th>Status</th><th>Last contact</th></tr></thead><tbody>' +
+        (d.prospects.length ? d.prospects.map(function (p) {
+          return '<tr><td><a href="#prospects/' + p.id + '"><b>' + esc(p.org_name) + '</b></a><div class="tiny muted">' + esc(SEG_NAMES[p.segment] || p.segment) + (p.city ? ' · ' + esc(p.city) : '') + '</div></td>' +
+            '<td>' + (p.fit ? '<span class="pill ' + FIT_CLASS[p.fit] + '">' + esc(p.fit) + '</span>' : '') + '</td>' +
+            '<td class="small">' + (p.contact_name ? esc(p.contact_name) + (p.contact_role ? '<div class="tiny muted">' + esc(p.contact_role) + '</div>' : '') + (p.contact_confirmed ? '' : '<div class="tiny muted">not confirmed</div>') : '<span class="muted">—</span>') + '</td>' +
+            '<td class="small">' + [p.email ? 'Email' : '', p.whatsapp ? 'WhatsApp' : ''].filter(Boolean).join(' · ') + (!p.email && !p.whatsapp ? '<span class="muted">' + (p.address ? 'Visit / post' : 'Find a contact') + '</span>' : '') + '</td>' +
+            '<td>' + ppill(p.status) + (p.unanswered ? '<div class="tiny muted">' + p.unanswered + ' unanswered</div>' : '') + '</td>' +
+            '<td class="small nowrap">' + (p.last_contacted_at ? CL.date(p.last_contacted_at) : '<span class="muted">Never</span>') + (p.next_follow_up ? '<div class="tiny muted">follow up ' + CL.date(p.next_follow_up) + '</div>' : '') + '</td></tr>';
+        }).join('') : '<tr><td colspan="6" class="muted">No prospects here.</td></tr>') + '</tbody></table></div>';
+      var go = function (k, v) { var u = new URLSearchParams(location.search); v ? u.set(k, v) : u.delete(k); history.replaceState(null, '', '?' + u.toString() + location.hash); R.prospects(); };
+      CL.$('#plist').onchange = function () { go('plist', this.value); };
+      CL.$$('[data-pst]').forEach(function (b) { b.onclick = function () { go('pst', b.dataset.pst); }; });
+    });
+  };
+
+  var P_FIELDS = [['org_name', 'Organisation', 'text', true], ['org_type', 'What they are', 'text'], ['city', 'City', 'text'], ['address', 'Address', 'text'],
+    ['contact_name', 'Contact name (as published)', 'text'], ['contact_role', 'Their role', 'text'], ['email', 'Official email', 'email'],
+    ['phone', 'Phone (mobile, for WhatsApp)', 'tel'], ['phone_note', 'Phone note', 'text'], ['fit_note', 'Why they fit', 'text'], ['source', 'Source', 'text'],
+    ['next_follow_up', 'Next follow-up', 'date']];
+
+  function prospectFields(p, statuses) {
+    p = p || { segment: 'school', status: 'New' };
+    return '<div class="grid2">' +
+      '<div class="field"><label for="pf-segment">Segment</label><select id="pf-segment" name="segment">' + Object.keys(SEG_NAMES).map(function (k) {
+        return '<option value="' + esc(k) + '"' + (k === p.segment ? ' selected' : '') + '>' + esc(SEG_NAMES[k]) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="pf-fit">Fit</label><select id="pf-fit" name="fit"><option value="">—</option>' + ['High', 'Medium', 'Low'].map(function (f) {
+        return '<option' + (f === p.fit ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div>' +
+      P_FIELDS.map(function (f) {
+        return '<div class="field"><label for="pf-' + f[0] + '">' + f[1] + '</label><input id="pf-' + f[0] + '" name="' + f[0] + '" type="' + f[2] + '"' + (f[3] ? ' required' : '') + ' value="' + esc(p[f[0]] || '') + '"></div>';
+      }).join('') +
+      '<div class="field"><label for="pf-status">Status</label><select id="pf-status" name="status">' + statuses.map(function (x) {
+        return '<option' + (x === p.status ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select></div></div>' +
+      '<label class="check"><input type="checkbox" name="contact_confirmed"' + (p.contact_confirmed ? ' checked' : '') + '> I\'ve confirmed this person still holds the role. Greet them by name.</label>' +
+      '<div class="field"><label for="pf-notes">Notes</label><textarea id="pf-notes" name="notes" style="min-height:70px">' + esc(p.notes || '') + '</textarea></div>';
+  }
+
+  function readProspect(form, listId) {
+    var body = {};
+    P_FIELDS.forEach(function (f) { body[f[0]] = form.elements[f[0]].value.trim() || null; });
+    body.segment = form.elements.segment.value; body.fit = form.elements.fit.value || null; body.status = form.elements.status.value;
+    body.notes = form.elements.notes.value.trim() || null; body.contact_confirmed = form.elements.contact_confirmed.checked; body.list_id = listId || null;
+    return body;
+  }
+
+  function prospectForm() {
+    return get('/prospects?status=__none__').then(function (d) {
+      view.innerHTML = '<p><a href="#prospects">← Prospects</a></p><h1>Add prospect</h1>' +
+        '<form class="card" id="pf"><p class="small muted" style="margin-top:0">Only an organisation\'s official, published contacts. No personal emails or numbers.</p>' +
+        '<div class="field"><label for="pf-list">List</label><select id="pf-list"><option value="">No list</option>' + d.lists.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.name) + '</option>'; }).join('') + '</select></div>' +
+        prospectFields(null, d.statuses) + '<div id="pf-msg"></div><button class="btn">Add prospect</button></form>';
+      CL.$('#pf').onsubmit = function (e) {
+        e.preventDefault();
+        post('/prospects', readProspect(e.target, CL.$('#pf-list').value)).then(function (p) { location.hash = '#prospects/' + p.id; })
+          .catch(function (err) { CL.$('#pf-msg').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+    });
+  }
+
+  function prospectDetail(id) {
+    return Promise.all([get('/prospects/' + id), get('/prospects?status=__none__')]).then(function (res) {
+      var d = res[0], p = d.prospect, dr = d.drafts, statuses = res[1].statuses;
+      var tpl = 'intro', channel = p.email ? 'Email' : 'WhatsApp';
+      view.innerHTML = '<p><a href="#prospects">← Prospects</a></p>' +
+        '<h1 style="margin-bottom:4px">' + esc(p.org_name) + '</h1><p class="muted" style="margin-top:0">' + esc(p.org_type || SEG_NAMES[p.segment] || '') + (p.city ? ' · ' + esc(p.city) : '') + ' · ' + ppill(p.status) +
+        (p.fit ? ' <span class="pill ' + FIT_CLASS[p.fit] + '">' + esc(p.fit) + ' fit</span>' : '') + '</p>' +
+        '<div class="card"><h2>Reach them</h2>' +
+        '<p class="small">' + (p.email ? '✉︎ <a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a> · ' : '') + (p.phone ? '☎︎ <a href="tel:' + esc(p.phone) + '">' + esc(p.phone) + '</a>' + (p.phone_note ? ' (' + esc(p.phone_note) + ')' : '') : '') +
+        (p.address ? ' · ' + esc(p.address) : '') + (p.contact_name ? '<br>' + esc(p.contact_name) + (p.contact_role ? ', ' + esc(p.contact_role) : '') + (p.contact_confirmed ? '' : ' <span class="tiny muted">(not confirmed, so messages greet the role)</span>') : '') + '</p>' +
+        '<div class="tabs" id="tpl">' + [['intro', 'First message'], ['follow_up', 'Follow-up'], ['custom', 'Blank']].map(function (t) { return '<button data-tpl="' + t[0] + '"' + (t[0] === tpl ? ' class="on"' : '') + '>' + t[1] + '</button>'; }).join('') + '</div>' +
+        '<div class="tabs" id="chan">' + ['Email', 'WhatsApp'].map(function (c) { return '<button data-chan="' + c + '"' + (c === channel ? ' class="on"' : '') + '>' + c + '</button>'; }).join('') + '</div>' +
+        '<div id="compose"></div></div>' +
+        '<div class="card"><h2>Log a call, reply or note</h2><form id="lg"><div class="row-btns"><select name="channel" style="max-width:150px;min-height:38px" aria-label="Type"><option value="Call">Call</option><option value="Reply">They replied</option><option value="Note">Note</option></select></div>' +
+        '<textarea name="body" required style="min-height:60px;margin-top:8px" placeholder="What was said?" aria-label="Details"></textarea><button class="btn sm" style="margin-top:8px">Save</button></form></div>' +
+        '<div class="card"><h2>History</h2>' + (d.touches.length ? d.touches.map(function (t) {
+          return '<div class="list-item"><div class="small"><b>' + esc(t.channel) + '</b> ' + (t.status === 'Failed' ? '<span class="pill red">Failed</span> ' : '') + '<span class="muted">' + CL.datetime(t.created_at) + (t.by ? ' · ' + esc(t.by) : '') + '</span></div>' +
+            (t.subject ? '<div class="small"><b>' + esc(t.subject) + '</b></div>' : '') + (t.body ? '<details><summary class="tiny muted">Show message</summary><div class="msg small">' + esc(t.body) + '</div></details>' : '') + (t.error ? '<div class="tiny" style="color:var(--red)">' + esc(t.error) + '</div>' : '') + '</div>';
+        }).join('') : '<p class="muted">Nothing yet.</p>') + '</div>' +
+        '<details class="card"><summary><b>Edit details</b></summary><form id="pe" style="margin-top:12px">' + prospectFields(p, statuses) +
+        '<div class="row-btns"><button class="btn">Save</button>' + (ME.role === 'Admin' ? '<button type="button" class="btn ghost" id="pdel">Delete for good</button>' : '') + '</div></form></details>';
+
+      function compose() {
+        var blocked = d.blocked[channel], text = tpl === 'custom' ? { subject: '', email: '', whatsapp: '' } : dr[tpl];
+        var foot = channel === 'Email' ? dr.footer.email : dr.footer.whatsapp;
+        var html = blocked ? '<div class="banner warn">' + esc(blocked) + '</div>' : '';
+        if (channel === 'Email') {
+          html += '<div class="field"><label for="c-subj">Subject</label><input id="c-subj" type="text" value="' + esc(text.subject) + '"></div>' +
+            '<div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:300px">' + esc(text.email) + '</textarea></div>';
+        } else {
+          html += '<div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:150px">' + esc(text.whatsapp) + '</textarea></div>';
+        }
+        html += '<p class="tiny muted" style="margin:-4px 0 4px">Added automatically at the end:</p><div class="msg tiny">' + esc(foot.trim()) + '</div>' +
+          '<div class="row-btns" style="margin-top:12px">' + (channel === 'Email'
+            ? '<button class="btn" id="c-send"' + (blocked ? ' disabled' : '') + '>Send email</button>'
+            : '<a class="btn wa' + (blocked ? ' disabled' : '') + '" id="c-wa" target="_blank" rel="noopener"' + (blocked ? ' aria-disabled="true"' : '') + '>Open WhatsApp</a><button class="btn ghost" id="c-sent"' + (blocked ? ' disabled' : '') + '>Mark sent</button>') + '</div>';
+        CL.$('#compose').innerHTML = html;
+        var body = CL.$('#c-body');
+        if (channel === 'Email') {
+          CL.$('#c-send').onclick = function () {
+            var b = this; if (!confirm('Send this email to ' + p.email + '?')) return;
+            CL.busy(b, true, 'Sending…');
+            post('/prospects/' + id + '/email', { subject: CL.$('#c-subj').value, body: body.value, template_key: tpl })
+              .then(function () { CL.toast('Email sent'); prospectDetail(id); }).catch(function (e) { CL.busy(b, false); fail(e); prospectDetail(id); });
+          };
+        } else {
+          var wa = CL.$('#c-wa'), link = function () { wa.href = 'https://wa.me/' + (p.whatsapp || '').replace('+', '') + '?text=' + encodeURIComponent(body.value.trim() + foot); };
+          link(); body.oninput = link;
+          if (blocked) wa.onclick = function (e) { e.preventDefault(); };
+          CL.$('#c-sent').onclick = function () {
+            post('/prospects/' + id + '/whatsapp-sent', { body: body.value, template_key: tpl })
+              .then(function () { CL.toast('Marked sent'); prospectDetail(id); }).catch(fail);
+          };
+        }
+      }
+      CL.$$('[data-tpl]').forEach(function (b) { b.onclick = function () { tpl = b.dataset.tpl; CL.$$('[data-tpl]').forEach(function (x) { x.classList.toggle('on', x === b); }); compose(); }; });
+      CL.$$('[data-chan]').forEach(function (b) { b.onclick = function () { channel = b.dataset.chan; CL.$$('[data-chan]').forEach(function (x) { x.classList.toggle('on', x === b); }); compose(); }; });
+      compose();
+      CL.$('#lg').onsubmit = function (e) {
+        e.preventDefault();
+        post('/prospects/' + id + '/log', CL.formJSON(e.target)).then(function () { CL.toast('Saved'); prospectDetail(id); }).catch(fail);
+      };
+      CL.$('#pe').onsubmit = function (e) {
+        e.preventDefault();
+        put('/prospects/' + id, readProspect(e.target, p.list_id)).then(function () { CL.toast('Saved'); prospectDetail(id); }).catch(fail);
+      };
+      if (CL.$('#pdel')) CL.$('#pdel').onclick = function () {
+        if (!confirm('Delete ' + p.org_name + ' and its history for good? To just stop contact, set the status to "Do not contact".')) return;
+        del('/prospects/' + id).then(function () { location.hash = '#prospects'; }).catch(fail);
+      };
+    });
+  }
 
   R.config = function () {
     return get('/config').then(function (cfg) {

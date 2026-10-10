@@ -99,3 +99,4 @@ footer.site a{color:var(--dim)}
 .hero-demo .tank{height:176px}
 .hero-demo .tank .tank-label{top:10px}
 .hero-demo .tank .tank-value{left:12px;right:auto;top:26px;font-size:1.65rem}
+.btn.disabled{opacity:.5;pointer-events:none}

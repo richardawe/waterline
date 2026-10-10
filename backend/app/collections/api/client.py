@@ -95,11 +95,12 @@ def me(ctx: ClientContext = Depends(require_client), db: Session = Depends(get_d
         "user": serialize.user(ctx.user),
         "client": serialize.client(ctx.client),
         "segment": {"key": seg.key, "name": seg.name, "terms": seg.terms, "client_types": list(seg.client_types),
-                    "columns": [{"name": c.name, "label": c.label, "help": c.help, "required": c.required}
+                    "columns": [{"name": c.name, "label": c.label, "help": c.help, "required": c.required, "kind": c.kind}
                                 for c in seg.columns],
                     "update_columns": [{"name": c.name, "label": c.label, "help": c.help, "required": c.required}
                                        for c in upload.update_columns(seg)]},
         "pending_fee_proposal": fees.proposal_view(proposal) if proposal else None,
+        "attestation": ATTESTATION,
     }
 
 
@@ -345,20 +346,26 @@ def _import_new(db: Session, batch: UploadBatch, preview: list[dict], skip: set[
         if key in existing:  # another upload landed since this preview was built
             continue
         existing.add(key)
-        ref = c.get("external_reference")
-        db.add(DebtorAccount(
-            client_id=ctx.client.id, batch_id=batch.id, reference_code=service.new_reference_code(db),
-            debtor_name=c["debtor_name"], phone=c["phone"], phone_index=crypto.blind_index(c["phone"]),
-            dedupe_key=key, email=c["email"], description=c["description"],
-            dependant_first_name=c["dependant_first_name"], original_amount=c["amount_kobo"],
-            balance=c["amount_kobo"], due_date=date.fromisoformat(c["due_date"]) if c["due_date"] else None,
-            external_reference=ref, external_ref_index=upload.reference_index(ref) if ref else None,
-            extra=json.dumps(c["extra"]) if c["extra"] else None,
-            status=AccountStatus.NEW, access_token=crypto.new_token(),
-        ))
-        db.flush()
+        _new_account(db, ctx, batch, c, key)
         imported += 1
     return imported
+
+
+def _new_account(db: Session, ctx: ClientContext, batch: UploadBatch, c: dict, key: str) -> DebtorAccount:
+    ref = c.get("external_reference")
+    account = DebtorAccount(
+        client_id=ctx.client.id, batch_id=batch.id, reference_code=service.new_reference_code(db),
+        debtor_name=c["debtor_name"], phone=c["phone"], phone_index=crypto.blind_index(c["phone"]),
+        dedupe_key=key, email=c["email"], description=c["description"],
+        dependant_first_name=c["dependant_first_name"], original_amount=c["amount_kobo"],
+        balance=c["amount_kobo"], due_date=date.fromisoformat(c["due_date"]) if c["due_date"] else None,
+        external_reference=ref, external_ref_index=upload.reference_index(ref) if ref else None,
+        extra=json.dumps(c["extra"]) if c["extra"] else None,
+        status=AccountStatus.NEW, access_token=crypto.new_token(),
+    )
+    db.add(account)
+    db.flush()
+    return account
 
 
 def _import_update(db: Session, preview: list[dict], skip: set[int], ctx: ClientContext) -> int:
@@ -451,6 +458,55 @@ def set_batch_rules(batch_id: str, body: BatchRulesIn, ctx: ClientContext = Depe
 # ---------------------------------------------------------------- accounts
 
 
+class AddAccountIn(BaseModel):
+    fields: dict[str, str]
+    attest: bool
+
+
+MANUAL_FILE_NAME = "Added by hand"
+
+
+@router.post("/accounts", status_code=201)
+def add_account(body: AddAccountIn, ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db)):
+    """One person typed into a form instead of a spreadsheet. Same columns,
+    validation, duplicate check and attestation as an upload; recorded as a
+    one-row imported batch so the audit trail and default rules work the same."""
+    if ctx.client.status in (ClientStatus.REJECTED, ClientStatus.SUSPENDED):
+        raise HTTPException(403, f"Adding accounts is unavailable while your account is {ctx.client.status.lower()}.")
+    seg = _segment(ctx)
+    allowed = {c.name for c in seg.columns}
+    unknown = set(body.fields) - allowed
+    if unknown:  # never accept extra details (guarantors, relatives, employers…)
+        raise HTTPException(422, f"Unknown field: {sorted(unknown)[0]}.")
+    clean, errors = upload.validate_new_row({k: str(v) for k, v in body.fields.items()}, seg)
+    if clean is None:
+        fields = {}
+        for err in errors:
+            name = next((c.name for c in seg.columns if err.startswith(c.name + " ")), None)
+            if name:
+                msg = err[len(name) + 1:]
+                fields[name] = msg[:1].upper() + msg[1:]
+        raise HTTPException(422, {"message": "Please fix the highlighted fields." if fields else "; ".join(errors),
+                                  "fields": fields})
+    if not body.attest:
+        raise HTTPException(422, "Please confirm the attestation before adding.")
+    key = upload.duplicate_key(clean)
+    if key in _existing_keys(db, ctx.client.id):
+        raise HTTPException(409, "This person is already in your open accounts with the same details.")
+    now = utcnow()
+    batch = UploadBatch(client_id=ctx.client.id, file_name=MANUAL_FILE_NAME, uploaded_by=ctx.user.id, mode="new",
+                        status="Imported", row_count=1, valid_count=1, imported_count=1,
+                        attested_by=ctx.user.id, attested_at=now, attestation_text=ATTESTATION)
+    db.add(batch)
+    db.flush()
+    account = _new_account(db, ctx, batch, clean, key)
+    audit.record(db, ctx.actor, "upload.attested", "UploadBatch", batch.id, after={"attestation": ATTESTATION, "attested_at": now})
+    audit.record(db, ctx.actor, "account.added_manually", "DebtorAccount", account.id,
+                 after={"reference_code": account.reference_code, "amount": account.original_amount})
+    db.commit()
+    return {"account": {"id": account.id, "reference_code": account.reference_code}}
+
+
 @router.get("/accounts")
 def list_accounts(
     status: str | None = None, q: str | None = None, batch_id: str | None = None, page: int = 1,
@@ -490,7 +546,8 @@ def get_account(account_id: str, ctx: ClientContext = Depends(require_client), d
         select(AuditLog).where(AuditLog.client_id == ctx.client.id, AuditLog.entity == "DebtorAccount", AuditLog.entity_id == account.id)
         .order_by(AuditLog.created_at)
     ).scalars().all()
-    timeline = [{"at": account.created_at, "kind": "uploaded", "text": "Added from upload"}]
+    added = "Added by hand" if account.batch.file_name == MANUAL_FILE_NAME else "Added from upload"
+    timeline = [{"at": account.created_at, "kind": "uploaded", "text": added}]
     timeline += [{"at": i.sent_at or i.updated_at, "kind": "message",
                   "text": f"{i.template_key.replace('_', ' ').title()} — {i.status.lower()}"
                           + (f" by {i.channel}" if i.channel else "") + (f" ({i.skip_reason})" if i.status == "Skipped" else "")
