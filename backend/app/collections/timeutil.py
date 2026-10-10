@@ -4,8 +4,19 @@ from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 LAGOS = ZoneInfo("Africa/Lagos")
-CONTACT_START = time(8, 0)
+CONTACT_START = time(8, 0)  # baseline; each segment's policy may be stricter
 CONTACT_END = time(19, 0)
+
+
+def _hhmm(value: str) -> time:
+    h, m = value.split(":")
+    return time(int(h), int(m))
+
+
+def window(policy: dict | None) -> tuple[time, time]:
+    if not policy:
+        return CONTACT_START, CONTACT_END
+    return _hhmm(policy["contact_start"]), _hhmm(policy["contact_end"])
 
 
 def utcnow() -> datetime:
@@ -27,14 +38,16 @@ def lagos_datetime(d: date, t: time) -> datetime:
     return datetime.combine(d, t, tzinfo=LAGOS).astimezone(timezone.utc)
 
 
-def is_contact_day(d: date, holidays: set[date]) -> bool:
-    """Monday–Saturday, excluding Nigerian public holidays."""
-    return d.weekday() != 6 and d not in holidays
+def is_contact_day(d: date, holidays: set[date], policy: dict | None = None) -> bool:
+    """Policy weekdays (baseline Monday–Saturday), never Sunday, never a Nigerian public holiday."""
+    weekdays = policy["contact_weekdays"] if policy else range(6)
+    return d.weekday() != 6 and d.weekday() in weekdays and d not in holidays
 
 
-def in_contact_window(now: datetime, holidays: set[date]) -> bool:
+def in_contact_window(now: datetime, holidays: set[date], policy: dict | None = None) -> bool:
     local = to_lagos(now)
-    return is_contact_day(local.date(), holidays) and CONTACT_START <= local.time() < CONTACT_END
+    start, end = window(policy)
+    return is_contact_day(local.date(), holidays, policy) and start <= local.time() < end
 
 
 def is_working_day(d: date, holidays: set[date]) -> bool:

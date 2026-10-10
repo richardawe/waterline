@@ -6,7 +6,7 @@ import io
 import json
 from datetime import date, time
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -16,16 +16,19 @@ from app.collections import (
     audit,
     crypto,
     emailer,
+    fees,
+    segments,
     serialize,
     service,
     settings_store,
     upload,
 )
 from app.collections.api.public import (
-    BUSINESS_TYPES,
     INVITE_TTL,
     NIGERIAN_STATES,
+    FeeProposalIn,
     issue_link,
+    template_response,
 )
 from app.collections.auth import (
     ClientContext,
@@ -56,6 +59,10 @@ router = APIRouter(prefix="/collections/client", tags=["collections-client"])
 ATTESTATION = (
     "I confirm these balances are accurate, genuinely owed, and that I am entitled to contact these people about them."
 )
+UPDATE_ATTESTATION = (
+    "I confirm these updated balances are accurate. Where a balance is lower because the person paid us directly, "
+    "I have marked it as a payment."
+)
 PAGE_SIZE = 50
 
 
@@ -81,8 +88,57 @@ def _today():
 
 
 @router.get("/me")
-def me(ctx: ClientContext = Depends(require_client)):
-    return {"user": serialize.user(ctx.user), "client": serialize.client(ctx.client)}
+def me(ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db)):
+    seg = _segment(ctx)
+    proposal = fees.pending(db, ctx.client.id)
+    return {
+        "user": serialize.user(ctx.user),
+        "client": serialize.client(ctx.client),
+        "segment": {"key": seg.key, "name": seg.name, "terms": seg.terms, "client_types": list(seg.client_types),
+                    "columns": [{"name": c.name, "label": c.label, "help": c.help, "required": c.required}
+                                for c in seg.columns],
+                    "update_columns": [{"name": c.name, "label": c.label, "help": c.help, "required": c.required}
+                                       for c in upload.update_columns(seg)]},
+        "pending_fee_proposal": fees.proposal_view(proposal) if proposal else None,
+    }
+
+
+# ---------------------------------------------------------------- fee proposals
+
+
+@router.get("/fee")
+def fee(ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db)):
+    from app.collections.models import FeeProposal
+
+    rows = db.execute(
+        select(FeeProposal).where(FeeProposal.client_id == ctx.client.id).order_by(FeeProposal.created_at.desc())
+    ).scalars()
+    current = fees.schedule(ctx.client)
+    return {"current": current, "current_text": segments.describe_fee(current),
+            "proposals": [fees.proposal_view(p) for p in rows]}
+
+
+@router.post("/fee/proposals", status_code=201)
+def propose_fee(body: FeeProposalIn, ctx: ClientContext = Depends(require_owner), db: Session = Depends(get_db)):
+    try:
+        proposal = fees.propose(db, ctx.client, body.schedule, body.note, ctx.actor)
+    except fees.ProposalError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    db.commit()
+    return fees.proposal_view(proposal)
+
+
+@router.post("/fee/proposals/{proposal_id}/withdraw")
+def withdraw_fee_proposal(proposal_id: str, ctx: ClientContext = Depends(require_owner), db: Session = Depends(get_db)):
+    from app.collections.models import FeeProposal
+
+    proposal = _owned(db, FeeProposal, proposal_id, ctx)
+    try:
+        fees.withdraw(db, proposal, ctx.actor)
+    except fees.ProposalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    db.commit()
+    return fees.proposal_view(proposal)
 
 
 @router.get("/dashboard")
@@ -138,6 +194,10 @@ def list_uploads(ctx: ClientContext = Depends(require_client), db: Session = Dep
     return [serialize.batch(b) for b in rows]
 
 
+def _segment(ctx: ClientContext):
+    return segments.get(ctx.client.segment)
+
+
 def _existing_keys(db: Session, client_id: str) -> set[str]:
     return set(db.execute(
         select(DebtorAccount.dedupe_key).where(
@@ -147,30 +207,64 @@ def _existing_keys(db: Session, client_id: str) -> set[str]:
     ).scalars())
 
 
+def _accounts_by_ref(db: Session, client_id: str) -> dict[str, dict]:
+    rows = db.execute(
+        select(DebtorAccount).where(DebtorAccount.client_id == client_id, DebtorAccount.external_ref_index.is_not(None))
+    ).scalars()
+    out = {}
+    for a in rows:
+        # an open account wins over a closed one with the same reference
+        if a.external_ref_index in out and a.status in AccountStatus.CLOSED:
+            continue
+        out[a.external_ref_index] = {"id": a.id, "balance": a.balance, "status": a.status,
+                                     "debtor_name": a.debtor_name, "reference_code": a.reference_code}
+    return out
+
+
+def _build(db: Session, ctx: ClientContext, mode: str, rows: list[dict]) -> list[dict]:
+    seg = _segment(ctx)
+    if mode == "update":
+        return upload.build_update_preview(rows, seg, _accounts_by_ref(db, ctx.client.id))
+    return upload.build_preview(rows, seg, _existing_keys(db, ctx.client.id))
+
+
 def _store_preview(batch: UploadBatch, preview: list[dict]) -> None:
     batch.staged_rows = json.dumps(preview)
     batch.row_count = len(preview)
     batch.valid_count = sum(1 for r in preview if r["status"] == "valid")
     batch.error_count = sum(1 for r in preview if r["status"] == "error")
-    batch.duplicate_count = sum(1 for r in preview if r["status"] == "duplicate")
+    batch.duplicate_count = sum(1 for r in preview if r["status"] in ("duplicate", "unchanged"))
 
 
-def _preview_response(batch: UploadBatch) -> dict:
+def _preview_response(batch: UploadBatch, ctx: ClientContext) -> dict:
     preview = json.loads(batch.staged_rows) if batch.staged_rows else []
-    return {"batch": serialize.batch(batch), "rows": preview, "attestation": ATTESTATION}
+    seg = _segment(ctx)
+    cols = upload.columns_for(seg, batch.mode)
+    return {"batch": serialize.batch(batch), "rows": preview,
+            "attestation": ATTESTATION if batch.mode == "new" else UPDATE_ATTESTATION,
+            "columns": [{"name": c.name, "label": c.label, "required": c.required} for c in cols]}
+
+
+@router.get("/upload-template.{fmt}")
+def upload_template(fmt: str, mode: str = "new", ctx: ClientContext = Depends(require_client)):
+    """The client's own segment template (the public endpoint serves a segment by key)."""
+    return template_response(_segment(ctx), mode, fmt)
 
 
 @router.post("/uploads", status_code=201)
 async def create_upload(
-    file: UploadFile = File(...), ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db)
+    file: UploadFile = File(...), mode: str = Form("new"),
+    ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db),
 ):
+    if mode not in ("new", "update"):
+        raise HTTPException(422, "Upload type must be new or update.")
     if ctx.client.status in (ClientStatus.REJECTED, ClientStatus.SUSPENDED):
         raise HTTPException(403, f"Uploads are unavailable while your account is {ctx.client.status.lower()}.")
     data = await file.read(10 * 1024 * 1024 + 1)
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(413, "The file is larger than 10 MB.")
     try:
-        rows = upload.read_rows(file.filename or "upload", data)
+        rows = upload.read_for(_segment(ctx), mode, file.filename or "upload", data)
     except upload.UploadRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     cap = ctx.client.upload_row_cap
@@ -179,22 +273,23 @@ async def create_upload(
             422, f"This file has {len(rows)} rows. Your account can upload up to {cap} rows at a time for now — "
             "split the file, or ask us to raise your limit."
         )
-    preview = upload.build_preview(rows, _existing_keys(db, ctx.client.id))
-    batch = UploadBatch(client_id=ctx.client.id, file_name=(file.filename or "upload")[:255], uploaded_by=ctx.user.id)
+    preview = _build(db, ctx, mode, rows)
+    batch = UploadBatch(client_id=ctx.client.id, file_name=(file.filename or "upload")[:255], uploaded_by=ctx.user.id,
+                        mode=mode)
     _store_preview(batch, preview)
     db.add(batch)
     db.flush()
     audit.record(db, ctx.actor, "upload.previewed", "UploadBatch", batch.id,
-                 after={"file_name": batch.file_name, "rows": batch.row_count, "valid": batch.valid_count,
+                 after={"file_name": batch.file_name, "mode": mode, "rows": batch.row_count, "valid": batch.valid_count,
                         "errors": batch.error_count, "duplicates": batch.duplicate_count})
     db.commit()
-    return _preview_response(batch)
+    return _preview_response(batch, ctx)
 
 
 @router.get("/uploads/{batch_id}")
 def get_upload(batch_id: str, ctx: ClientContext = Depends(require_client), db: Session = Depends(get_db)):
     batch = _owned(db, UploadBatch, batch_id, ctx)
-    out = _preview_response(batch)
+    out = _preview_response(batch, ctx)
     if batch.status == "Imported":
         out["accounts"] = db.execute(
             select(func.count()).select_from(DebtorAccount).where(DebtorAccount.batch_id == batch.id)
@@ -206,17 +301,18 @@ class FixesIn(BaseModel):
     fixes: dict[str, dict[str, str]] = {}  # row number -> corrected raw values
 
 
-def _apply_fixes(db: Session, batch: UploadBatch, fixes: dict[str, dict[str, str]], client_id: str) -> list[dict]:
+def _apply_fixes(db: Session, batch: UploadBatch, fixes: dict[str, dict[str, str]], ctx: ClientContext) -> list[dict]:
     preview = json.loads(batch.staged_rows or "[]")
     by_row = {str(r["row"]): r for r in preview}
+    allowed = {c.name for c in upload.columns_for(_segment(ctx), batch.mode)}
     for row_no, raw in fixes.items():
         if row_no not in by_row:
             raise HTTPException(422, f"Row {row_no} isn't in this upload.")
-        extra = set(raw) - set(upload.COLUMNS)
+        extra = set(raw) - allowed
         if extra:
             raise HTTPException(422, f"Unexpected column(s): {', '.join(sorted(extra))}.")
         by_row[row_no]["raw"] = {**by_row[row_no]["raw"], **{k: str(v) for k, v in raw.items()}}
-    rebuilt = upload.build_preview([r["raw"] for r in preview], _existing_keys(db, client_id))
+    rebuilt = _build(db, ctx, batch.mode, [r["raw"] for r in preview])
     for old, new in zip(preview, rebuilt):
         new["row"] = old["row"]
     return rebuilt
@@ -227,15 +323,64 @@ def revalidate(batch_id: str, body: FixesIn, ctx: ClientContext = Depends(requir
     batch = _owned(db, UploadBatch, batch_id, ctx)
     if batch.status != "Preview":
         raise HTTPException(409, "This upload has already been processed.")
-    _store_preview(batch, _apply_fixes(db, batch, body.fixes, ctx.client.id))
+    _store_preview(batch, _apply_fixes(db, batch, body.fixes, ctx))
     db.commit()
-    return _preview_response(batch)
+    return _preview_response(batch, ctx)
 
 
 class ImportIn(BaseModel):
     attest: bool
     skip_rows: list[int] = []
-    rules: dict | None = None  # None → client default rules
+    rules: dict | None = None  # None → client default rules (new accounts only)
+
+
+def _import_new(db: Session, batch: UploadBatch, preview: list[dict], skip: set[int], ctx: ClientContext) -> int:
+    existing = _existing_keys(db, ctx.client.id)
+    imported = 0
+    for row in preview:
+        if row["status"] != "valid" or row["row"] in skip:
+            continue
+        c = row["clean"]
+        key = upload.duplicate_key(c)
+        if key in existing:  # another upload landed since this preview was built
+            continue
+        existing.add(key)
+        ref = c.get("external_reference")
+        db.add(DebtorAccount(
+            client_id=ctx.client.id, batch_id=batch.id, reference_code=service.new_reference_code(db),
+            debtor_name=c["debtor_name"], phone=c["phone"], phone_index=crypto.blind_index(c["phone"]),
+            dedupe_key=key, email=c["email"], description=c["description"],
+            dependant_first_name=c["dependant_first_name"], original_amount=c["amount_kobo"],
+            balance=c["amount_kobo"], due_date=date.fromisoformat(c["due_date"]) if c["due_date"] else None,
+            external_reference=ref, external_ref_index=upload.reference_index(ref) if ref else None,
+            extra=json.dumps(c["extra"]) if c["extra"] else None,
+            status=AccountStatus.NEW, access_token=crypto.new_token(),
+        ))
+        db.flush()
+        imported += 1
+    return imported
+
+
+def _import_update(db: Session, preview: list[dict], skip: set[int], ctx: ClientContext) -> int:
+    today = _today()
+    applied = 0
+    for row in preview:
+        if row["status"] != "valid" or row["row"] in skip:
+            continue
+        c = row["clean"]
+        account = db.get(DebtorAccount, row["account"]["id"])
+        if account is None or account.client_id != ctx.client.id:
+            continue
+        try:
+            service.apply_balance_update(
+                db, account, new_balance=c["amount_kobo"],
+                due_date=date.fromisoformat(c["due_date"]) if c["due_date"] else None,
+                reason=c.get("reason"), actor=ctx.actor, today=today,
+            )
+        except service.ActionError:
+            continue  # the account changed since the preview (closed or disputed): leave it
+        applied += 1
+    return applied
 
 
 @router.post("/uploads/{batch_id}/import")
@@ -246,43 +391,28 @@ def import_upload(batch_id: str, body: ImportIn, ctx: ClientContext = Depends(re
     if not body.attest:
         raise HTTPException(422, "Please confirm the attestation before importing.")
     rules = None
-    if body.rules is not None:
+    if body.rules is not None and batch.mode == "new":
         try:
             rules = validate_rules(body.rules)
         except RulesInvalid as exc:
             raise HTTPException(422, str(exc)) from exc
     preview = json.loads(batch.staged_rows or "[]")
     skip = set(body.skip_rows)
-    existing = _existing_keys(db, ctx.client.id)
-    imported = 0
-    for row in preview:
-        if row["status"] != "valid" or row["row"] in skip:
-            continue
-        c = row["clean"]
-        key = upload.duplicate_key(c["phone"], c["description"], c["amount_kobo"])
-        if key in existing:  # another upload landed since this preview was built
-            continue
-        existing.add(key)
-        db.add(DebtorAccount(
-            client_id=ctx.client.id, batch_id=batch.id, reference_code=service.new_reference_code(db),
-            debtor_name=c["debtor_name"], phone=c["phone"], phone_index=crypto.blind_index(c["phone"]),
-            dedupe_key=key, email=c["email"], description=c["description"],
-            dependant_first_name=c["dependant_first_name"], original_amount=c["amount_kobo"],
-            balance=c["amount_kobo"], due_date=date.fromisoformat(c["due_date"]) if c["due_date"] else None,
-            status=AccountStatus.NEW, access_token=crypto.new_token(),
-        ))
-        db.flush()
-        imported += 1
+    if batch.mode == "update":
+        imported = _import_update(db, preview, skip, ctx)
+    else:
+        imported = _import_new(db, batch, preview, skip, ctx)
     if imported == 0:
         raise HTTPException(422, "There are no valid rows to import.")
     now = utcnow()
+    attestation = ATTESTATION if batch.mode == "new" else UPDATE_ATTESTATION
     batch.status, batch.imported_count, batch.staged_rows = "Imported", imported, None
-    batch.attested_by, batch.attested_at, batch.attestation_text = ctx.user.id, now, ATTESTATION
+    batch.attested_by, batch.attested_at, batch.attestation_text = ctx.user.id, now, attestation
     batch.rules = json.dumps(rules) if rules else None
     audit.record(db, ctx.actor, "upload.attested", "UploadBatch", batch.id,
-                 after={"attestation": ATTESTATION, "attested_at": now})
+                 after={"attestation": attestation, "attested_at": now})
     audit.record(db, ctx.actor, "upload.imported", "UploadBatch", batch.id,
-                 after={"imported": imported, "skipped_rows": sorted(skip), "rules": rules})
+                 after={"mode": batch.mode, "imported": imported, "skipped_rows": sorted(skip), "rules": rules})
     db.commit()
     return {"batch": serialize.batch(batch)}
 
@@ -569,7 +699,7 @@ class SettingsIn(BaseModel):
 def update_settings(body: SettingsIn, ctx: ClientContext = Depends(require_owner), db: Session = Depends(get_db)):
     client = ctx.client
     changes = body.model_dump(exclude_unset=True)
-    if "business_type" in changes and changes["business_type"] not in BUSINESS_TYPES:
+    if "business_type" in changes and changes["business_type"] not in _segment(ctx).client_types:
         raise HTTPException(422, "Choose a business type.")
     if "state" in changes and changes["state"] not in NIGERIAN_STATES:
         raise HTTPException(422, "Choose a state.")

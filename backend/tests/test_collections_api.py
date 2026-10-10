@@ -44,7 +44,7 @@ TODAY = lambda: lagos_date(utcnow())  # noqa: E731
 
 def _signup_payload(**overrides):
     body = {
-        "business_name": "Sunrise Academy", "business_type": "School", "contact_name": "Ngozi Eze", "role": "Bursar",
+        "segment": "school", "business_name": "Sunrise Academy", "business_type": "Secondary school", "contact_name": "Ngozi Eze", "role": "Bursar",
         "email": "ngozi@sunrise.example", "phone": "0803 123 4567", "state": "Lagos", "city": "Yaba",
         "bank_name": "Access Bank", "account_number": "0123456789", "account_name": "Sunrise Academy Ltd",
         "password": "school-fees-2026", "accept_terms": True, "accept_dpa": True, "accept_privacy": True,
@@ -534,7 +534,7 @@ def test_role_boundaries(cl_api, cl_db):
     assert cl_api.get("/collections/client/me", headers=ops_h).status_code == 401
     assert cl_api.get("/collections/client/me").status_code == 401
     # ops (non-admin) can't edit templates or config
-    assert cl_api.post("/collections/ops/templates/INTRO", json={"body": "x" * 30}, headers=ops_h).status_code == 403
+    assert cl_api.post("/collections/ops/templates/school/INTRO", json={"body": "x" * 30}, headers=ops_h).status_code == 403
     assert cl_api.put("/collections/ops/config/default_fee_percent", json={"value": 10}, headers=ops_h).status_code == 403
     # there is no ops endpoint to confirm a payment
     assert not any("confirm" in getattr(r, "path", "") for r in __import__("app.collections.api.ops", fromlist=["router"]).router.routes)
@@ -550,9 +550,9 @@ def test_role_boundaries(cl_api, cl_db):
 def test_admin_template_edit_is_versioned_and_checked(cl_api, cl_db):
     _, admin_h = make_ops(cl_db, role="Admin")
     bad = "Hello {{debtor_first_name}}, pay or we go to court. {{client_name}} via Waterline {{link}} Reply STOP to stop messages."
-    assert cl_api.post("/collections/ops/templates/REMINDER", json={"body": bad}, headers=admin_h).status_code == 409
+    assert cl_api.post("/collections/ops/templates/school/REMINDER", json={"body": bad}, headers=admin_h).status_code == 409
     good = "Hello {{debtor_first_name}}, a gentle reminder from {{client_name}} via Waterline: {{balance}}. {{link}} Reply STOP to stop messages."
-    r = cl_api.post("/collections/ops/templates/REMINDER", json={"body": good}, headers=admin_h)
+    r = cl_api.post("/collections/ops/templates/school/REMINDER", json={"body": good}, headers=admin_h)
     assert r.status_code == 200 and r.json()["version"] == 2
 
 

@@ -23,7 +23,7 @@ from app.collections.models import (
     PaymentPlan,
     UploadBatch,
 )
-from app.collections.money import format_naira, percent_of
+from app.collections.money import format_naira
 from app.collections.rules import active_discount, effective_rules, plan_options
 from app.collections.timeutil import lagos_date, utcnow
 
@@ -350,12 +350,17 @@ def confirm_payment(db: Session, payment: DebtorPayment, amount_received: int | 
         discount_applied = 0
 
     payment.fee_eligible = fee_eligibility(db, payment, account, client)
-    payment.fee_amount = percent_of(amount, client.fee_percent) if payment.fee_eligible else 0
+    if payment.fee_eligible:
+        from app.collections import fees  # fees imports this module
+
+        payment.fee_percent, payment.fee_amount = fees.fee_for(client, account, amount, payment.paid_on)
+    else:
+        payment.fee_percent, payment.fee_amount = None, 0
     audit.record(
         db, actor, "payment.confirmed", "Payment", payment.id, client_id=client.id,
         before={**before, "claimed": payment.amount_claimed},
         after={"amount_confirmed": amount, "balance": account.balance, "fee_eligible": payment.fee_eligible,
-               "fee_amount": payment.fee_amount, "discount_applied": discount_applied},
+               "fee_amount": payment.fee_amount, "fee_percent": payment.fee_percent, "discount_applied": discount_applied},
     )
     mark_response(account)
     settle_status(db, account, actor, "payment confirmed")
@@ -420,8 +425,15 @@ def reverse_payment(db: Session, payment: DebtorPayment, reason: str, actor: Act
 
 
 def _retotal(invoice) -> None:
+    from decimal import ROUND_HALF_UP, Decimal
+
     invoice.total_confirmed = sum(l.amount for l in invoice.lines)
     invoice.fee_amount = sum(l.fee for l in invoice.lines)
+    # effective rate: lines may carry different rates under a tiered schedule
+    invoice.fee_percent = (
+        (Decimal(invoice.fee_amount) * 100 / Decimal(invoice.total_confirmed)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        if invoice.total_confirmed else 0
+    )
 
 
 # ---------------------------------------------------------------- disputes
@@ -577,3 +589,48 @@ def token_valid(account: DebtorAccount | None, now: datetime) -> bool:
         return False
     client = account.client
     return client is not None and client.status in (ClientStatus.APPROVED, ClientStatus.SUSPENDED)
+
+
+def apply_balance_update(
+    db: Session, account: DebtorAccount, *, new_balance: int, due_date: date | None, reason: str | None,
+    actor: Actor, today: date,
+) -> None:
+    """One row of an 'update balances' upload.
+
+    - Higher: new charges or interest — balance (and the original amount) go up.
+    - Lower, reason 'payment' (the default): the debtor paid the client directly.
+      Recorded as a client-recorded, confirmed payment, so the usual fee rules
+      apply — a balance update can't quietly skip a recovery.
+    - Lower, reason 'correction': the amount was wrong. Balance changes, no
+      payment; corrected to zero closes the account as Withdrawn (no fee).
+    """
+    if account.status in AccountStatus.CLOSED:
+        raise ActionError("That account is already closed.")
+    if account.status == AccountStatus.DISPUTED:
+        raise ActionError("Resolve the open query before changing the balance.")
+    before = account_snapshot(account)
+    change = new_balance - account.balance
+    if due_date:
+        account.due_date = due_date
+    if change > 0:
+        account.balance = new_balance
+        account.original_amount += change
+        plan = active_plan(db, account)
+        if plan:
+            plan.status = "Broken"  # amounts changed; the debtor picks a new plan
+        settle_status(db, account, actor, "balance increased by client")
+    elif change < 0 and (reason or "payment") == "payment":
+        record_client_payment(db, account, amount=-change, paid_on=today,
+                              note="Balance update upload", actor=actor, today=today)
+    elif change < 0:
+        account.balance = new_balance
+        plan = active_plan(db, account)
+        if plan:
+            plan.status = "Broken"
+        if new_balance == 0:
+            withdraw_account(db, account, actor)
+        else:
+            settle_status(db, account, actor, "balance corrected by client")
+    audit.record(db, actor, "account.balance_updated", "DebtorAccount", account.id, client_id=account.client_id,
+                 before=before, after={"balance": account.balance, "change": change, "reason": reason,
+                                       "due_date": due_date})

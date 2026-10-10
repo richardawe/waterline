@@ -1,6 +1,7 @@
-"""Fixed, Waterline-owned message templates. Clients can never write message
-text; only Waterline Admin can add a new template version, and every
-version is checked against the conduct rules before it's saved."""
+"""Fixed, Waterline-owned message templates, one set per client segment.
+Clients can never write message text; only Waterline Admin can add a new
+template version, and every version is checked against the global conduct
+rules plus the segment's own banned wording before it's saved."""
 
 import re
 
@@ -11,36 +12,8 @@ from app.collections.models import MessageTemplate
 
 STOP_LINE = "Reply STOP to stop messages."
 
-DEFAULT_TEMPLATES = {
-    "INTRO": (
-        "Hello {{debtor_first_name}}, this is a message from {{client_name}} via Waterline. Our records show an "
-        "outstanding balance of {{balance}} for {{description}}. You can view the details, pay, or choose a payment "
-        "plan here: {{link}}. If you've already paid or think this is wrong, let us know on the same link. "
-        "Reply STOP to stop messages."
-    ),
-    "REMINDER": (
-        "Hello {{debtor_first_name}}, a quick reminder from {{client_name}} via Waterline about the balance of "
-        "{{balance}} for {{description}}. {{discount_line}} Details and payment options: {{link}}. "
-        "Reply STOP to stop messages."
-    ),
-    # The spec drafts of the next three omitted "via Waterline" (and, for
-    # DISPUTE_RESOLVED, the STOP line), which the same spec requires on every
-    # message — added with the smallest wording change so the rule has no
-    # exceptions.
-    "PLAN_OFFER": (
-        "Hello {{debtor_first_name}}, this is {{client_name}} via Waterline. We understand things can be tight. "
-        "You can clear the {{balance}} balance in smaller instalments. Choose a plan that works for you: {{link}}. "
-        "Reply STOP to stop messages."
-    ),
-    "INSTALMENT_DUE": (
-        "Hello {{debtor_first_name}}, your next instalment of {{instalment_amount}} to {{client_name}} via Waterline "
-        "is due on {{due_date}}. Pay and upload your receipt here: {{link}}. Reply STOP to stop messages."
-    ),
-    "DISPUTE_RESOLVED": (
-        "Hello {{debtor_first_name}}, {{client_name}} has reviewed your query about {{description}} via Waterline. "
-        "See the outcome and your updated balance here: {{link}}. Reply STOP to stop messages."
-    ),
-}
+# Template bodies are defined per segment in app.collections.segments; this
+# module owns the conduct check, versioning and rendering.
 
 PLACEHOLDERS = {
     "debtor_first_name", "client_name", "description", "balance", "link",
@@ -65,9 +38,10 @@ class TemplateRejected(ValueError):
     pass
 
 
-def check_template(body: str) -> None:
+def check_template(body: str, segment=None) -> None:
     lowered = body.lower()
-    for pattern in FORBIDDEN_PATTERNS:
+    patterns = FORBIDDEN_PATTERNS + list(getattr(segment, "extra_forbidden", ()) or ())
+    for pattern in patterns:
         if re.search(pattern, lowered):
             raise TemplateRejected(f"Template contains forbidden wording (matched '{pattern}').")
     unknown = set(re.findall(r"{{\s*(\w+)\s*}}", body)) - PLACEHOLDERS
@@ -82,42 +56,60 @@ def check_template(body: str) -> None:
         raise TemplateRejected(f'Template must include "{STOP_LINE}"')
 
 
-def ensure_defaults(db: Session) -> None:
-    for key, body in DEFAULT_TEMPLATES.items():
-        exists = db.execute(
-            select(MessageTemplate.id).where(MessageTemplate.key == key, MessageTemplate.language == "en")
-        ).first()
-        if not exists:
-            db.add(MessageTemplate(key=key, language="en", version=1, body=body, is_active=True, created_by="system"))
+def ensure_defaults(db: Session, segment_key: str | None = None) -> None:
+    from app.collections import segments
+
+    keys = [segment_key] if segment_key else list(segments.SEGMENTS)
+    for seg_key in keys:
+        seg = segments.get(seg_key)
+        have = set(db.execute(
+            select(MessageTemplate.key).where(MessageTemplate.segment == seg_key, MessageTemplate.language == "en")
+        ).scalars())
+        for key, body in seg.templates.items():
+            if key not in have:
+                db.add(MessageTemplate(segment=seg_key, key=key, language="en", version=1, body=body,
+                                       is_active=True, created_by="system"))
     db.flush()
 
 
-def active(db: Session, key: str, language: str = "en") -> MessageTemplate:
-    tpl = db.execute(
-        select(MessageTemplate)
-        .where(MessageTemplate.key == key, MessageTemplate.language == language, MessageTemplate.is_active.is_(True))
-        .order_by(MessageTemplate.version.desc())
-    ).scalars().first()
+def active(db: Session, key: str, segment_key: str, language: str = "en") -> MessageTemplate:
+    def lookup():
+        return db.execute(
+            select(MessageTemplate)
+            .where(MessageTemplate.segment == segment_key, MessageTemplate.key == key,
+                   MessageTemplate.language == language, MessageTemplate.is_active.is_(True))
+            .order_by(MessageTemplate.version.desc())
+        ).scalars().first()
+
+    tpl = lookup()
     if tpl is None:
-        ensure_defaults(db)
-        return active(db, key, language)
+        ensure_defaults(db, segment_key)
+        tpl = lookup()
     return tpl
 
 
-def new_version(db: Session, key: str, body: str, language: str, actor_id: str) -> MessageTemplate:
-    if key not in DEFAULT_TEMPLATES:
+def new_version(db: Session, segment_key: str, key: str, body: str, language: str, actor_id: str) -> MessageTemplate:
+    from app.collections import segments
+
+    try:
+        seg = segments.get(segment_key)
+    except KeyError as exc:
+        raise TemplateRejected(f"Unknown segment {segment_key}.") from exc
+    if key not in segments.TEMPLATE_KEYS:
         raise TemplateRejected(f"Unknown template key {key}.")
     if language not in LANGUAGES:
         raise TemplateRejected(f"Language {language} is not enabled yet.")
-    check_template(body)
-    ensure_defaults(db)
+    check_template(body, seg)
+    ensure_defaults(db, segment_key)
     current = db.execute(
-        select(MessageTemplate).where(MessageTemplate.key == key, MessageTemplate.language == language)
+        select(MessageTemplate).where(MessageTemplate.segment == segment_key, MessageTemplate.key == key,
+                                      MessageTemplate.language == language)
     ).scalars().all()
     for row in current:
         row.is_active = False
     version = max((r.version for r in current), default=0) + 1
-    tpl = MessageTemplate(key=key, language=language, version=version, body=body, is_active=True, created_by=actor_id)
+    tpl = MessageTemplate(segment=segment_key, key=key, language=language, version=version, body=body,
+                          is_active=True, created_by=actor_id)
     db.add(tpl)
     db.flush()
     return tpl

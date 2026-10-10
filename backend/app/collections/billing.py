@@ -71,14 +71,14 @@ def draft_invoices(db: Session, period_start: date, actor: Actor = audit.SYSTEM)
         if invoice is None:
             invoice = Invoice(
                 number=_invoice_number(client, period_start), client_id=client_id, period_start=period_start,
-                period_end=period_end, fee_percent=client.fee_percent, status="Draft",
+                period_end=period_end, fee_percent=0, status="Draft",
             )
             db.add(invoice)
         for p in rows:
             account = db.get(DebtorAccount, p.account_id)
             invoice.lines.append(InvoiceLine(
                 payment_id=p.id, reference_code=account.reference_code, debtor_name=account.debtor_name,
-                amount=p.amount_confirmed, paid_on=p.paid_on, fee=p.fee_amount,
+                amount=p.amount_confirmed, paid_on=p.paid_on, fee=p.fee_amount, fee_percent=p.fee_percent,
             ))
         service._retotal(invoice)
         db.flush()
@@ -102,7 +102,7 @@ def issue_invoice(db: Session, invoice: Invoice, actor: Actor, today: date) -> I
         db, invoice.client_id, f"Waterline Collections invoice {invoice.number}",
         f"Your success-fee invoice for {invoice.period_start:%B %Y} is ready.\n\n"
         f"Recovered and confirmed: {format_naira(invoice.total_confirmed)}\n"
-        f"Fee ({invoice.fee_percent}%): {format_naira(invoice.fee_amount)}\n"
+        f"Success fee: {format_naira(invoice.fee_amount)}\n"
         f"Due by: {invoice.due_at:%d/%m/%Y}\n\n"
         f"Pay to: {bank['account_name']}, {bank['bank_name']}, {bank['account_number']}. "
         f"Use {invoice.number} as the narration.\n\n"

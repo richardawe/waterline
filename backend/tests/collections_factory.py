@@ -27,11 +27,17 @@ def wat(d: date, hour: int = 10, minute: int = 0) -> datetime:
     return lagos_datetime(d, time(hour, minute))
 
 
-def make_client(db, name="Greenfield School", status=ClientStatus.APPROVED, email=None, **kw) -> tuple[Client, ClientUser]:
+SEGMENT_TYPES = {"school": "Secondary school", "estate": "Estate management", "lender": "Microfinance bank",
+                 "service": "Gym or club"}
+
+
+def make_client(db, name="Greenfield School", status=ClientStatus.APPROVED, email=None, segment="school",
+                **kw) -> tuple[Client, ClientUser]:
     now = utcnow()
+    fee_schedule = kw.pop("fee_schedule", None) or {"type": "flat", "percent": kw.pop("fee_percent", 20)}
     client = Client(
-        business_name=name, business_type="School", state="Lagos", city="Ikeja", status=status,
-        fee_percent=kw.pop("fee_percent", 20), attribution_days=kw.pop("attribution_days", 60),
+        business_name=name, segment=segment, business_type=SEGMENT_TYPES[segment], state="Lagos", city="Ikeja",
+        status=status, fee_schedule=json.dumps(fee_schedule), attribution_days=kw.pop("attribution_days", 60),
         bank_name="GTBank", account_number="0123456789", account_name=name,
         terms_accepted_at=now, dpa_accepted_at=now, privacy_accepted_at=now, **kw,
     )

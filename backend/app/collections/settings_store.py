@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.collections.models import ConfigEntry
 
 DEFAULTS: dict = {
-    "default_fee_percent": 20,
     "default_attribution_days": 60,
     "first_upload_row_cap": 500,
     "max_teammates": 3,
@@ -19,7 +18,6 @@ DEFAULTS: dict = {
     "dispute_flag_working_days": 10,
     "abuse_rate_threshold": 0.15,
     "retention_months": 12,
-    "plan_broken_after_days": 14,
     "email_fallback_enabled": True,
     "contact_email": "collections@waterline.ng",
     "contact_whatsapp": "+234 000 000 0000",
@@ -39,7 +37,7 @@ DEFAULTS: dict = {
     ],
 }
 
-PUBLIC_KEYS = ("default_fee_percent", "contact_email", "contact_whatsapp")
+PUBLIC_KEYS = ("contact_email", "contact_whatsapp")
 
 
 def get(db: Session, key: str):

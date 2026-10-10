@@ -21,10 +21,12 @@
 <h1>Get started</h1>
 <p class="muted">No upfront cost. You only pay when your customers pay.</p>
 <form id="signup" class="card" novalidate>
-  <h2>Your business</h2>
-  <div class="field"><label for="business_name">Business name</label><input id="business_name" name="business_name" type="text" required autocomplete="organization"></div>
+  <h2>Your organisation</h2>
+  <div class="field"><label for="segment">What kind of organisation are you?</label><select id="segment" name="segment" required></select>
+    <div class="hint" id="segment-hint"></div></div>
+  <div class="field"><label for="business_name">Organisation name</label><input id="business_name" name="business_name" type="text" required autocomplete="organization"></div>
   <div class="grid2">
-    <div class="field"><label for="business_type">Business type</label><select id="business_type" name="business_type" required><option value="">Choose…</option></select></div>
+    <div class="field"><label for="business_type">Type</label><select id="business_type" name="business_type" required><option value="">Choose…</option></select></div>
     <div class="field"><label for="role">Your role</label><input id="role" name="role" type="text" required placeholder="e.g. Bursar, Proprietor"></div>
   </div>
   <div class="field"><label for="contact_name">Your name</label><input id="contact_name" name="contact_name" type="text" required autocomplete="name"></div>
@@ -36,6 +38,7 @@
     <div class="field"><label for="state">State</label><select id="state" name="state" required><option value="">Choose…</option></select></div>
     <div class="field"><label for="city">City</label><input id="city" name="city" type="text" required></div>
   </div>
+  <div id="client-fields"></div>
   <h2 style="margin-top:10px">Where your customers pay</h2>
   <p class="small muted">Payments go straight into this account. We never hold your money.</p>
   <div class="field"><label for="bank_name">Bank name</label><input id="bank_name" name="bank_name" type="text" required></div>
@@ -43,6 +46,15 @@
     <div class="field"><label for="account_number">Account number</label><input id="account_number" name="account_number" type="text" inputmode="numeric" maxlength="10" required></div>
     <div class="field"><label for="account_name">Account name</label><input id="account_name" name="account_name" type="text" required></div>
   </div>
+  <h2 style="margin-top:10px">Your fee</h2>
+  <p class="small" id="fee-default">You pay a success fee only on money you confirm you've recovered.</p>
+  <details style="margin-bottom:14px"><summary>Propose a different rate (optional)</summary>
+    <div style="margin-top:10px">
+      <div class="field"><label for="proposed_fee_percent">Your proposed fee (%)</label><input id="proposed_fee_percent" name="proposed_fee_percent" type="number" min="1" max="50" step="0.5" inputmode="decimal"></div>
+      <div class="field"><label for="fee_note">Why? (optional)</label><textarea id="fee_note" name="fee_note" maxlength="1000" placeholder="e.g. we have 1,200 accounts to recover"></textarea>
+        <div class="hint">Our team reviews every proposal. Until it's approved, the standard fee applies.</div></div>
+    </div>
+  </details>
   <h2 style="margin-top:10px">Your login</h2>
   <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" minlength="10" required autocomplete="new-password"><div class="hint">At least 10 characters, mixing letters with numbers or symbols.</div></div>
   <div data-err="accept">
@@ -53,6 +65,7 @@
   <div id="form-msg"></div>
   <button class="btn block" type="submit">Create account</button>
 </form>
+<div id="waitlist-note" class="card hidden"></div>
 <div id="done" class="card hidden"><h2>Check your email</h2><p>We've sent a link to confirm your address. Once confirmed, you can log in and prepare your first upload while we verify your business.</p></div>
 <p class="small center">Already have an account? <a href="/collections/login/">Log in</a></p>
 </div></main>

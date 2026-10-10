@@ -18,7 +18,9 @@ from app.collections import (
     audit,
     billing,
     crypto,
+    fees,
     outreach,
+    segments,
     serialize,
     service,
     settings_store,
@@ -32,10 +34,13 @@ from app.collections.models import (
     ClientUser,
     DebtorAccount,
     DebtorPayment,
+    FeeProposal,
     Invoice,
     MessageTemplate,
     OutreachItem,
+    SegmentSetting,
     UploadBatch,
+    WaitlistEntry,
 )
 from app.collections.phone import normalise_phone
 from app.collections.timeutil import (
@@ -48,13 +53,16 @@ from app.db import get_db
 
 router = APIRouter(prefix="/collections/ops", tags=["collections-ops"])
 
-CHECKLIST = ["phone_call_made", "business_exists", "bank_name_matches", "contact_confirmed"]
+
+
+def _checklist(client: Client) -> list[str]:
+    return [k for k, _ in segments.get(client.segment).checklist]
 
 
 def _act(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
-    except (service.ActionError, outreach.OutreachRefused, templates.TemplateRejected) as exc:
+    except (service.ActionError, outreach.OutreachRefused, templates.TemplateRejected, fees.ProposalError) as exc:
         raise HTTPException(409, str(exc)) from exc
 
 
@@ -92,6 +100,10 @@ def overview(ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_d
         "overdue_confirmations": len(billing.overdue_confirmations(db, today)),
         "stale_disputes": len(billing.stale_disputes(db, today)),
         "draft_invoices": db.execute(select(func.count()).select_from(Invoice).where(Invoice.status == "Draft")).scalar_one(),
+        "pending_fee_proposals": db.execute(
+            select(func.count()).select_from(FeeProposal).where(FeeProposal.status == "Pending")).scalar_one(),
+        "new_waitlist": db.execute(
+            select(func.count()).select_from(WaitlistEntry).where(WaitlistEntry.status == "New")).scalar_one(),
     }
 
 
@@ -128,8 +140,11 @@ def client_detail(client_id: str, ctx: OpsContext = Depends(require_ops), db: Se
     batches = db.execute(select(UploadBatch).where(UploadBatch.client_id == c.id).order_by(UploadBatch.created_at.desc())).scalars()
     row = serialize.client_for_ops(c)
     row.update(_client_stats(db, c.id))
+    seg = segments.get(c.segment)
+    proposal = fees.pending(db, c.id)
     return {"client": row, "users": [serialize.user(u) for u in users], "batches": [serialize.batch(b) for b in batches],
-            "checklist_items": CHECKLIST}
+            "checklist_items": [{"key": k, "label": label} for k, label in seg.checklist],
+            "pending_fee_proposal": fees.proposal_view(proposal) if proposal else None}
 
 
 class VerificationIn(BaseModel):
@@ -140,7 +155,7 @@ class VerificationIn(BaseModel):
 @router.put("/clients/{client_id}/verification")
 def record_verification(client_id: str, body: VerificationIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
     c = _get(db, Client, client_id)
-    unknown = set(body.checklist) - set(CHECKLIST)
+    unknown = set(body.checklist) - set(_checklist(c))
     if unknown:
         raise HTTPException(422, f"Unknown checklist items: {', '.join(sorted(unknown))}")
     before = {"notes": c.verification_notes, "checklist": c.verification_checklist}
@@ -171,7 +186,7 @@ def set_client_status(client_id: str, body: StatusIn, ctx: OpsContext = Depends(
         raise HTTPException(422, "Give a reason.")
     if body.status == ClientStatus.APPROVED and c.status == ClientStatus.PENDING:
         checklist = json.loads(c.verification_checklist or "{}")
-        missing = [k for k in CHECKLIST if not checklist.get(k)]
+        missing = [k for k in _checklist(c) if not checklist.get(k)]
         if missing:
             raise HTTPException(409, f"Complete the verification checklist first ({', '.join(missing)}).")
     before = c.status
@@ -203,7 +218,7 @@ def set_client_status(client_id: str, body: StatusIn, ctx: OpsContext = Depends(
 
 class LimitsIn(BaseModel):
     upload_row_cap: int | None = Field(default=None, ge=1, le=100000)
-    fee_percent: float | None = Field(default=None, ge=0, le=50)
+    fee_schedule: dict | None = None  # see segments.validate_fee_schedule
     attribution_days: int | None = Field(default=None, ge=1, le=365)
     clear_flag: bool = False
 
@@ -212,9 +227,14 @@ class LimitsIn(BaseModel):
 def set_limits(client_id: str, body: LimitsIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
     c = _get(db, Client, client_id)
     changes = body.model_dump(exclude_unset=True, exclude={"clear_flag"})
-    if ("fee_percent" in changes or "attribution_days" in changes) and ctx.user.role != "Admin":
+    if ("fee_schedule" in changes or "attribution_days" in changes) and ctx.user.role != "Admin":
         raise HTTPException(403, "Only Waterline Admin can change fees.")
-    before = {k: (float(getattr(c, k)) if k == "fee_percent" else getattr(c, k)) for k in changes}
+    if "fee_schedule" in changes:
+        try:
+            changes["fee_schedule"] = json.dumps(segments.validate_fee_schedule(changes["fee_schedule"]))
+        except segments.FeeInvalid as exc:
+            raise HTTPException(422, str(exc)) from exc
+    before = {k: getattr(c, k) for k in changes}
     for k, v in changes.items():
         setattr(c, k, v)
     if body.clear_flag:
@@ -457,12 +477,16 @@ def paid(invoice_id: str, ctx: OpsContext = Depends(require_ops), db: Session = 
 
 
 @router.get("/templates")
-def list_templates(ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+def list_templates(segment: str | None = None, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
     templates.ensure_defaults(db)
     db.commit()
-    rows = db.execute(select(MessageTemplate).order_by(MessageTemplate.key, MessageTemplate.language, MessageTemplate.version.desc())).scalars()
-    return [{"id": t.id, "key": t.key, "language": t.language, "version": t.version, "body": t.body,
-             "is_active": t.is_active, "created_by": t.created_by, "created_at": t.created_at} for t in rows]
+    stmt = select(MessageTemplate).order_by(MessageTemplate.segment, MessageTemplate.key, MessageTemplate.language,
+                                             MessageTemplate.version.desc())
+    if segment:
+        stmt = stmt.where(MessageTemplate.segment == segment)
+    return [{"id": t.id, "segment": t.segment, "key": t.key, "language": t.language, "version": t.version,
+             "body": t.body, "is_active": t.is_active, "created_by": t.created_by, "created_at": t.created_at}
+            for t in db.execute(stmt).scalars()]
 
 
 class TemplateIn(BaseModel):
@@ -470,12 +494,158 @@ class TemplateIn(BaseModel):
     language: str = "en"
 
 
-@router.post("/templates/{key}")
-def save_template(key: str, body: TemplateIn, ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
-    tpl = _act(templates.new_version, db, key, body.body.strip(), body.language, ctx.user.id)
-    audit.record(db, ctx.actor, "template.versioned", "MessageTemplate", tpl.id, after={"key": key, "version": tpl.version})
+@router.post("/templates/{segment}/{key}")
+def save_template(segment: str, key: str, body: TemplateIn, ctx: OpsContext = Depends(require_ops_admin),
+                  db: Session = Depends(get_db)):
+    tpl = _act(templates.new_version, db, segment, key, body.body.strip(), body.language, ctx.user.id)
+    audit.record(db, ctx.actor, "template.versioned", "MessageTemplate", tpl.id,
+                 after={"segment": segment, "key": key, "version": tpl.version})
     db.commit()
-    return {"id": tpl.id, "key": tpl.key, "version": tpl.version}
+    return {"id": tpl.id, "segment": tpl.segment, "key": tpl.key, "version": tpl.version}
+
+
+# ---------------------------------------------------------------- segments (switch on/off, Admin)
+
+
+def _segment_row(db: Session, seg: segments.Segment) -> dict:
+    row = segments.setting(db, seg.key)
+    clients = db.execute(select(func.count()).select_from(Client).where(Client.segment == seg.key)).scalar_one()
+    waiting = db.execute(
+        select(func.count()).select_from(WaitlistEntry).where(WaitlistEntry.segment == seg.key, WaitlistEntry.status == "New")
+    ).scalar_one()
+    fee = segments.default_fee_schedule(db, seg.key)
+    return {
+        "key": seg.key, "name": seg.name, "tagline": seg.tagline, "status": segments.status(db, seg.key),
+        "default_status": seg.default_status, "client_types": list(seg.client_types), "terms": seg.terms,
+        "columns": [{"name": c.name, "required": c.required, "label": c.label} for c in seg.columns],
+        "checklist": [{"key": k, "label": label} for k, label in seg.checklist],
+        "base_policy": seg.policy, "policy": segments.policy(db, seg.key),
+        "policy_overrides": json.loads(row.policy_overrides) if row and row.policy_overrides else {},
+        "default_fee": fee, "default_fee_text": segments.describe_fee(fee),
+        "requires_policy_review": seg.requires_policy_review,
+        "policy_reviewed_at": row.policy_reviewed_at if row else None,
+        "clients": clients, "waitlist_new": waiting,
+    }
+
+
+@router.get("/segments")
+def list_segments(ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    return [_segment_row(db, seg) for seg in segments.SEGMENTS.values()]
+
+
+class SegmentIn(BaseModel):
+    status: str | None = None  # hidden / waitlist / live
+    policy_overrides: dict | None = None  # stricter-only; {} clears
+    default_fee_schedule: dict | None = None
+    confirm_policy_review: bool = False  # Admin confirms counsel has reviewed this segment's conduct policy
+
+
+@router.put("/segments/{key}")
+def update_segment(key: str, body: SegmentIn, ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
+    """Switch a segment on (live), to a waitlist, or hide it, and tune its
+    policy/fee. Existing clients of a segment keep working whatever its
+    status — status only controls the landing page and new sign-ups."""
+    if key not in segments.SEGMENTS:
+        raise HTTPException(404, "Not found.")
+    seg = segments.get(key)
+    row = segments.setting(db, key)
+    before = _segment_row(db, seg)
+    if row is None:
+        row = SegmentSetting(key=key, status=seg.default_status)
+        db.add(row)
+    if body.confirm_policy_review:
+        row.policy_reviewed_at, row.policy_reviewed_by = utcnow(), ctx.user.id
+    if body.policy_overrides is not None:
+        try:
+            clean = segments.validate_policy_override(seg, body.policy_overrides)
+        except segments.PolicyInvalid as exc:
+            raise HTTPException(422, str(exc)) from exc
+        row.policy_overrides = json.dumps(clean) if clean else None
+    if body.default_fee_schedule is not None:
+        try:
+            row.default_fee_schedule = json.dumps(segments.validate_fee_schedule(body.default_fee_schedule))
+        except segments.FeeInvalid as exc:
+            raise HTTPException(422, str(exc)) from exc
+    if body.status is not None:
+        if body.status not in segments.STATUSES:
+            raise HTTPException(422, "Status must be hidden, waitlist or live.")
+        if body.status == segments.STATUS_LIVE and seg.requires_policy_review and not row.policy_reviewed_at:
+            raise HTTPException(409, f"{seg.name} can't go live until an Admin confirms its conduct policy and "
+                                     "templates have been reviewed (by counsel).")
+        row.status = body.status
+    row.updated_by = ctx.user.id
+    db.flush()
+    after = _segment_row(db, seg)
+    keys = ("status", "policy_overrides", "default_fee")
+    audit.record(db, ctx.actor, "segment.updated", "Segment", key,
+                 before={k: before[k] for k in keys},
+                 after={**{k: after[k] for k in keys}, "policy_review_confirmed": body.confirm_policy_review})
+    db.commit()
+    return after
+
+
+# ---------------------------------------------------------------- fee proposals (Admin decides)
+
+
+@router.get("/fee-proposals")
+def fee_proposals(status: str = "Pending", ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    stmt = select(FeeProposal).order_by(FeeProposal.created_at.desc())
+    if status != "All":
+        stmt = stmt.where(FeeProposal.status == status)
+    out = []
+    for p in db.execute(stmt).scalars():
+        row = fees.proposal_view(p)
+        client = db.get(Client, p.client_id)
+        current = fees.schedule(client)
+        row.update(client_name=client.business_name, segment=client.segment,
+                   current=current, current_text=segments.describe_fee(current))
+        out.append(row)
+    return out
+
+
+class DecisionIn(BaseModel):
+    approve: bool
+    note: str | None = Field(default=None, max_length=1000)
+
+
+@router.post("/fee-proposals/{proposal_id}/decide")
+def decide_fee(proposal_id: str, body: DecisionIn, ctx: OpsContext = Depends(require_ops_admin),
+               db: Session = Depends(get_db)):
+    proposal = _get(db, FeeProposal, proposal_id)
+    _act(fees.decide, db, proposal, body.approve, body.note, ctx.actor)
+    db.commit()
+    return fees.proposal_view(proposal)
+
+
+# ---------------------------------------------------------------- waitlist
+
+
+@router.get("/waitlist")
+def waitlist(segment: str | None = None, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    stmt = select(WaitlistEntry).order_by(WaitlistEntry.created_at.desc())
+    if segment:
+        stmt = stmt.where(WaitlistEntry.segment == segment)
+    return [{"id": w.id, "segment": w.segment, "business_name": w.business_name, "business_type": w.business_type,
+             "contact_name": w.contact_name, "email": w.email, "phone": w.phone, "note": w.note, "status": w.status,
+             "created_at": w.created_at} for w in db.execute(stmt).scalars()]
+
+
+class WaitlistStatusIn(BaseModel):
+    status: str  # New / Contacted / Invited
+
+
+@router.post("/waitlist/{entry_id}/status")
+def waitlist_status(entry_id: str, body: WaitlistStatusIn, ctx: OpsContext = Depends(require_ops),
+                    db: Session = Depends(get_db)):
+    if body.status not in ("New", "Contacted", "Invited"):
+        raise HTTPException(422, "Status must be New, Contacted or Invited.")
+    entry = _get(db, WaitlistEntry, entry_id)
+    before = entry.status
+    entry.status = body.status
+    audit.record(db, ctx.actor, "waitlist.status_changed", "WaitlistEntry", entry.id,
+                 before={"status": before}, after={"status": body.status})
+    db.commit()
+    return {"id": entry.id, "status": entry.status}
 
 
 @router.get("/config")

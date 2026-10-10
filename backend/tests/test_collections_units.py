@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from app.collections import templates, totp, upload
+from app.collections import segments, templates, totp, upload
 from app.collections.money import format_naira, naira_to_kobo, percent_of
 from app.collections.outreach import links
 from app.collections.phone import normalise_phone
@@ -41,9 +41,10 @@ def test_money_parse_format_and_fee_rounding():
         naira_to_kobo("ten")
 
 
-def test_default_templates_pass_conduct_rules():
-    for body in templates.DEFAULT_TEMPLATES.values():
-        templates.check_template(body)
+def test_every_segment_definition_is_consistent():
+    # complete template sets that pass the conduct check, no third-party columns,
+    # required core fields, valid default fees
+    segments._check_definitions()
 
 
 @pytest.mark.parametrize("bad", [
@@ -61,7 +62,7 @@ def test_template_conduct_rules_reject(bad):
 
 
 def test_render_fills_and_collapses_empty_discount_line():
-    text = templates.render(templates.DEFAULT_TEMPLATES["REMINDER"], {
+    text = templates.render(segments.get("school").templates["REMINDER"], {
         "debtor_first_name": "Ada", "client_name": "Greenfield", "balance": "₦1.00", "description": "fees",
         "discount_line": "", "link": "https://x/p/t",
     })
@@ -117,23 +118,77 @@ def test_totp_roundtrip():
     assert not totp.verify(secret, code, now=1_700_000_000 + 600)
 
 
-def _csv(rows):
-    return ("\n".join([",".join(upload.COLUMNS)] + [",".join(r) for r in rows]) + "\n").encode()
+SCHOOL = segments.get("school")
 
 
-def test_upload_rejects_extra_columns():
-    data = b"debtor_name,phone,description,amount_owed,guarantor_name\nA,08031234567,fees,100,B\n"
+def _csv(seg, rows):
+    return ("\n".join([",".join(seg.column_names)] + [",".join(r) for r in rows]) + "\n").encode()
+
+
+@pytest.mark.parametrize("key", list(segments.SEGMENTS))
+def test_upload_rejects_extra_columns_in_every_segment(key):
+    seg = segments.get(key)
+    header = ",".join(seg.column_names + ["guarantor_name"])
     with pytest.raises(upload.UploadRejected, match="guarantor_name"):
-        upload.read_rows("x.csv", data)
+        upload.read_for(seg, "new", "x.csv", (header + "\n").encode())
 
 
-def test_upload_xlsx_roundtrip():
-    rows = upload.read_rows("t.xlsx", upload.template_xlsx())
-    preview = upload.build_preview(rows, set())
-    assert [p["status"] for p in preview] == ["valid", "valid"]
+@pytest.mark.parametrize("key", list(segments.SEGMENTS))
+def test_upload_xlsx_template_roundtrip_per_segment(key):
+    seg = segments.get(key)
+    rows = upload.read_for(seg, "new", "t.xlsx", upload.template_xlsx(seg))
+    preview = upload.build_preview(rows, seg, set())
+    assert {p["status"] for p in preview} == {"valid"}, preview
     assert preview[0]["clean"]["phone"] == "+2348031234567"
 
 
-def test_upload_rejects_child_surname_in_dependant_field():
-    rows = upload.read_rows("x.csv", _csv([["A B", "08031234567", "", "fees", "Tolu Okafor", "100", ""]]))
-    assert upload.build_preview(rows, set())[0]["status"] == "error"
+def test_lender_upload_requires_loan_reference_and_keeps_extra_fields():
+    seg = segments.get("lender")
+    rows = upload.read_for(seg, "new", "t.csv", upload.template_csv(seg).encode())
+    [first, _] = upload.build_preview(rows, seg, set())
+    assert first["clean"]["external_reference"] == "LN-2025-00981"
+    assert first["clean"]["extra"] == {"disbursed_on": "2025-09-01", "days_past_due": 34}
+    bad = upload.build_preview([{**rows[0], "loan_reference": ""}], seg, set())
+    assert bad[0]["status"] == "error"
+
+
+def test_school_only_accepts_child_first_name():
+    rows = upload.read_for(SCHOOL, "new", "x.csv", _csv(SCHOOL, [["A B", "08031234567", "", "fees", "", "Tolu Okafor", "100", ""]]))
+    assert upload.build_preview(rows, SCHOOL, set())[0]["status"] == "error"
+    estate = segments.get("estate")
+    with pytest.raises(upload.UploadRejected, match="dependant_first_name"):
+        upload.read_for(estate, "new", "x.csv", b"debtor_name,phone,description,amount_owed,dependant_first_name\n")
+
+
+def test_segment_templates_reject_segment_specific_wording():
+    body = ("Hello {{debtor_first_name}}, pay or we will evict you. {{client_name}} via Waterline {{link}} "
+            "Reply STOP to stop messages.")
+    templates.check_template(body.replace("evict you", "be glad"), segments.get("estate"))
+    with pytest.raises(templates.TemplateRejected):
+        templates.check_template(body, segments.get("estate"))
+
+
+def test_policy_overrides_can_only_tighten():
+    seg = segments.get("school")
+    assert segments.validate_policy_override(seg, {"contact_start": "09:00", "max_per_7_days": 1}) == {
+        "contact_start": "09:00", "max_per_7_days": 1}
+    for loosen in ({"contact_start": "07:00"}, {"contact_end": "20:00"}, {"max_per_7_days": 3},
+                   {"contact_weekdays": [0, 1, 2, 3, 4, 5, 6]}, {"sequence_days": [0, 1, 7]},
+                   {"repeat_every_days": 3}, {"max_unanswered": 9}, {"surprise": 1}):
+        with pytest.raises(segments.PolicyInvalid):
+            segments.validate_policy_override(seg, loosen)
+
+
+def test_fee_schedules_validate_and_tier_by_age():
+    tiered = segments.validate_fee_schedule({"type": "tiered_by_age", "tiers": [
+        {"max_days": 90, "percent": 15}, {"max_days": 180, "percent": 20}, {"max_days": None, "percent": 25}]})
+    assert [segments.fee_percent_for(tiered, d) for d in (0, 90, 91, 180, 181, 5000)] == [15, 15, 20, 20, 25, 25]
+    assert segments.describe_fee(tiered) == "15% (0–90 days overdue), 20% (91–180 days overdue), 25% (over 180 days overdue)"
+    assert segments.validate_fee_schedule({"type": "flat", "percent": "12.5"}) == {"type": "flat", "percent": 12.5}
+    for bad in ({"type": "flat", "percent": 0}, {"type": "flat", "percent": 51}, {"type": "weird"},
+                {"type": "tiered_by_age", "tiers": [{"max_days": 90, "percent": 10}]},
+                {"type": "tiered_by_age", "tiers": [{"max_days": 90, "percent": 10}, {"max_days": 30, "percent": 10},
+                                                    {"max_days": None, "percent": 10}]},
+                {"type": "tiered_by_age", "tiers": [{"max_days": 90, "percent": 10}, {"max_days": 120, "percent": 10}]}):
+        with pytest.raises(segments.FeeInvalid):
+            segments.validate_fee_schedule(bad)

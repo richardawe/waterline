@@ -97,20 +97,20 @@
         (Object.keys(s).length ? '<div class="row-btns">' + Object.keys(s).map(function (k) {
           return '<a class="pill" style="text-decoration:none;font-size:.85rem;padding:6px 12px" href="/collections/app/accounts/?status=' + encodeURIComponent(k) + '">' + esc(k) + ': ' + s[k] + '</a>';
         }).join('') + '</div>' : '<p class="muted">No accounts yet. <a href="/collections/app/uploads/new/">Upload your first list</a>.</p>') + '</div>' +
-        '<div class="row-btns"><a class="btn" href="/collections/app/uploads/new/">Upload balances</a><a class="btn ghost" href="/collections/app/accounts/">View accounts</a></div>';
+        '<div class="row-btns"><a class="btn" href="/collections/app/uploads/new/">Upload balances</a><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn ghost" href="/collections/app/accounts/">View accounts</a></div>';
     });
   };
   function stat(v, label) { return '<div class="stat"><b>' + esc(v) + '</b><span>' + esc(label) + '</span></div>'; }
 
   pages.uploads = function () {
     return get('/uploads').then(function (rows) {
-      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Uploads</h1><a class="btn" href="/collections/app/uploads/new/">New upload</a></div>' +
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Uploads</h1><div class="row-btns"><a class="btn ghost" href="/collections/app/uploads/new/?mode=update">Update balances</a><a class="btn" href="/collections/app/uploads/new/">New upload</a></div></div>' +
         (rows.length ? '<div class="card table-wrap"><table><thead><tr><th>File</th><th>Uploaded</th><th>Status</th><th class="right">Accounts</th><th>Rules</th><th></th></tr></thead><tbody>' +
           rows.map(function (b) {
             return '<tr><td>' + esc(b.file_name) + '</td><td class="nowrap">' + CL.date(b.created_at) + '</td><td>' + CL.pill(b.status === 'Preview' ? 'Draft' : b.status) + '</td>' +
-              '<td class="right">' + (b.status === 'Imported' ? '<a href="/collections/app/accounts/?batch_id=' + b.id + '">' + b.imported_count + '</a>' : b.valid_count + ' valid') + '</td>' +
+              '<td class="right">' + (b.mode === 'update' ? b.imported_count + ' updated' : b.status === 'Imported' ? '<a href="/collections/app/accounts/?batch_id=' + b.id + '">' + b.imported_count + '</a>' : b.valid_count + ' valid') + '</td>' +
               '<td class="small">' + esc(b.status === 'Imported' ? rulesSummary(b.rules) : '') + '</td>' +
-              '<td class="nowrap">' + (b.status === 'Preview' ? '<a class="btn sm ghost" href="/collections/app/uploads/new/?batch=' + b.id + '">Continue</a>' :
+              '<td class="nowrap">' + (b.status === 'Preview' ? '<a class="btn sm ghost" href="/collections/app/uploads/new/?batch=' + b.id + '">Continue</a>' : b.mode === 'update' ? '' :
                 '<button class="btn sm ghost" data-rules="' + b.id + '">Edit rules</button>') + '</td></tr>' +
               '<tr class="hidden" id="rules-' + b.id + '"><td colspan="6"><div class="card" style="margin:8px 0">' +
               '<label class="check"><input type="checkbox" id="def-' + b.id + '"' + (b.rules ? '' : ' checked') + '> Use my account default rules</label>' +
@@ -130,22 +130,41 @@
     });
   };
 
-  var COLS = ['debtor_name', 'phone', 'email', 'description', 'dependant_first_name', 'amount_owed', 'due_date'];
+  function colList(cols) {
+    var req = cols.filter(function (c) { return c.required; }), opt = cols.filter(function (c) { return !c.required; });
+    var item = function (c) { return '<b>' + esc(c.name) + '</b>' + (c.help ? ' (' + esc(c.help) + ')' : ''); };
+    return '<ul class="small muted" style="margin:12px 0 0;padding-left:20px"><li>Required: ' + req.map(item).join(', ') + '.</li>' +
+      (opt.length ? '<li>Optional: ' + opt.map(item).join(', ') + '.</li>' : '') + '</ul>';
+  }
+
   pages['upload-new'] = function () {
     var batchId = CL.param('batch');
     if (batchId) return get('/uploads/' + batchId).then(renderPreview);
-    var tplBase = CL.API + '/collections/public/upload-template';
-    view.innerHTML = '<h1>Upload balances</h1>' +
-      '<div class="card"><h2>1. Get the template</h2><p>Fill in one row per person who owes you. Only these columns are allowed — never add details of anyone other than the person who owes (no guarantors, relatives or employers).</p>' +
-      '<div class="row-btns"><a class="btn ghost" href="' + tplBase + '.xlsx">Excel template</a><a class="btn ghost" href="' + tplBase + '.csv">CSV template</a></div>' +
-      '<ul class="small muted" style="margin:12px 0 0;padding-left:20px"><li><b>debtor_name</b>, <b>phone</b>, <b>description</b> (e.g. "School fees – 2nd term 2025/26") and <b>amount_owed</b> in naira are required.</li>' +
-      '<li><b>email</b>, <b>due_date</b> (DD/MM/YYYY) and <b>dependant_first_name</b> (schools only — first name only, never a surname) are optional.</li></ul></div>' +
+    var mode = CL.param('mode') === 'update' ? 'update' : 'new';
+    var seg = ME.segment, t = seg.terms;
+    var cols = mode === 'update' ? seg.update_columns : seg.columns;
+    view.innerHTML = '<h1>' + (mode === 'update' ? 'Update balances' : 'Upload balances') + '</h1>' +
+      '<div class="tabs"><button data-mode="new"' + (mode === 'new' ? ' class="on"' : '') + '>Add new ' + esc(t.debtors) + '</button>' +
+      '<button data-mode="update"' + (mode === 'update' ? ' class="on"' : '') + '>Update existing balances</button></div>' +
+      '<div class="card"><h2>1. Get the template</h2>' +
+      (mode === 'new'
+        ? '<p>Fill in one row per ' + esc(t.debtor) + ' who owes you. Only these columns are allowed — never add details of anyone other than the person who owes (no guarantors, relatives, employers or references).</p>'
+        : '<p>One row per account whose balance has changed, matched on your <b>' + esc(t.reference.toLowerCase()) + '</b>. If a balance is lower because they paid you directly, put <b>payment</b> in the reason column — it\'s recorded as a recovery. Use <b>correction</b> only if the amount was wrong.</p>') +
+      '<div class="row-btns"><button class="btn ghost" data-tpl="xlsx">Excel template</button><button class="btn ghost" data-tpl="csv">CSV template</button></div>' +
+      colList(cols) + '</div>' +
       '<form class="card" id="up"><h2>2. Upload your file</h2><div class="field"><label for="file">CSV or Excel (.xlsx) file</label><input id="file" name="file" type="file" accept=".csv,.xlsx" required></div>' +
       '<div id="up-msg"></div><button class="btn" type="submit">Check file</button></form>';
+    CL.$$('[data-mode]').forEach(function (b) { b.onclick = function () { location.search = b.dataset.mode === 'update' ? '?mode=update' : ''; }; });
+    CL.$$('[data-tpl]').forEach(function (b) {
+      b.onclick = function () {
+        CL.download('/collections/client/upload-template.' + b.dataset.tpl + '?mode=' + mode, 'client',
+          'waterline-' + seg.key + (mode === 'update' ? '-balance-updates.' : '-balances.') + b.dataset.tpl).catch(fail);
+      };
+    });
     CL.$('#up').addEventListener('submit', function (e) {
       e.preventDefault();
       var f = CL.$('#file').files[0]; if (!f) return;
-      var fd = new FormData(); fd.append('file', f);
+      var fd = new FormData(); fd.append('file', f); fd.append('mode', mode);
       var btn = e.target.querySelector('button'); CL.busy(btn, true, 'Checking…');
       CL.api('/collections/client/uploads', { auth: 'client', form: fd }).then(function (r) {
         history.replaceState(null, '', '?batch=' + r.batch.id); renderPreview(r);
@@ -154,36 +173,52 @@
   };
 
   function renderPreview(r) {
-    var b = r.batch;
+    var b = r.batch, t = ME.segment.terms, upd = b.mode === 'update';
     if (b.status !== 'Preview') {
-      view.innerHTML = '<h1>Upload imported</h1><div class="banner ok">' + b.imported_count + ' accounts were added from ' + esc(b.file_name) + '.</div><a class="btn" href="/collections/app/accounts/?batch_id=' + b.id + '">View accounts</a>';
+      view.innerHTML = '<h1>' + (upd ? 'Balances updated' : 'Upload imported') + '</h1><div class="banner ok">' + b.imported_count +
+        (upd ? ' balances were updated from ' : ' accounts were added from ') + esc(b.file_name) + '.</div>' +
+        '<a class="btn" href="/collections/app/accounts/' + (upd ? '' : '?batch_id=' + b.id) + '">View accounts</a>';
       return;
     }
+    var COLS = (r.columns || []).map(function (c) { return c.name; });
     var rows = r.rows;
     var errors = rows.filter(function (x) { return x.status === 'error'; });
-    var dups = rows.filter(function (x) { return x.status === 'duplicate'; });
+    var dups = rows.filter(function (x) { return x.status === 'duplicate' || x.status === 'unchanged'; });
     var valid = rows.filter(function (x) { return x.status === 'valid'; });
-    view.innerHTML = '<h1>Check your upload</h1><p class="muted">' + esc(b.file_name) + '</p>' +
-      '<div class="stats">' + stat(b.row_count, 'Rows') + stat(b.valid_count, 'Ready to import') + stat(b.error_count, 'Need fixing') + stat(b.duplicate_count, 'Duplicates (skipped)') + '</div>' +
+    var readyTable;
+    if (upd) {
+      readyTable = '<div class="card"><h2>Changes to apply (' + valid.length + ')</h2><p class="small muted">Untick any you don\'t want to apply.</p><div class="table-wrap"><table><thead><tr><th></th><th>' + esc(t.reference) + '</th><th>Name</th><th class="right">Now</th><th class="right">New</th><th>What happens</th></tr></thead><tbody>' +
+        valid.map(function (x) {
+          var what = x.change > 0 ? 'Balance goes up' : x.change < 0 ? (x.clean.reason === 'correction' ? (x.clean.amount_kobo === 0 ? 'Corrected to zero — account closed, no fee' : 'Corrected (no payment recorded)') : 'Recorded as a payment of ' + naira(-x.change)) : 'Due date updated';
+          return '<tr><td><input type="checkbox" checked data-keep="' + x.row + '" aria-label="Apply row ' + x.row + '"></td><td class="mono small">' + esc(x.clean.external_reference) + '</td><td>' + esc(x.account.debtor_name) + '</td>' +
+            '<td class="right nowrap">' + naira(x.account.balance) + '</td><td class="right nowrap"><b>' + naira(x.clean.amount_kobo) + '</b></td><td class="small">' + esc(what) + '</td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+    } else {
+      readyTable = '<div class="card"><h2>Ready to import (' + valid.length + ')</h2><p class="small muted">Untick anyone you don\'t want us to contact.</p><div class="table-wrap"><table><thead><tr><th></th><th>Row</th><th>Name</th><th>Phone</th><th>For</th><th class="right">Amount</th></tr></thead><tbody>' +
+        valid.map(function (x) {
+          return '<tr><td><input type="checkbox" checked data-keep="' + x.row + '" aria-label="Import row ' + x.row + '"></td><td>' + x.row + '</td><td>' + esc(x.clean.debtor_name) +
+            (x.clean.external_reference ? '<div class="tiny muted mono">' + esc(x.clean.external_reference) + '</div>' : '') + '</td><td class="nowrap">' + esc(x.clean.phone) + '</td><td>' + esc(x.clean.description) +
+            (x.clean.dependant_first_name ? ' <span class="muted">(' + esc(x.clean.dependant_first_name) + ')</span>' : '') + '</td><td class="right nowrap">' + naira(x.clean.amount_kobo) + '</td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+    }
+    view.innerHTML = '<h1>Check your ' + (upd ? 'balance update' : 'upload') + '</h1><p class="muted">' + esc(b.file_name) + '</p>' +
+      '<div class="stats">' + stat(b.row_count, 'Rows') + stat(b.valid_count, upd ? 'Changes' : 'Ready to import') + stat(b.error_count, 'Need fixing') + stat(b.duplicate_count, upd ? 'No change' : 'Duplicates (skipped)') + '</div>' +
       (errors.length ? '<div class="card"><h2>Rows with errors</h2><p class="small muted">Fix them here and press “Re-check”, or leave them — rows with errors are skipped.</p><div class="table-wrap"><table><thead><tr><th>Row</th>' +
-        COLS.map(function (c) { return '<th>' + c.replace(/_/g, ' ') + '</th>'; }).join('') + '<th>Problem</th></tr></thead><tbody>' +
+        COLS.map(function (c) { return '<th>' + esc(c.replace(/_/g, ' ')) + '</th>'; }).join('') + '<th>Problem</th></tr></thead><tbody>' +
         errors.map(function (x) {
           return '<tr class="err-row" data-row="' + x.row + '"><td>' + x.row + '</td>' + COLS.map(function (c) {
-            return '<td><input type="text" style="min-width:110px;min-height:36px;padding:6px 8px" data-col="' + c + '" value="' + esc(x.raw[c] || '') + '" aria-label="Row ' + x.row + ' ' + c + '"></td>';
+            return '<td><input type="text" style="min-width:110px;min-height:36px;padding:6px 8px" data-col="' + esc(c) + '" value="' + esc(x.raw[c] || '') + '" aria-label="Row ' + x.row + ' ' + esc(c) + '"></td>';
           }).join('') + '<td class="small" style="color:var(--red)">' + esc(x.errors.join('; ')) + '</td></tr>';
         }).join('') + '</tbody></table></div><button class="btn ghost sm" id="recheck" style="margin-top:10px">Re-check fixed rows</button></div>' : '') +
-      (dups.length ? '<div class="card"><h2>Duplicates</h2><p class="small muted">Same person, description and amount as another row or an account you already have. These won\'t be imported.</p><ul class="small">' +
+      (dups.length && !upd ? '<div class="card"><h2>Duplicates</h2><p class="small muted">Already in this file or one of your open accounts. These won\'t be imported.</p><ul class="small">' +
         dups.map(function (x) { return '<li>Row ' + x.row + ': ' + esc(x.raw.debtor_name) + ' — ' + esc(x.raw.amount_owed) + '</li>'; }).join('') + '</ul></div>' : '') +
-      '<div class="card"><h2>Ready to import (' + valid.length + ')</h2><p class="small muted">Untick anyone you don\'t want us to contact.</p><div class="table-wrap"><table><thead><tr><th></th><th>Row</th><th>Name</th><th>Phone</th><th>For</th><th class="right">Amount</th></tr></thead><tbody>' +
-        valid.map(function (x) {
-          return '<tr><td><input type="checkbox" checked data-keep="' + x.row + '" aria-label="Import row ' + x.row + '"></td><td>' + x.row + '</td><td>' + esc(x.clean.debtor_name) + '</td><td class="nowrap">' + esc(x.clean.phone) + '</td><td>' + esc(x.clean.description) +
-            (x.clean.dependant_first_name ? ' <span class="muted">(' + esc(x.clean.dependant_first_name) + ')</span>' : '') + '</td><td class="right nowrap">' + naira(x.clean.amount_kobo) + '</td></tr>';
-        }).join('') + '</tbody></table></div></div>' +
-      '<div class="card"><h2>Recovery rules for this upload</h2><label class="check"><input type="checkbox" id="use-default" checked> Use my account default rules (set in Settings)</label><div id="custom-rules" class="hidden">' + rulesForm('n', null) + '</div></div>' +
+      readyTable +
+      (upd ? '' : '<div class="card"><h2>Recovery rules for this upload</h2><label class="check"><input type="checkbox" id="use-default" checked> Use my account default rules (set in Settings)</label><div id="custom-rules" class="hidden">' + rulesForm('n', null) + '</div></div>') +
       '<div class="card"><h2>Confirm</h2><label class="check"><input type="checkbox" id="attest"> <span>' + esc(r.attestation) + '</span></label>' +
-      '<div id="imp-msg"></div><div class="row-btns"><button class="btn" id="import">Import ' + valid.length + ' accounts</button><button class="btn ghost" id="discard">Discard upload</button></div></div>';
+      '<div id="imp-msg"></div><div class="row-btns"><button class="btn" id="import">' + (upd ? 'Apply ' + valid.length + ' changes' : 'Import ' + valid.length + ' accounts') + '</button><button class="btn ghost" id="discard">Discard upload</button></div></div>';
 
-    CL.$('#use-default').onchange = function () { CL.$('#custom-rules').classList.toggle('hidden', this.checked); };
+    var ud = CL.$('#use-default');
+    if (ud) ud.onchange = function () { CL.$('#custom-rules').classList.toggle('hidden', this.checked); };
     var rc = CL.$('#recheck');
     if (rc) rc.onclick = function () {
       var fixes = {};
@@ -194,14 +229,14 @@
       post('/uploads/' + b.id + '/revalidate', { fixes: fixes }).then(renderPreview).catch(function (e) { CL.busy(rc, false); fail(e); });
     };
     CL.$('#discard').onclick = function () {
-      if (!confirm('Discard this upload? Nothing will be imported.')) return;
+      if (!confirm('Discard this upload? Nothing will be changed.')) return;
       post('/uploads/' + b.id + '/discard').then(function () { location.href = '/collections/app/uploads/'; }).catch(fail);
     };
     CL.$('#import').onclick = function () {
       if (!CL.$('#attest').checked) { CL.$('#imp-msg').innerHTML = '<div class="banner bad">Please tick the confirmation first.</div>'; return; }
       var skip = CL.$$('[data-keep]').filter(function (c) { return !c.checked; }).map(function (c) { return parseInt(c.dataset.keep, 10); });
-      var body = { attest: true, skip_rows: skip, rules: CL.$('#use-default').checked ? null : readRules('n') };
-      var btn = this; CL.busy(btn, true, 'Importing…');
+      var body = { attest: true, skip_rows: skip, rules: ud && !ud.checked ? readRules('n') : null };
+      var btn = this; CL.busy(btn, true, upd ? 'Applying…' : 'Importing…');
       post('/uploads/' + b.id + '/import', body).then(function (res) {
         renderPreview({ batch: res.batch, rows: [] });
       }).catch(function (e) { CL.busy(btn, false); CL.$('#imp-msg').innerHTML = '<div class="banner bad">' + esc(e.message) + '</div>'; });
@@ -221,9 +256,9 @@
         }).join('') + '</div>' +
         '<form id="search" class="row-btns" style="margin-bottom:12px"><input type="search" name="q" value="' + esc(q) + '" placeholder="Search name, phone or reference" style="max-width:340px" aria-label="Search"><button class="btn ghost">Search</button></form>' +
         (batch ? '<p class="small">Showing one upload. <a href="' + link({ batch_id: '' }) + '">Show all</a></p>' : '') +
-        '<div class="card table-wrap"><table><thead><tr><th>Ref</th><th>Name</th><th>For</th><th class="right">Balance</th><th>Status</th><th>Last message</th></tr></thead><tbody>' +
+        '<div class="card table-wrap"><table><thead><tr><th>Ref</th><th>' + esc(ME.segment.terms.debtor_title) + '</th><th>For</th><th class="right">Balance</th><th>Status</th><th>Last message</th></tr></thead><tbody>' +
         (d.accounts.length ? d.accounts.map(function (a) {
-          return '<tr><td class="mono small"><a href="' + accountUrl(a.id) + '">' + esc(a.reference_code) + '</a></td><td>' + esc(a.debtor_name) + '</td><td class="small">' + esc(a.description) + '</td>' +
+          return '<tr><td class="mono small"><a href="' + accountUrl(a.id) + '">' + esc(a.reference_code) + '</a></td><td>' + esc(a.debtor_name) + (a.external_reference ? '<div class="tiny muted mono">' + esc(a.external_reference) + '</div>' : '') + '</td><td class="small">' + esc(a.description) + '</td>' +
             '<td class="right nowrap">' + naira(a.balance) + '</td><td>' + CL.pill(a.status) + (a.opted_out ? ' <span class="pill red">Opted out</span>' : '') + '</td><td class="small nowrap">' + (a.last_contacted_at ? CL.date(a.last_contacted_at) : '—') + '</td></tr>';
         }).join('') : '<tr><td colspan="6" class="muted">No accounts here.</td></tr>') + '</tbody></table></div>' +
         (d.total > d.page_size ? '<div class="row-btns">' + (pg > 1 ? '<a class="btn ghost sm" href="' + link({ page: pg - 1 }) + '">Previous</a>' : '') +
@@ -253,6 +288,8 @@
       view.innerHTML = '<p class="small"><a href="/collections/app/accounts/">← Accounts</a></p>' +
         '<h1>' + esc(a.debtor_name) + ' ' + CL.pill(a.status) + (a.opted_out ? ' <span class="pill red">Opted out</span>' : '') + '</h1>' +
         '<div class="card"><dl class="kv"><dt>Reference</dt><dd class="mono">' + esc(a.reference_code) + '</dd><dt>For</dt><dd>' + esc(a.description) + (a.dependant_first_name ? ' (' + esc(a.dependant_first_name) + ')' : '') + '</dd>' +
+          (a.external_reference ? '<dt>' + esc(ME.segment.terms.reference) + '</dt><dd class="mono">' + esc(a.external_reference) + '</dd>' : '') +
+          Object.keys(a.extra || {}).map(function (k) { return '<dt>' + esc(k.replace(/_/g, ' ')) + '</dt><dd>' + esc(a.extra[k]) + '</dd>'; }).join('') +
         '<dt>Original amount</dt><dd>' + naira(a.original_amount) + '</dd><dt>Balance</dt><dd>' + naira(a.balance) + '</dd>' +
         '<dt>Phone</dt><dd>' + esc(a.phone || '—') + '</dd><dt>Email</dt><dd>' + esc(a.email || '—') + '</dd>' + (a.due_date ? '<dt>Due</dt><dd>' + CL.date(a.due_date) + '</dd>' : '') + '</dl></div>' +
         (plan ? '<div class="card"><h2>Payment plan</h2><p>' + plan.instalment_count + ' instalments of about ' + naira(plan.instalment_amount) + '</p><ul class="small">' +
@@ -378,8 +415,8 @@
           if (!row.classList.contains('hidden')) { row.classList.add('hidden'); return; }
           get('/invoices/' + a.dataset.inv).then(function (r) {
             var inv = r.invoice;
-            row.firstChild.innerHTML = '<table><thead><tr><th>Ref</th><th>Name</th><th>Paid on</th><th class="right">Amount</th><th class="right">Fee (' + inv.fee_percent + '%)</th></tr></thead><tbody>' +
-              inv.lines.map(function (l) { return '<tr><td class="mono small">' + esc(l.reference_code) + '</td><td>' + esc(l.debtor_name) + '</td><td>' + CL.date(l.paid_on) + '</td><td class="right">' + naira(l.amount) + '</td><td class="right">' + naira(l.fee) + '</td></tr>'; }).join('') +
+            row.firstChild.innerHTML = '<table><thead><tr><th>Ref</th><th>Name</th><th>Paid on</th><th class="right">Amount</th><th class="right">Fee</th></tr></thead><tbody>' +
+              inv.lines.map(function (l) { return '<tr><td class="mono small">' + esc(l.reference_code) + '</td><td>' + esc(l.debtor_name) + '</td><td>' + CL.date(l.paid_on) + '</td><td class="right">' + naira(l.amount) + '</td><td class="right">' + naira(l.fee) + (l.fee_percent != null ? ' <span class="tiny muted">(' + l.fee_percent + '%)</span>' : '') + '</td></tr>'; }).join('') +
               '<tr><td colspan="3"><b>Total</b></td><td class="right"><b>' + naira(inv.total_confirmed) + '</b></td><td class="right"><b>' + naira(inv.fee_amount) + '</b></td></tr></tbody></table>';
             row.classList.remove('hidden');
           }).catch(fail);
@@ -389,17 +426,18 @@
   };
 
   pages.settings = function () {
-    return Promise.all([get('/me'), get('/team'), CL.api('/collections/public/config')]).then(function (res) {
-      var c = res[0].client, me = res[0].user, team = res[1], cfg = res[2], owner = me.role === 'Owner';
+    return Promise.all([get('/me'), get('/team'), CL.api('/collections/public/config'), get('/fee')]).then(function (res) {
+      var c = res[0].client, me = res[0].user, team = res[1], cfg = res[2], fee = res[3], owner = me.role === 'Owner';
+      var pendingFee = fee.proposals.filter(function (p) { return p.status === 'Pending'; })[0];
       var opts = function (list, v) { return list.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); };
       var dis = owner ? '' : ' disabled';
       view.innerHTML = '<h1>Settings</h1>' + (owner ? '' : '<div class="banner info">Only the account owner can change these settings.</div>') +
-        '<form class="card" id="biz"><h2>Business details</h2>' +
-        '<div class="field"><label for="bn">Business name</label><input id="bn" name="business_name" type="text" value="' + esc(c.business_name) + '"' + dis + '></div>' +
-        '<div class="grid2"><div class="field"><label for="bt">Business type</label><select id="bt" name="business_type"' + dis + '>' + opts(cfg.business_types, c.business_type) + '</select></div>' +
+        '<form class="card" id="biz"><h2>Organisation details</h2>' +
+        '<div class="field"><label for="bn">Organisation name</label><input id="bn" name="business_name" type="text" value="' + esc(c.business_name) + '"' + dis + '></div>' +
+        '<div class="grid2"><div class="field"><label for="bt">Type</label><select id="bt" name="business_type"' + dis + '>' + opts(res[0].segment.client_types, c.business_type) + '</select></div>' +
         '<div class="field"><label for="st">State</label><select id="st" name="state"' + dis + '>' + opts(cfg.states, c.state) + '</select></div></div>' +
         '<div class="field"><label for="ct">City</label><input id="ct" name="city" type="text" value="' + esc(c.city) + '"' + dis + '></div>' +
-        '<h2>Bank account your customers pay into</h2><div class="field"><label for="bk">Bank name</label><input id="bk" name="bank_name" type="text" value="' + esc(c.bank_name) + '"' + dis + '></div>' +
+        '<h2>Bank account your ' + esc(res[0].segment.terms.debtors) + ' pay into</h2><div class="field"><label for="bk">Bank name</label><input id="bk" name="bank_name" type="text" value="' + esc(c.bank_name) + '"' + dis + '></div>' +
         '<div class="grid2"><div class="field"><label for="an">Account number</label><input id="an" name="account_number" type="text" inputmode="numeric" maxlength="10" value="' + esc(c.account_number) + '"' + dis + '></div>' +
         '<div class="field"><label for="am">Account name</label><input id="am" name="account_name" type="text" value="' + esc(c.account_name) + '"' + dis + '></div></div>' +
         (owner ? '<button class="btn">Save details</button>' : '') + '</form>' +
@@ -411,7 +449,26 @@
             (owner && u.role !== 'Owner' && u.is_active ? ' <button class="btn sm ghost" data-remove="' + u.id + '">Remove</button>' : '') + '</div>';
         }).join('') +
         (owner ? '<form id="invite" class="grid2" style="margin-top:12px"><div class="field"><label for="iname">Name</label><input id="iname" name="name" type="text" required></div><div class="field"><label for="iemail">Email</label><input id="iemail" name="email" type="email" required></div><div><button class="btn sm">Invite teammate</button></div></form>' : '') + '</div>' +
-        '<div class="card"><h2>Your data</h2><p class="small muted">Fee: ' + c.fee_percent + '% of confirmed recoveries · attribution window ' + c.attribution_days + ' days · upload limit ' + c.upload_row_cap + ' rows.</p>' +
+        '<div class="card" id="fee-card"><h2>Your fee</h2><p><b>' + esc(fee.current_text) + '</b></p>' +
+        '<p class="small muted">Charged only on payments you confirm, where we contacted the person within ' + c.attribution_days + ' days before they paid.</p>' +
+        (pendingFee ? '<div class="banner info">You proposed <b>' + esc(pendingFee.text) + '</b> on ' + CL.date(pendingFee.created_at) + '. Our team is reviewing it.' +
+          (owner ? ' <button class="btn sm ghost" id="withdraw-fee" data-id="' + pendingFee.id + '">Withdraw</button>' : '') + '</div>' : '') +
+        (owner ? '<details' + (pendingFee ? '' : '') + '><summary>' + (pendingFee ? 'Replace your proposal' : 'Propose a different fee') + '</summary><form id="fee-form" style="margin-top:10px">' +
+          '<div class="field"><label for="fee-type">Fee type</label><select id="fee-type"><option value="flat">One rate for everything</option><option value="tiered_by_age">Different rates by how overdue the debt is</option></select></div>' +
+          '<div id="fee-flat" class="field"><label for="fee-pct">Rate (%)</label><input id="fee-pct" type="number" min="1" max="50" step="0.5" inputmode="decimal"></div>' +
+          '<div id="fee-tiers" class="hidden"><p class="small muted">Up to how many days overdue, and the rate. The last tier covers everything older.</p>' +
+          [0, 1, 2].map(function (i) {
+            return '<div class="grid2"><div class="field"><label for="tier-days-' + i + '">' + (i < 2 ? 'Up to (days overdue)' : 'Older than that') + '</label>' +
+              (i < 2 ? '<input id="tier-days-' + i + '" type="number" min="1" value="' + [90, 180][i] + '">' : '<input id="tier-days-' + i + '" type="text" value="any" disabled>') + '</div>' +
+              '<div class="field"><label for="tier-pct-' + i + '">Rate (%)</label><input id="tier-pct-' + i + '" type="number" min="1" max="50" step="0.5"></div></div>';
+          }).join('') + '</div>' +
+          '<div class="field"><label for="fee-note">Why? (optional)</label><textarea id="fee-note" maxlength="1000"></textarea></div>' +
+          '<button class="btn sm">Send proposal</button></form></details>' : '') +
+        (fee.proposals.filter(function (p) { return p.status !== 'Pending'; }).length ? '<details style="margin-top:10px"><summary>Past proposals</summary>' +
+          fee.proposals.filter(function (p) { return p.status !== 'Pending'; }).map(function (p) {
+            return '<p class="small">' + CL.pill(p.status) + ' ' + esc(p.text) + ' <span class="muted">' + CL.date(p.created_at) + '</span>' + (p.decision_note ? '<br><span class="muted">' + esc(p.decision_note) + '</span>' : '') + '</p>';
+          }).join('') + '</details>' : '') + '</div>' +
+        '<div class="card"><h2>Your data</h2><p class="small muted">Upload limit ' + c.upload_row_cap + ' rows per file.</p>' +
         (owner ? '<div class="row-btns"><button class="btn ghost" id="export">Export all my data (CSV)</button><button class="btn ghost" id="delete-req">Request data deletion</button></div>' : '') + '</div>';
       if (!owner) { CL.$$('#view input, #view select').forEach(function (el) { el.disabled = true; }); return; }
       CL.$('#biz').onsubmit = function (e) { e.preventDefault(); put('/settings', CL.formJSON(e.target)).then(function () { CL.toast('Saved'); }).catch(fail); };
@@ -423,6 +480,24 @@
           CL.api('/collections/client/team/' + b.dataset.remove, { auth: 'client', method: 'DELETE' }).then(function () { pages.settings(); }).catch(fail);
         };
       });
+      var ft = CL.$('#fee-type');
+      if (ft) ft.onchange = function () {
+        CL.$('#fee-flat').classList.toggle('hidden', ft.value !== 'flat');
+        CL.$('#fee-tiers').classList.toggle('hidden', ft.value === 'flat');
+      };
+      var ff = CL.$('#fee-form');
+      if (ff) ff.onsubmit = function (e) {
+        e.preventDefault();
+        var schedule;
+        if (ft.value === 'flat') schedule = { type: 'flat', percent: parseFloat(CL.$('#fee-pct').value) };
+        else schedule = { type: 'tiered_by_age', tiers: [0, 1, 2].map(function (i) {
+          return { max_days: i < 2 ? parseInt(CL.$('#tier-days-' + i).value, 10) : null, percent: parseFloat(CL.$('#tier-pct-' + i).value) };
+        }) };
+        post('/fee/proposals', { schedule: schedule, note: CL.$('#fee-note').value || null })
+          .then(function () { CL.toast('Proposal sent — we\'ll let you know'); pages.settings(); }).catch(fail);
+      };
+      var wf = CL.$('#withdraw-fee');
+      if (wf) wf.onclick = function () { post('/fee/proposals/' + wf.dataset.id + '/withdraw').then(function () { pages.settings(); }).catch(fail); };
       CL.$('#export').onclick = function () { CL.download('/collections/client/export.csv', 'client', 'waterline-collections-export.csv').catch(fail); };
       CL.$('#delete-req').onclick = function () {
         var note = prompt('Tell us what you want deleted (optional). We will confirm by email.');

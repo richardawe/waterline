@@ -1,6 +1,8 @@
-"""Unauthenticated Collections endpoints: public config, upload template,
-client sign-up, email verification, login and password reset."""
+"""Unauthenticated Collections endpoints: public config (including which
+segments are live), upload templates, the waitlist, client sign-up, email
+verification, login and password reset."""
 
+import json
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -12,6 +14,8 @@ from app.collections import (
     audit,
     crypto,
     emailer,
+    fees,
+    segments,
     service,
     settings_store,
     totp,
@@ -25,7 +29,7 @@ from app.collections.auth import (
     end_session,
     rate_limit,
 )
-from app.collections.models import AuthToken, Client, ClientStatus, ClientUser, OpsUser
+from app.collections.models import AuthToken, Client, ClientStatus, ClientUser, OpsUser, WaitlistEntry
 from app.collections.passwords import hash_password, password_problem, verify_password
 from app.collections.phone import normalise_phone
 from app.collections.timeutil import utcnow
@@ -33,7 +37,6 @@ from app.db import get_db
 
 router = APIRouter(prefix="/collections/public", tags=["collections-public"])
 
-BUSINESS_TYPES = ["School", "Estate", "Gym", "Internet provider", "Other"]
 NIGERIAN_STATES = [
     "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", "Cross River", "Delta",
     "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
@@ -48,36 +51,87 @@ GENERIC_LOGIN_ERROR = "Email or password is incorrect."
 
 @router.get("/config")
 def public_config(db: Session = Depends(get_db)):
+    visible = [segments.public_view(db, seg) for seg in segments.SEGMENTS.values()]
     return {
-        "fee_percent": settings_store.get(db, "default_fee_percent"),
         "contact_email": settings_store.get(db, "contact_email"),
         "contact_whatsapp": settings_store.get(db, "contact_whatsapp"),
-        "business_types": BUSINESS_TYPES,
+        "segments": [v for v in visible if v["status"] != segments.STATUS_HIDDEN],
         "states": NIGERIAN_STATES,
     }
 
 
-@router.get("/upload-template.csv")
-def template_csv():
-    return Response(
-        upload.template_csv(), media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="waterline-collections-template.csv"'},
-    )
+def template_response(seg, mode: str, fmt: str) -> Response:
+    if mode not in ("new", "update") or fmt not in ("csv", "xlsx"):
+        raise HTTPException(404, "Not found.")
+    name = f"waterline-collections-{seg.key}-{'balances' if mode == 'new' else 'balance-updates'}.{fmt}"
+    headers = {"Content-Disposition": f'attachment; filename="{name}"'}
+    if fmt == "csv":
+        return Response(upload.template_csv(seg, mode), media_type="text/csv", headers=headers)
+    return Response(upload.template_xlsx(seg, mode),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
 
-@router.get("/upload-template.xlsx")
-def template_xlsx():
-    return Response(
-        upload.template_xlsx(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="waterline-collections-template.xlsx"'},
-    )
+@router.get("/upload-template.{fmt}")
+def public_template(fmt: str, segment: str = "school", mode: str = "new", db: Session = Depends(get_db)):
+    if segment not in segments.SEGMENTS or segments.status(db, segment) == segments.STATUS_HIDDEN:
+        raise HTTPException(404, "Not found.")
+    return template_response(segments.get(segment), mode, fmt)
+
+
+# ---------------------------------------------------------------- waitlist
+
+
+class WaitlistIn(BaseModel):
+    segment: str
+    business_name: str = Field(min_length=2, max_length=200)
+    business_type: str | None = Field(default=None, max_length=60)
+    contact_name: str = Field(min_length=2, max_length=160)
+    email: str = Field(min_length=5, max_length=254)
+    phone: str | None = None
+    note: str | None = Field(default=None, max_length=1000)
+
+
+@router.post("/waitlist", status_code=201, dependencies=[Depends(rate_limit("waitlist", 5, 3600))])
+def join_waitlist(body: WaitlistIn, request: Request, db: Session = Depends(get_db)):
+    if body.segment not in segments.SEGMENTS or segments.status(db, body.segment) == segments.STATUS_HIDDEN:
+        raise HTTPException(422, "Choose what kind of business you are.")
+    errors = {}
+    email = body.email.strip().lower()
+    if not upload.EMAIL_RE.match(email):
+        errors["email"] = "Enter a valid email address."
+    phone = None
+    if body.phone and body.phone.strip():
+        try:
+            phone = normalise_phone(body.phone)
+        except ValueError:
+            errors["phone"] = "Enter a Nigerian mobile number."
+    if errors:
+        raise HTTPException(422, {"message": "Please fix the highlighted fields.", "fields": errors})
+    entry = WaitlistEntry(segment=body.segment, business_name=body.business_name.strip(),
+                          business_type=(body.business_type or "").strip() or None, contact_name=body.contact_name.strip(),
+                          email=email, phone=phone, note=(body.note or "").strip() or None)
+    db.add(entry)
+    db.flush()
+    audit.record(db, Actor(type="public", ip=client_ip(request)), "waitlist.joined", "WaitlistEntry", entry.id,
+                 after={"segment": body.segment, "business_name": entry.business_name})
+    seg = segments.get(body.segment)
+    emailer.send(db, service._ops_address(), f"Waitlist: {entry.business_name} ({seg.name})",
+                 f"{entry.contact_name} from {entry.business_name} ({entry.business_type or seg.name}) joined the waitlist.",
+                 kind="ops_waitlist")
+    db.commit()
+    return {"message": f"Thanks — we'll be in touch as soon as Waterline Collections opens for {seg.name.lower()}."}
 
 
 # ---------------------------------------------------------------- sign-up
 
 
+class FeeProposalIn(BaseModel):
+    schedule: dict  # see segments.validate_fee_schedule
+    note: str | None = Field(default=None, max_length=1000)
+
+
 class SignupIn(BaseModel):
+    segment: str = "school"
     business_name: str = Field(min_length=2, max_length=200)
     business_type: str
     contact_name: str = Field(min_length=2, max_length=160)
@@ -93,6 +147,9 @@ class SignupIn(BaseModel):
     accept_terms: bool
     accept_dpa: bool
     accept_privacy: bool
+    client_fields: dict[str, str] = {}  # segment-specific, e.g. a lender's licence number
+    proposed_fee_percent: float | None = None  # optional: propose a flat fee instead of the default
+    fee_note: str | None = Field(default=None, max_length=1000)
 
 
 def issue_link(db: Session, user: ClientUser, purpose: str, ttl: timedelta) -> str:
@@ -117,12 +174,33 @@ def _email_taken(db: Session, email: str) -> bool:
 
 @router.post("/signup", status_code=201, dependencies=[Depends(rate_limit("signup", 5, 3600))])
 def signup(body: SignupIn, request: Request, db: Session = Depends(get_db)):
+    if body.segment not in segments.SEGMENTS:
+        raise HTTPException(422, "Choose what kind of business you are.")
+    seg = segments.get(body.segment)
+    if segments.status(db, seg.key) != segments.STATUS_LIVE:
+        raise HTTPException(409, {"message": f"We're not open to {seg.name.lower()} yet — join the waitlist and we'll "
+                                             "let you know as soon as we are.", "code": "waitlist", "segment": seg.key})
     errors = {}
     email = body.email.strip().lower()
     if not upload.EMAIL_RE.match(email):
         errors["email"] = "Enter a valid email address."
-    if body.business_type not in BUSINESS_TYPES:
+    if body.business_type not in seg.client_types:
         errors["business_type"] = "Choose a business type."
+    profile = {}
+    for col in seg.client_fields:
+        try:
+            value = upload._value(col, body.client_fields.get(col.name, ""))
+        except ValueError as exc:
+            errors[col.name] = f"{col.label} {exc}"
+            continue
+        if value is not None:
+            profile[col.name] = value
+    proposed = None
+    if body.proposed_fee_percent is not None:
+        try:
+            proposed = segments.validate_fee_schedule({"type": "flat", "percent": body.proposed_fee_percent})
+        except segments.FeeInvalid as exc:
+            errors["proposed_fee_percent"] = str(exc)
     if body.state not in NIGERIAN_STATES:
         errors["state"] = "Choose a state."
     try:
@@ -144,9 +222,10 @@ def signup(body: SignupIn, request: Request, db: Session = Depends(get_db)):
 
     now = utcnow()
     client = Client(
-        business_name=body.business_name.strip(), business_type=body.business_type, state=body.state,
+        business_name=body.business_name.strip(), segment=seg.key, business_type=body.business_type, state=body.state,
         city=body.city.strip(), status=ClientStatus.PENDING,
-        fee_percent=settings_store.get(db, "default_fee_percent"),
+        fee_schedule=json.dumps(segments.default_fee_schedule(db, seg.key)),
+        profile_extra=json.dumps(profile) if profile else None,
         attribution_days=settings_store.get(db, "default_attribution_days"),
         upload_row_cap=settings_store.get(db, "first_upload_row_cap"),
         bank_name=body.bank_name.strip(), account_number=account_number, account_name=body.account_name.strip(),
@@ -162,8 +241,10 @@ def signup(body: SignupIn, request: Request, db: Session = Depends(get_db)):
     db.flush()
     actor = Actor(type="client", id=user.id, ip=client_ip(request), client_id=client.id)
     audit.record(db, actor, "client.signed_up", "Client", client.id,
-                 after={"business_name": client.business_name, "business_type": client.business_type,
+                 after={"business_name": client.business_name, "segment": seg.key, "business_type": client.business_type,
                         "terms_accepted_at": now, "dpa_accepted_at": now, "privacy_accepted_at": now})
+    if proposed and proposed != fees.schedule(client):
+        fees.propose(db, client, proposed, body.fee_note, actor)
     send_verification(db, user)
     emailer.send(db, service._ops_address(), f"New Collections sign-up: {client.business_name}",
                  f"{client.business_name} ({client.business_type}, {client.city}, {client.state}) signed up and is waiting "

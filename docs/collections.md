@@ -1,17 +1,105 @@
 # Waterline Collections — operating reference
 
-Fee-recovery product at `waterline.ng/collections`. Built on the existing stack:
-static HTML + vanilla JS pages under `collections/`, FastAPI routes under
-`/collections/*` in `backend/app/collections/`, Postgres tables prefixed `cl_`
-(migration `e0d3f5700598`). It shares no UI, routes or auth with the lender
-product. Don't link to it from lender pages, and don't put lender, loan-book
-or investor wording under `/collections`.
+Debt-recovery product at `waterline.ng/collections`, built on the existing
+stack: static HTML + vanilla JS under `collections/`, FastAPI routes under
+`/collections/*` in `backend/app/collections/`, Postgres tables prefixed `cl_`.
+It shares no UI, routes or auth with the structured-finance product. Lenders
+are a client *segment* of Collections (see below), so lender wording is fine
+here; the structured-finance product language (SPVs, tranches, investors,
+loan-book securitisation) stays out.
+
+## Segments
+
+Everything that differs between client types lives in one registry,
+`backend/app/collections/segments.py`. Each segment defines:
+
+- **Client types**, for example "Secondary school" or "Microfinance bank".
+- **Wording**: parent, resident or borrower, and what the reference is
+  called.
+- **Upload columns**, including the client's own reference column
+  (admission number, unit, loan reference).
+- **Message templates**, plus its own banned wording on top of the global
+  conduct check.
+- **Conduct policy**: contact window, frequency limits, sequence and plan
+  rules.
+- **Verification checklist**. Lenders add licence verification.
+- **Default fee schedule** and any extra sign-up fields (for example a
+  lender's licence).
+
+| Segment | Default status | Notes |
+| --- | --- | --- |
+| `school` | live | optional child first name; `admission_number` reference |
+| `estate` | live | `unit` reference; bans eviction/disconnection wording |
+| `lender` | waitlist | `loan_reference` required, days past due, disbursement date; default fee tiered by debt age; **needs an Admin-confirmed policy review (after counsel) before it can go live** |
+| `service` | waitlist | gyms, clubs, ISPs, subscriptions |
+
+**Switching a segment on** (ops → Segments, Admin only):
+
+- Set a segment to live, waitlist or hidden.
+- Status controls only the landing page and new sign-ups. Existing clients
+  of a segment keep working.
+- The landing page cards and the sign-up list come from
+  `/collections/public/config`, so switching needs no deploy. The hero
+  copy is static and only mentions schools and estates; update it when
+  lenders go live.
+- Ops can **tighten** a segment's conduct policy (later start, fewer
+  messages, slower sequence, fewer contact days) but never loosen it past
+  the baseline. `validate_policy_override` enforces this.
+- Ops can also change a segment's default fee for new clients.
+
+**Adding a new segment**:
+
+1. Add a `Segment(...)` definition. `_check_definitions` (run in the tests)
+   rejects definitions that are missing core columns, have an incomplete
+   template set or declare a third-party column.
+2. Deploy.
+3. Switch it on in ops when ready.
+
+No migration is needed.
+
+## Fees and fee proposals
+
+Each client has a fee schedule stored as JSON:
+
+- **Flat**: `{"type": "flat", "percent": 20}`.
+- **Tiered by how overdue the debt was when paid**:
+  `{"type": "tiered_by_age", "tiers": [{"max_days": 90, "percent": 15}, …, {"max_days": null, "percent": 25}]}`.
+
+Debt age is counted from the account's due date. Without a due date, it's
+the days past due given at upload plus the time since. Without either, it's
+the time since upload. The rate applied is stored on each payment and each
+invoice line, and the invoice shows an effective rate.
+
+New clients get their segment's default. A client may **propose** a
+different fee:
+
+- **When**: at sign-up (a flat rate) or from Settings (flat or tiered).
+- **Only one pending at a time**: a newer proposal replaces the older one.
+- **Decision**: a Waterline Admin approves or rejects it in ops → Fee
+  proposals. The client is emailed either way.
+- **Effect**: approval applies to payments confirmed from then on; fees
+  already calculated never change. Ops can also set a client's schedule
+  directly (Clients → Limits & fee).
+
+## Balance updates
+
+An "update balances" upload changes existing open accounts, matched on the
+client's own reference.
+
+- **Higher balance**: added (interest, new charges).
+- **Lower balance, reason `payment`** (the default): recorded as a
+  client-recorded, confirmed payment, so the normal fee rules apply. A
+  balance update can't quietly skip a recovery.
+- **Lower balance, reason `correction`**: only adjusts the balance.
+  Correcting to zero withdraws the account (no fee).
+
+Disputed and closed accounts are refused.
 
 ## Map
 
 | Path | Who | File |
 | --- | --- | --- |
-| `/collections/` | Public landing | `collections/index.html` |
+| `/collections/` | Public landing (segment cards + waitlist) | `collections/index.html` + `assets/landing.js` |
 | `/collections/signup/`, `login/`, `verify/`, `reset/` | Clients | `assets/auth.js` |
 | `/collections/app/…` (dashboard, uploads, uploads/new, accounts, accounts/<id>, confirmations, disputes, invoices, settings) | Clients | `assets/app.js` (picks the page from `<body data-page>`) |
 | `/collections/ops/` | Waterline ops (tabs via `#hash`) | `assets/ops.js` |
@@ -51,6 +139,9 @@ limits), `api/*.py` (thin HTTP handlers).
 - Rate limits use an in-process sliding window, counted per Passenger worker.
 
 ## Rules enforced in code (each covered by tests)
+
+The values below are the baseline policy. Each segment uses it unless ops
+have tightened it (see Segments).
 
 - Contact window is 08:00–19:00 WAT, Monday to Saturday, with no public
   holidays. The holiday list is the `public_holidays` config (moveable feasts
@@ -95,7 +186,8 @@ All amounts are integer kobo. A payment is **fee-eligible** when:
    message.
 
 Withdrawn accounts and reversed confirmations never count. The fee is
-`amount_confirmed × fee_percent`, rounded half-up to the kobo.
+`amount_confirmed × the rate from the client's fee schedule` (see Fees and
+fee proposals), rounded half-up to the kobo.
 
 If a debtor pays the discounted full amount by the deadline, the client's
 confirmation writes off the discount and the balance goes to zero.

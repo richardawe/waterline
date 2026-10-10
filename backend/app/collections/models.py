@@ -66,12 +66,13 @@ class Client(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
     business_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    business_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    segment: Mapped[str] = mapped_column(String(20), nullable=False, default="school", index=True)  # see segments.py
+    business_type: Mapped[str] = mapped_column(String(40), nullable=False)  # one of the segment's client_types
     state: Mapped[str] = mapped_column(String(60), nullable=False)
     city: Mapped[str] = mapped_column(String(80), nullable=False)
     logo_url: Mapped[Optional[str]] = mapped_column(String(300))
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=ClientStatus.PENDING)
-    fee_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=20)
+    fee_schedule: Mapped[str] = mapped_column(Text, nullable=False)  # JSON, see segments.validate_fee_schedule
     attribution_days: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
     bank_name: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     account_number: Mapped[str] = mapped_column(EncryptedString, nullable=False)
@@ -88,6 +89,7 @@ class Client(Base, TimestampMixin):
     default_rules: Mapped[Optional[str]] = mapped_column(Text)  # JSON, same shape as UploadBatch.rules
     flagged_reason: Mapped[Optional[str]] = mapped_column(Text)
     flagged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    profile_extra: Mapped[Optional[str]] = mapped_column(EncryptedString)  # JSON of segment client_fields (e.g. licence)
 
     users: Mapped[list["ClientUser"]] = relationship(back_populates="client")
 
@@ -156,6 +158,7 @@ class UploadBatch(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
     client_id: Mapped[str] = mapped_column(ForeignKey("cl_client.id"), nullable=False, index=True)
     file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mode: Mapped[str] = mapped_column(String(10), nullable=False, default="new")  # new accounts / update balances
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="Preview")  # Preview / Imported / Discarded
     row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     valid_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -183,6 +186,9 @@ class DebtorAccount(Base, TimestampMixin):
     phone: Mapped[Optional[str]] = mapped_column(EncryptedString)  # E.164
     phone_index: Mapped[Optional[str]] = mapped_column(String(64), index=True)
     dedupe_key: Mapped[Optional[str]] = mapped_column(String(64), index=True)  # blind index of phone+description+amount
+    external_reference: Mapped[Optional[str]] = mapped_column(EncryptedString)  # the client's own ID (admission no., loan ref…)
+    external_ref_index: Mapped[Optional[str]] = mapped_column(String(64), index=True)  # blind index, scoped by client
+    extra: Mapped[Optional[str]] = mapped_column(EncryptedString)  # JSON of segment-specific columns
     email: Mapped[Optional[str]] = mapped_column(EncryptedString)
     description: Mapped[str] = mapped_column(String(300), nullable=False)
     dependant_first_name: Mapped[Optional[str]] = mapped_column(EncryptedString)
@@ -234,6 +240,7 @@ class DebtorPayment(Base, TimestampMixin):
     confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     reject_reason: Mapped[Optional[str]] = mapped_column(String(200))
     fee_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    fee_percent: Mapped[Optional[float]] = mapped_column(Numeric(5, 2))  # rate applied, from the client's schedule
     fee_amount: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     reminder_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
@@ -287,7 +294,7 @@ class Invoice(Base, TimestampMixin):
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
     total_confirmed: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
-    fee_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    fee_percent: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)  # effective rate (fee ÷ recovered)
     fee_amount: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="Draft")  # Draft / Issued / Paid / Overdue
     issued_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -311,6 +318,7 @@ class InvoiceLine(Base):
     debtor_name: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
     paid_on: Mapped[date] = mapped_column(Date, nullable=False)
+    fee_percent: Mapped[Optional[float]] = mapped_column(Numeric(5, 2))
     fee: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     invoice: Mapped[Invoice] = relationship(back_populates="lines")
@@ -321,9 +329,10 @@ class MessageTemplate(Base):
     is used; edits insert a new version rather than overwriting."""
 
     __tablename__ = "cl_message_template"
-    __table_args__ = (UniqueConstraint("key", "language", "version", name="uq_cl_template_version"),)
+    __table_args__ = (UniqueConstraint("segment", "key", "language", "version", name="uq_cl_template_version"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    segment: Mapped[str] = mapped_column(String(20), nullable=False, default="school")
     key: Mapped[str] = mapped_column(String(40), nullable=False)
     language: Mapped[str] = mapped_column(String(10), nullable=False, default="en")
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -331,6 +340,56 @@ class MessageTemplate(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_by: Mapped[Optional[str]] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SegmentSetting(Base):
+    """Ops-controlled state of a client segment. Rows are optional: a segment
+    with no row uses its code default (see segments.py)."""
+
+    __tablename__ = "cl_segment"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    status: Mapped[str] = mapped_column(String(10), nullable=False)  # hidden / waitlist / live
+    policy_overrides: Mapped[Optional[str]] = mapped_column(Text)  # JSON, stricter-only
+    default_fee_schedule: Mapped[Optional[str]] = mapped_column(Text)  # JSON
+    policy_reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    policy_reviewed_by: Mapped[Optional[str]] = mapped_column(String(64))
+    updated_by: Mapped[Optional[str]] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class FeeProposal(Base, TimestampMixin):
+    """A client's proposed success-fee schedule, approved or rejected by a
+    Waterline Admin. Approval replaces the client's schedule for payments
+    confirmed from then on."""
+
+    __tablename__ = "cl_fee_proposal"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    client_id: Mapped[str] = mapped_column(ForeignKey("cl_client.id"), nullable=False, index=True)
+    schedule: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="Pending")  # Pending / Approved / Rejected / Withdrawn
+    proposed_by: Mapped[Optional[str]] = mapped_column(String(64))
+    decided_by: Mapped[Optional[str]] = mapped_column(String(64))
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class WaitlistEntry(Base, TimestampMixin):
+    """Interest from a segment that isn't live yet (lenders, gyms …)."""
+
+    __tablename__ = "cl_waitlist"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    segment: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    business_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    business_type: Mapped[Optional[str]] = mapped_column(String(60))
+    contact_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    email: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(EncryptedString)
+    note: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="New")  # New / Contacted / Invited
 
 
 class ConfigEntry(Base):

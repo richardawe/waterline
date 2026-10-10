@@ -1,6 +1,7 @@
 import json
 
 from app.collections import storage
+from app.collections.segments import describe_fee
 from app.collections.models import (
     Client,
     ClientUser,
@@ -18,13 +19,15 @@ def client(c: Client, *, full: bool = True) -> dict:
     out = {
         "id": c.id,
         "business_name": c.business_name,
+        "segment": c.segment,
         "business_type": c.business_type,
         "state": c.state,
         "city": c.city,
         "logo_url": c.logo_url,
         "status": c.status,
         "status_reason": c.status_reason,
-        "fee_percent": float(c.fee_percent),
+        "fee_schedule": json.loads(c.fee_schedule),
+        "fee_text": describe_fee(json.loads(c.fee_schedule)),
         "attribution_days": c.attribution_days,
         "upload_row_cap": c.upload_row_cap,
         "created_at": c.created_at,
@@ -51,6 +54,7 @@ def client_for_ops(c: Client) -> dict:
         "approved_at": c.approved_at,
         "flagged_reason": c.flagged_reason,
         "flagged_at": c.flagged_at,
+        "profile": json.loads(c.profile_extra) if c.profile_extra else {},
     })
     return out
 
@@ -64,7 +68,7 @@ def user(u: ClientUser) -> dict:
 
 def batch(b: UploadBatch) -> dict:
     return {
-        "id": b.id, "file_name": b.file_name, "status": b.status, "row_count": b.row_count,
+        "id": b.id, "file_name": b.file_name, "mode": b.mode, "status": b.status, "row_count": b.row_count,
         "valid_count": b.valid_count, "error_count": b.error_count, "duplicate_count": b.duplicate_count,
         "imported_count": b.imported_count, "attested_at": b.attested_at, "created_at": b.created_at,
         "rules": json.loads(b.rules) if b.rules else None, "flagged": b.flagged_at is not None,
@@ -80,6 +84,8 @@ def account(a: DebtorAccount, *, ops: bool = False) -> dict:
         "last_contacted_at": a.last_contacted_at, "contact_count_7d": a.contact_count_7d,
         "batch_id": a.batch_id, "created_at": a.created_at, "closed_at": a.closed_at,
         "anonymised": a.anonymised_at is not None,
+        "external_reference": a.external_reference,
+        "extra": json.loads(a.extra) if a.extra else {},
     }
     if ops:
         out["client_id"] = a.client_id
@@ -92,7 +98,7 @@ def payment(p: DebtorPayment, *, with_proof: bool = True) -> dict:
         "amount_confirmed": p.amount_confirmed, "paid_on": p.paid_on, "sender_name": p.sender_name,
         "source": p.source, "status": p.status, "possible_duplicate": p.possible_duplicate,
         "confirmed_at": p.confirmed_at, "reject_reason": p.reject_reason, "fee_eligible": p.fee_eligible,
-        "fee_amount": p.fee_amount, "created_at": p.created_at,
+        "fee_percent": float(p.fee_percent) if p.fee_percent is not None else None, "fee_amount": p.fee_amount, "created_at": p.created_at,
         "proof_url": storage.signed_url(p.proof_file_url) if with_proof else None,
         "has_proof": bool(p.proof_file_url),
     }
@@ -134,7 +140,8 @@ def invoice(inv: Invoice, *, lines: bool = False) -> dict:
     if lines:
         out["lines"] = [
             {"payment_id": l.payment_id, "reference_code": l.reference_code, "debtor_name": l.debtor_name,
-             "amount": l.amount, "paid_on": l.paid_on, "fee": l.fee}
+             "amount": l.amount, "paid_on": l.paid_on, "fee": l.fee,
+             "fee_percent": float(l.fee_percent) if l.fee_percent is not None else None}
             for l in sorted(inv.lines, key=lambda l: (l.paid_on, l.reference_code))
         ]
     return out

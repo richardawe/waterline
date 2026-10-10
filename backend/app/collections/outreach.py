@@ -5,11 +5,18 @@ who may be contacted today and with what text, and refuses to record a
 send that would break a rule. Ops cannot override any of these from the
 queue screen:
 
-- 08:00–19:00 WAT, Monday–Saturday, never on a public holiday
-- at most 1 message per debtor per day and 2 per rolling 7 days, all channels
-- sequence: Day 0 intro, Day 3 reminder, Day 7 plan offer, then weekly;
-  6 messages with no response → Unresponsive
-- plan holders only get instalment reminders (2 days before, 1 day after a miss)
+- the segment's contact window (baseline 08:00–19:00 WAT, Monday–Saturday),
+  never on a Sunday or public holiday
+- at most 1 message per debtor per day (also a DB constraint) and the
+  segment's limit per rolling 7 days (baseline 2), all channels
+- sequence: the segment's steps (baseline Day 0 intro, Day 3 reminder, Day 7
+  plan offer), then every `repeat_every_days`; `max_unanswered` messages
+  with no response → Unresponsive
+- plan holders only get instalment reminders (before each date, and once
+  after a miss)
+
+The numbers come from `segments.policy()`; ops can tighten them per segment,
+never loosen them past the baseline.
 - never: Disputed / Opted out / Paid / Withdrawn / Paused accounts, or any
   account whose client isn't Approved
 """
@@ -21,7 +28,7 @@ from urllib.parse import quote
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.collections import audit, emailer, service, settings_store, templates
+from app.collections import audit, emailer, segments, service, settings_store, templates
 from app.collections.audit import Actor
 from app.collections.models import (
     AccountStatus,
@@ -35,17 +42,15 @@ from app.collections.models import (
 from app.collections.money import format_naira
 from app.collections.rules import active_discount, effective_rules
 from app.collections.timeutil import (
-    CONTACT_START,
     in_contact_window,
     is_contact_day,
     lagos_date,
     lagos_datetime,
     utcnow,
+    window,
 )
 
 SEQUENCE_KEYS = ("INTRO", "REMINDER", "PLAN_OFFER")
-MAX_UNANSWERED = 6
-MAX_PER_7_DAYS = 2
 QUEUEABLE = (AccountStatus.NEW, AccountStatus.ACTIVE, AccountStatus.ON_PLAN)
 SKIP_REASONS = ["Wrong number", "Not on WhatsApp", "Other"]
 REPLY_CATEGORIES = ["Promised to pay", "Already paid", "Disputes amount", "Asks for plan", "Asks to stop", "Other"]
@@ -90,12 +95,14 @@ def sent_in_last_7_days(sent_times: list[datetime], today: date) -> int:
     return sum(1 for t in sent_times if lagos_date(t) > today - timedelta(days=7))
 
 
-def frequency_block(sent_times: list[datetime], now: datetime) -> str | None:
+def frequency_block(sent_times: list[datetime], now: datetime, policy: dict | None = None) -> str | None:
+    policy = policy or segments.BASE_POLICY
     today = lagos_date(now)
     if any(lagos_date(t) == today for t in sent_times):
         return "already messaged today"
-    if sent_in_last_7_days(sent_times, today) >= MAX_PER_7_DAYS:
-        return "2 messages in the last 7 days"
+    limit = policy["max_per_7_days"]
+    if sent_in_last_7_days(sent_times, today) >= limit:
+        return f"{limit} message{'s' if limit > 1 else ''} in the last 7 days"
     return None
 
 
@@ -117,15 +124,17 @@ def _sequence_items(db: Session, account_id: str) -> list[OutreachItem]:
 
 
 def next_sequence_message(
-    db: Session, account: DebtorAccount, rules: dict, today: date, now: datetime
+    db: Session, account: DebtorAccount, rules: dict, today: date, now: datetime, policy: dict | None = None
 ) -> tuple[str | None, str | None]:
     """(template_key, None) when a sequence message is due today, or
     (None, reason) when it isn't. May mark the account Unresponsive."""
+    policy = policy or segments.BASE_POLICY
+    max_unanswered = policy["max_unanswered"]
     sent = _sequence_items(db, account.id)
     since = account.last_response_at
     unanswered = [i for i in _all_sent(db, account.id) if since is None or i.sent_at > since]
-    if len(unanswered) >= MAX_UNANSWERED:
-        service.set_status(db, account, AccountStatus.UNRESPONSIVE, audit.SYSTEM, f"{MAX_UNANSWERED} messages with no response")
+    if len(unanswered) >= max_unanswered:
+        service.set_status(db, account, AccountStatus.UNRESPONSIVE, audit.SYSTEM, f"{max_unanswered} messages with no response")
         return None, "unresponsive"
     k = len(sent)
     if k == 0:
@@ -134,7 +143,11 @@ def next_sequence_message(
             return None, "campaign not started"
         return "INTRO", None
     first, last = lagos_date(sent[0].sent_at), lagos_date(sent[-1].sent_at)
-    due = {1: first + timedelta(days=3), 2: first + timedelta(days=7)}.get(k, last + timedelta(days=7))
+    steps = policy["sequence_days"]  # e.g. [0, 3, 7]: day offsets from the first message
+    if k < len(steps):
+        due = first + timedelta(days=steps[k])
+    else:
+        due = last + timedelta(days=policy["repeat_every_days"])
     if today < due:
         return None, f"next message due {due.isoformat()}"
     key = "PLAN_OFFER" if k == 2 and rules["max_instalments"] > 1 else "REMINDER"
@@ -150,9 +163,9 @@ def _all_sent(db: Session, account_id: str) -> list[OutreachItem]:
 
 
 def plan_reminder(
-    db: Session, account: DebtorAccount, plan: PaymentPlan, today: date
+    db: Session, account: DebtorAccount, plan: PaymentPlan, today: date, policy: dict | None = None
 ) -> tuple[str | None, dict | None, str | None]:
-    """(context_key, instalment, reason). Reminds 2 days before each due date
+    """(context_key, instalment, reason). Reminds N days before each due date
     (catching up to the due date if that day was Sunday/holiday) and once 1+
     day after a missed one. A plan more than `plan_broken_after_days` behind
     is Broken and the account goes back to the normal sequence."""
@@ -164,7 +177,8 @@ def plan_reminder(
         if cumulative <= covered:
             continue  # this instalment is paid
         due = date.fromisoformat(inst["due"])
-        broken_after = int(settings_store.get(db, "plan_broken_after_days"))
+        policy = policy or segments.BASE_POLICY
+        broken_after = int(policy["plan_broken_after_days"])
         if today > due + timedelta(days=broken_after):
             plan.status = "Broken"
             audit.record(db, audit.SYSTEM, "plan.broken", "PaymentPlan", plan.id, client_id=account.client_id,
@@ -172,7 +186,7 @@ def plan_reminder(
             service.set_status(db, account, AccountStatus.ACTIVE, audit.SYSTEM, "payment plan broken")
             return None, None, "plan broken"
         sent_keys = {i.context_key for i in _all_sent(db, account.id)}
-        if due - timedelta(days=2) <= today <= due and f"inst:{i}:before" not in sent_keys:
+        if due - timedelta(days=policy["plan_reminder_days_before"]) <= today <= due and f"inst:{i}:before" not in sent_keys:
             return f"inst:{i}:before", {**inst, "remaining": cumulative - covered}, None
         if today >= due + timedelta(days=1) and f"inst:{i}:missed" not in sent_keys:
             return f"inst:{i}:missed", {**inst, "remaining": cumulative - covered}, None
@@ -182,7 +196,7 @@ def plan_reminder(
 
 def render_for(db: Session, account: DebtorAccount, client: Client, key: str, rules: dict, today: date,
                instalment: dict | None = None) -> tuple[str, int]:
-    tpl = templates.active(db, key)
+    tpl = templates.active(db, key, client.segment)
     discount = active_discount(rules, account.balance, today)
     discount_line = ""
     if discount:
@@ -263,7 +277,7 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
     today = lagos_date(now)
     holidays = settings_store.holidays(db)
     expired = expire_stale(db, today)
-    if not is_contact_day(today, holidays):
+    if not is_contact_day(today, holidays):  # Sundays and holidays: nobody, whatever the segment
         db.flush()
         return {"date": today.isoformat(), "created": 0, "expired": expired, "reason": "no outreach on Sundays or public holidays"}
     templates.ensure_defaults(db)
@@ -286,13 +300,19 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
         )
         .order_by(DebtorAccount.created_at)
     ).all()
-    scheduled_for = max(now, lagos_datetime(today, CONTACT_START))
+    policies: dict[str, dict] = {}
     created, skipped = 0, {}
     for account, client, batch in rows:
         if account.id in already:
             continue
+        if client.segment not in policies:
+            policies[client.segment] = segments.policy(db, client.segment)
+        policy = policies[client.segment]
+        if not is_contact_day(today, holidays, policy):
+            skipped["not a contact day for this segment"] = skipped.get("not a contact day for this segment", 0) + 1
+            continue
         why = contactable(account, client) or (service.open_dispute(db, account) and "open dispute") or None
-        why = why or frequency_block(_sent_times(db, account.id), now)
+        why = why or frequency_block(_sent_times(db, account.id), now, policy)
         key = context_key = instalment = None
         rules = effective_rules(account, batch, client)
         if not why:
@@ -302,15 +322,15 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
                 plan = service.active_plan(db, account)
                 if plan is None:
                     service.set_status(db, account, AccountStatus.ACTIVE, audit.SYSTEM, "no active plan")
-                    key, why = next_sequence_message(db, account, rules, today, now)
+                    key, why = next_sequence_message(db, account, rules, today, now, policy)
                 else:
-                    context_key, instalment, why = plan_reminder(db, account, plan, today)
+                    context_key, instalment, why = plan_reminder(db, account, plan, today, policy)
                     if context_key:
                         key = "INSTALMENT_DUE"
                     elif plan.status == "Broken":
-                        key, why = next_sequence_message(db, account, rules, today, now)
+                        key, why = next_sequence_message(db, account, rules, today, now, policy)
             else:
-                key, why = next_sequence_message(db, account, rules, today, now)
+                key, why = next_sequence_message(db, account, rules, today, now, policy)
         if not key:
             skipped[why or "not due"] = skipped.get(why or "not due", 0) + 1
             continue
@@ -324,7 +344,7 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
                 context_key=context_key,
                 rendered_text=text,
                 queue_date=today,
-                scheduled_for=scheduled_for,
+                scheduled_for=max(now, lagos_datetime(today, window(policy)[0])),
                 status="Queued",
             )
         )
@@ -344,15 +364,19 @@ def _check_sendable(db: Session, item: OutreachItem, now: datetime) -> tuple[Deb
         raise OutreachRefused(f"This item is already {item.status.lower()}.")
     if item.queue_date != lagos_date(now):
         raise OutreachRefused("This item is from an earlier day's queue.")
-    if not in_contact_window(now, settings_store.holidays(db)):
-        raise OutreachRefused("Messages can only go out 8am–7pm WAT, Monday to Saturday (not public holidays).")
+    client_row = db.get(Client, item.client_id)
+    policy = segments.policy(db, client_row.segment)
+    if not in_contact_window(now, settings_store.holidays(db), policy):
+        start, end = policy["contact_start"], policy["contact_end"]
+        raise OutreachRefused(f"Messages for this client can only go out {start}–{end} WAT on contact days "
+                              "(8am–7pm, Monday to Saturday at most; never public holidays).")
     account = db.get(DebtorAccount, item.account_id)
     client = db.get(Client, item.client_id)
     reason = contactable(account, client) or (service.open_dispute(db, account) and "open dispute")
     if reason:
         item.status, item.skip_reason = "Skipped", f"Not contactable: {reason}"
         raise OutreachRefused(f"This person can't be contacted now ({reason}). The item was removed.")
-    block = frequency_block(_sent_times(db, account.id), now)
+    block = frequency_block(_sent_times(db, account.id), now, policy)
     if block:
         raise OutreachRefused(f"Frequency limit: {block}.")
     return account, client

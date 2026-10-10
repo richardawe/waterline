@@ -3,8 +3,9 @@
   var view = CL.$('#view'), esc = CL.esc, naira = CL.naira;
   var ME = null;
   var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['replies', 'Replies'],
-    ['followups', 'Follow-ups'], ['clients', 'Clients'], ['invoices', 'Invoices'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
-  var CHECK_LABELS = { phone_call_made: 'Phone call made', business_exists: 'Business confirmed to exist', bank_name_matches: 'Bank account name matches business', contact_confirmed: 'Contact person confirmed' };
+    ['followups', 'Follow-ups'], ['clients', 'Clients'], ['fees', 'Fee proposals'], ['invoices', 'Invoices'], ['segments', 'Segments'],
+    ['waitlist', 'Waitlist'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
+  var SEG_NAMES = {};
 
   function get(p) { return CL.api('/collections/ops' + p, { auth: 'ops' }); }
   function post(p, json) { return CL.api('/collections/ops' + p, { auth: 'ops', method: 'POST', json: json || {} }); }
@@ -49,7 +50,8 @@
         '<div class="stats">' +
         s(o.pending_approvals, 'Pending approvals', '#approvals') + s(o.queue_remaining, 'Messages left to send today', '#queue') +
         s(o.overdue_confirmations, 'Confirmations overdue (5+ working days)', '#followups') + s(o.stale_disputes, 'Disputes open 10+ working days', '#followups') +
-        s(o.flagged_clients, 'Flagged clients', '#clients') + s(o.draft_invoices, 'Draft invoices', '#invoices') + '</div>' +
+        s(o.flagged_clients, 'Flagged clients', '#clients') + s(o.draft_invoices, 'Draft invoices', '#invoices') +
+        s(o.pending_fee_proposals, 'Fee proposals to review', '#fees') + s(o.new_waitlist, 'New waitlist sign-ups', '#waitlist') + '</div>' +
         (ME.role === 'Admin' ? '<button class="btn ghost" id="daily">Run daily jobs now</button>' : '');
       var d = CL.$('#daily');
       if (d) d.onclick = function () { post('/jobs/daily').then(function (r) { CL.toast('Done: ' + r.queue.created + ' queued'); R.overview(); }).catch(fail); };
@@ -60,14 +62,14 @@
   function clientCard(c) {
     var checks = c.verification_checklist || {};
     return '<div class="card" data-client="' + c.id + '"><h2>' + esc(c.business_name) + ' ' + CL.pill(c.status) + (c.flagged_at ? ' <span class="pill red">Flagged</span>' : '') + '</h2>' +
-      '<dl class="kv small"><dt>Type</dt><dd>' + esc(c.business_type) + '</dd><dt>Location</dt><dd>' + esc(c.city + ', ' + c.state) + '</dd>' +
+      '<dl class="kv small"><dt>Segment</dt><dd>' + esc(SEG_NAMES[c.segment] || c.segment) + '</dd><dt>Type</dt><dd>' + esc(c.business_type) + '</dd><dt>Location</dt><dd>' + esc(c.city + ', ' + c.state) + '</dd>' +
       '<dt>Bank</dt><dd>' + esc(c.bank_name + ' · ' + c.account_number + ' · ' + c.account_name) + '</dd><dt>Signed up</dt><dd>' + CL.datetime(c.created_at) + '</dd>' +
-      '<dt>Accounts</dt><dd>' + c.accounts + ' · recovered ' + naira(c.recovered) + '</dd><dt>Fee / window / cap</dt><dd>' + c.fee_percent + '% · ' + c.attribution_days + ' days · ' + c.upload_row_cap + ' rows</dd>' +
+      '<dt>Accounts</dt><dd>' + c.accounts + ' · recovered ' + naira(c.recovered) + '</dd><dt>Fee</dt><dd>' + esc(c.fee_text) + '</dd><dt>Window / cap</dt><dd>' + c.attribution_days + ' days · ' + c.upload_row_cap + ' rows</dd>' +
+      Object.keys(c.profile || {}).map(function (k) { return '<dt>' + esc(k.replace(/_/g, ' ')) + '</dt><dd>' + esc(c.profile[k]) + '</dd>'; }).join('') +
       (c.flagged_reason ? '<dt>Flag</dt><dd style="color:var(--red)">' + esc(c.flagged_reason) + '</dd>' : '') +
       (c.status_reason ? '<dt>Reason</dt><dd>' + esc(c.status_reason) + '</dd>' : '') + '</dl>' +
       '<div data-users class="small muted" style="margin:8px 0"></div>' +
-      '<details style="margin-top:10px"><summary>Verification checks</summary><div style="margin-top:10px">' +
-      Object.keys(CHECK_LABELS).map(function (k) { return '<label class="check"><input type="checkbox" data-check="' + k + '"' + (checks[k] ? ' checked' : '') + '> ' + CHECK_LABELS[k] + '</label>'; }).join('') +
+      '<details style="margin-top:10px"><summary>Verification checks</summary><div style="margin-top:10px"><div data-checks data-done="' + esc(JSON.stringify(checks)) + '"><p class="small muted">Loading…</p></div>' +
       '<div class="field"><label>Notes</label><textarea data-notes>' + esc(c.verification_notes || '') + '</textarea></div><button class="btn sm ghost" data-save-checks>Save checks</button></div></details>' +
       '<div class="row-btns" style="margin-top:12px">' +
       (c.status === 'Pending' || c.status === 'Suspended' || c.status === 'Rejected' ? '<button class="btn sm" data-status="Approved">Approve</button>' : '') +
@@ -81,6 +83,11 @@
     CL.$$('[data-client]').forEach(function (card) {
       var id = card.dataset.client;
       get('/clients/' + id).then(function (d) {
+        var done = JSON.parse(CL.$('[data-checks]', card).dataset.done || '{}');
+        CL.$('[data-checks]', card).innerHTML = d.checklist_items.map(function (it) {
+          return '<label class="check"><input type="checkbox" data-check="' + esc(it.key) + '"' + (done[it.key] ? ' checked' : '') + '> ' + esc(it.label) + '</label>';
+        }).join('');
+        if (d.pending_fee_proposal) CL.$('[data-users]', card).insertAdjacentHTML('beforebegin', '<div class="banner info small">Fee proposal pending: ' + esc(d.pending_fee_proposal.text) + ' — see <a href="#fees">Fee proposals</a>.</div>');
         CL.$('[data-users]', card).innerHTML = 'Team: ' + d.users.map(function (u) { return esc(u.name + ' (' + u.role + (u.job_title ? ', ' + u.job_title : '') + ') ' + u.email + (u.phone ? ' ' + u.phone : '')); }).join(' · ') +
           (d.batches.length ? '<br>Uploads: ' + d.batches.map(function (b) { return esc(b.file_name) + ' (' + b.imported_count + (b.flagged ? ', flagged' : '') + ')'; }).join(', ') : '');
       });
@@ -99,7 +106,7 @@
         var cap = prompt('Upload row limit:'); if (cap === null) return;
         var body = { upload_row_cap: parseInt(cap, 10) };
         if (ME.role === 'Admin') {
-          var fee = prompt('Fee % (blank = unchanged):'); if (fee) body.fee_percent = parseFloat(fee);
+          var fee = prompt('Set a flat fee % (blank = unchanged; use Fee proposals for tiered schedules):'); if (fee) body.fee_schedule = { type: 'flat', percent: parseFloat(fee) };
           var days = prompt('Attribution window in days (blank = unchanged):'); if (days) body.attribution_days = parseInt(days, 10);
         }
         put('/clients/' + id + '/limits', body).then(function () { CL.toast('Saved'); reload(); }).catch(fail);
@@ -258,21 +265,121 @@
   };
 
   R.templates = function () {
-    return get('/templates').then(function (rows) {
+    var seg = CL.param('seg') || 'school';
+    return get('/templates?segment=' + encodeURIComponent(seg)).then(function (rows) {
       var admin = ME.role === 'Admin';
       var active = rows.filter(function (t) { return t.is_active; });
-      view.innerHTML = '<h1>Message templates</h1><p class="muted">Placeholders: {{debtor_first_name}}, {{client_name}}, {{description}}, {{balance}}, {{link}}, {{discount_line}}, {{instalment_amount}}, {{due_date}}. Every template must include {{client_name}}, “via Waterline”, {{link}} and “Reply STOP to stop messages.” Threats, police/court/arrest, blacklisting, exams/results/exclusion and shaming are blocked.</p>' +
+      view.innerHTML = '<h1>Message templates</h1><div class="tabs">' + Object.keys(SEG_NAMES).map(function (k) {
+        return '<button data-seg="' + esc(k) + '"' + (k === seg ? ' class="on"' : '') + '>' + esc(SEG_NAMES[k]) + '</button>';
+      }).join('') + '</div><p class="muted">Placeholders: {{debtor_first_name}}, {{client_name}}, {{description}}, {{balance}}, {{link}}, {{discount_line}}, {{instalment_amount}}, {{due_date}}. Every template must include {{client_name}}, “via Waterline”, {{link}} and “Reply STOP to stop messages.” Threats, police/court/arrest, blacklisting, shaming and third-party disclosure are blocked everywhere; each segment blocks more (e.g. exams for schools, eviction for estates).</p>' +
         active.map(function (t) {
           var history = rows.filter(function (h) { return h.key === t.key && h.language === t.language && !h.is_active; });
           return '<div class="card" data-key="' + esc(t.key) + '"><h2>' + esc(t.key) + ' <span class="small muted">v' + t.version + ' · ' + esc(t.language) + '</span></h2>' +
             (admin ? '<textarea data-body style="min-height:120px">' + esc(t.body) + '</textarea><button class="btn sm" data-save style="margin-top:8px">Save as new version</button>' : '<div class="msg">' + esc(t.body) + '</div>') +
             (history.length ? '<details style="margin-top:10px"><summary>Earlier versions</summary>' + history.map(function (h) { return '<p class="small"><b>v' + h.version + '</b> ' + esc(h.body) + '</p>'; }).join('') + '</details>' : '') + '</div>';
         }).join('');
+      CL.$$('[data-seg]').forEach(function (b) { b.onclick = function () { history.replaceState(null, '', '?seg=' + b.dataset.seg + '#templates'); R.templates(); }; });
       CL.$$('[data-save]').forEach(function (b) {
         b.onclick = function () {
           var card = b.closest('[data-key]');
-          post('/templates/' + card.dataset.key, { body: CL.$('[data-body]', card).value, language: 'en' }).then(function (r) { CL.toast('Saved v' + r.version); R.templates(); }).catch(fail);
+          post('/templates/' + seg + '/' + card.dataset.key, { body: CL.$('[data-body]', card).value, language: 'en' }).then(function (r) { CL.toast('Saved v' + r.version); R.templates(); }).catch(fail);
         };
+      });
+    });
+  };
+
+  var STATUS_TEXT = { live: 'Live — open for sign-up', waitlist: 'Coming soon — waitlist only', hidden: 'Hidden' };
+  R.segments = function () {
+    return get('/segments').then(function (rows) {
+      var admin = ME.role === 'Admin';
+      view.innerHTML = '<h1>Segments</h1><p class="muted">Switch a segment on when you\'re ready to take sign-ups from it. Status controls the landing page and new sign-ups only — existing clients of a segment keep working. Conduct rules can be made stricter here, never looser than the baseline.</p>' +
+        (admin ? '' : '<div class="banner info">Only Waterline Admin can change segments.</div>') +
+        rows.map(function (g) {
+          var p = g.policy;
+          return '<div class="card" data-segkey="' + esc(g.key) + '"><h2>' + esc(g.name) + ' ' + '<span class="pill ' + ({ live: 'green', waitlist: 'amber', hidden: '' }[g.status]) + '">' + esc(STATUS_TEXT[g.status]) + '</span>' + '</h2>' +
+            '<p class="small muted">' + esc(g.tagline) + '</p>' +
+            '<dl class="kv small"><dt>Client types</dt><dd>' + esc(g.client_types.join(', ')) + '</dd>' +
+            '<dt>Clients / waitlist</dt><dd>' + g.clients + (g.clients === 1 ? ' client · ' : ' clients · ') + g.waitlist_new + ' new on the waitlist</dd>' +
+            '<dt>Upload columns</dt><dd>' + esc(g.columns.map(function (c) { return c.name + (c.required ? '*' : ''); }).join(', ')) + '</dd>' +
+            '<dt>Default fee</dt><dd>' + esc(g.default_fee_text) + '</dd>' +
+            '<dt>Contact rules</dt><dd>' + esc(p.contact_start + '–' + p.contact_end + ' WAT, days ' + p.contact_weekdays.map(function (d) { return 'MTWTFS'[d]; }).join('') +
+              ' · max ' + p.max_per_7_days + '/7 days · sequence days ' + p.sequence_days.join(', ') + ' then every ' + p.repeat_every_days + ' · stop after ' + p.max_unanswered + ' unanswered') + '</dd>' +
+            (g.requires_policy_review ? '<dt>Policy review</dt><dd>' + (g.policy_reviewed_at ? 'Confirmed ' + CL.date(g.policy_reviewed_at) : '<span style="color:var(--red)">Needed before going live</span>') + '</dd>' : '') + '</dl>' +
+            (admin ? '<div class="row-btns" style="margin-top:12px">' +
+              ['live', 'waitlist', 'hidden'].filter(function (st) { return st !== g.status; }).map(function (st) {
+                return '<button class="btn sm' + (st === 'live' ? '' : ' ghost') + '" data-set="' + st + '">' + { live: 'Switch on (live)', waitlist: 'Move to waitlist', hidden: 'Hide' }[st] + '</button>';
+              }).join('') +
+              (g.requires_policy_review && !g.policy_reviewed_at ? '<button class="btn sm ghost" data-review>Confirm policy reviewed by counsel</button>' : '') + '</div>' +
+              '<details style="margin-top:12px"><summary>Tighten conduct rules or change the default fee</summary><div style="margin-top:10px">' +
+              '<div class="field"><label>Policy overrides (JSON — stricter only)</label><textarea data-policy style="min-height:70px">' + esc(JSON.stringify(g.policy_overrides)) + '</textarea>' +
+              '<div class="hint">e.g. {"contact_start": "09:00", "max_per_7_days": 1}. Baseline: ' + esc(JSON.stringify(g.base_policy)) + '</div></div>' +
+              '<div class="field"><label>Default fee for new clients (JSON)</label><textarea data-fee style="min-height:70px">' + esc(JSON.stringify(g.default_fee)) + '</textarea>' +
+              '<div class="hint">{"type": "flat", "percent": 20} or {"type": "tiered_by_age", "tiers": [{"max_days": 90, "percent": 15}, {"max_days": null, "percent": 25}]}</div></div>' +
+              '<button class="btn sm" data-save-seg>Save</button></div></details>' : '') + '</div>';
+        }).join('');
+      CL.$$('[data-segkey]').forEach(function (card) {
+        var key = card.dataset.segkey;
+        var send = function (body, msg) { put('/segments/' + key, body).then(function () { CL.toast(msg); R.segments(); }).catch(fail); };
+        CL.$$('[data-set]', card).forEach(function (b) {
+          b.onclick = function () {
+            if (b.dataset.set === 'live' && !confirm('Open ' + SEG_NAMES[key] + ' for sign-up and show it as live on the landing page?')) return;
+            send({ status: b.dataset.set }, 'Segment updated');
+          };
+        });
+        var rv = CL.$('[data-review]', card);
+        if (rv) rv.onclick = function () {
+          if (confirm('Confirm that counsel has reviewed this segment\'s conduct policy and message templates?')) send({ confirm_policy_review: true }, 'Review recorded');
+        };
+        var sv = CL.$('[data-save-seg]', card);
+        if (sv) sv.onclick = function () {
+          var pol, fee;
+          try { pol = JSON.parse(CL.$('[data-policy]', card).value || '{}'); fee = JSON.parse(CL.$('[data-fee]', card).value); } catch (e) { CL.toast('That isn\'t valid JSON'); return; }
+          send({ policy_overrides: pol, default_fee_schedule: fee }, 'Saved');
+        };
+      });
+    });
+  };
+
+  R.fees = function () {
+    var st = CL.param('fs') || 'Pending';
+    return get('/fee-proposals?status=' + st).then(function (rows) {
+      var admin = ME.role === 'Admin';
+      view.innerHTML = '<h1>Fee proposals</h1><div class="tabs">' + ['Pending', 'All'].map(function (x) {
+        return '<button data-fs="' + x + '"' + (x === st ? ' class="on"' : '') + '>' + x + '</button>';
+      }).join('') + '</div>' + (admin ? '' : '<div class="banner info">Only Waterline Admin can approve fees.</div>') +
+        (rows.length ? rows.map(function (p) {
+          return '<div class="card" data-prop="' + p.id + '"><h3>' + esc(p.client_name) + ' <span class="small muted">' + esc(SEG_NAMES[p.segment] || p.segment) + '</span> ' + CL.pill(p.status) + '</h3>' +
+            '<dl class="kv small"><dt>Proposed</dt><dd>' + esc(p.text) + '</dd><dt>Current</dt><dd>' + esc(p.current_text) + '</dd><dt>Sent</dt><dd>' + CL.datetime(p.created_at) + '</dd>' +
+            (p.note ? '<dt>Their note</dt><dd>' + esc(p.note) + '</dd>' : '') + (p.decision_note ? '<dt>Decision note</dt><dd>' + esc(p.decision_note) + '</dd>' : '') + '</dl>' +
+            (admin && p.status === 'Pending' ? '<div class="field" style="margin-top:10px"><label>Note to the client (optional)</label><input type="text" data-note maxlength="1000"></div>' +
+              '<div class="row-btns"><button class="btn sm" data-decide="1">Approve</button><button class="btn sm danger" data-decide="0">Reject</button></div>' : '') + '</div>';
+        }).join('') : '<div class="card"><p class="muted">No proposals.</p></div>');
+      CL.$$('[data-fs]').forEach(function (b) { b.onclick = function () { history.replaceState(null, '', '?fs=' + b.dataset.fs + '#fees'); R.fees(); }; });
+      CL.$$('[data-decide]').forEach(function (b) {
+        b.onclick = function () {
+          var card = b.closest('[data-prop]'), approve = b.dataset.decide === '1';
+          if (!confirm(approve ? 'Approve this fee? It applies to payments the client confirms from now on.' : 'Reject this proposal?')) return;
+          post('/fee-proposals/' + card.dataset.prop + '/decide', { approve: approve, note: CL.$('[data-note]', card).value || null })
+            .then(function () { CL.toast(approve ? 'Approved' : 'Rejected'); R.fees(); }).catch(fail);
+        };
+      });
+    });
+  };
+
+  R.waitlist = function () {
+    return get('/waitlist').then(function (rows) {
+      view.innerHTML = '<h1>Waitlist</h1><p class="muted">Organisations from segments that aren\'t live yet. When you switch a segment on (Segments tab), contact them to sign up.</p>' +
+        '<div class="card table-wrap"><table><thead><tr><th>When</th><th>Segment</th><th>Organisation</th><th>Contact</th><th>Note</th><th>Status</th></tr></thead><tbody>' +
+        (rows.length ? rows.map(function (w) {
+          return '<tr data-w="' + w.id + '"><td class="small nowrap">' + CL.date(w.created_at) + '</td><td class="small">' + esc(SEG_NAMES[w.segment] || w.segment) + '</td>' +
+            '<td>' + esc(w.business_name) + '<div class="tiny muted">' + esc(w.business_type || '') + '</div></td>' +
+            '<td class="small">' + esc(w.contact_name) + '<br><a href="mailto:' + esc(w.email) + '">' + esc(w.email) + '</a>' + (w.phone ? '<br>' + esc(w.phone) : '') + '</td>' +
+            '<td class="small">' + esc(w.note || '') + '</td><td><select data-ws style="min-height:34px" aria-label="Status">' + ['New', 'Contacted', 'Invited'].map(function (x) {
+              return '<option' + (x === w.status ? ' selected' : '') + '>' + x + '</option>';
+            }).join('') + '</select></td></tr>';
+        }).join('') : '<tr><td colspan="6" class="muted">Nobody yet.</td></tr>') + '</tbody></table></div>';
+      CL.$$('[data-ws]').forEach(function (sel) {
+        sel.onchange = function () { post('/waitlist/' + sel.closest('[data-w]').dataset.w + '/status', { status: sel.value }).then(function () { CL.toast('Saved'); }).catch(fail); };
       });
     });
   };
@@ -318,7 +425,10 @@
   function start() {
     if (!CL.getToken('ops')) return loginForm();
     CL.api('/collections/ops/me', { auth: 'ops', noRedirect: true }).then(function (me) {
-      ME = me; window.addEventListener('hashchange', route); route();
+      ME = me;
+      return get('/segments').then(function (segs) {
+        segs.forEach(function (g) { SEG_NAMES[g.key] = g.name; });
+      }).catch(function () {}).then(function () { window.addEventListener('hashchange', route); route(); });
     }).catch(function () { CL.setToken('ops', null); loginForm(); });
   }
   start();
