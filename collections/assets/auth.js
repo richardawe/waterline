@@ -52,6 +52,13 @@
       CL.busy(btn, true, 'Creating account…'); msg(CL.$('#form-msg'), '');
       CL.api('/collections/public/signup', { json: body }).then(function () {
         form.classList.add('hidden'); CL.$('#done').classList.remove('hidden'); window.scrollTo(0, 0);
+        CL.$('#done-email').textContent = ' to ' + body.email;
+        CL.$('#resend').onclick = function () {
+          var rb = this; CL.busy(rb, true, 'Sending…');
+          CL.api('/collections/public/resend-verification', { json: { email: body.email } }).then(function (r) {
+            CL.busy(rb, false); CL.$('#resend-msg').textContent = r.message;
+          }).catch(function (err) { CL.busy(rb, false); CL.$('#resend-msg').textContent = err.message; });
+        };
       }).catch(function (err) {
         CL.busy(btn, false);
         if (err.detail && err.detail.fields) CL.showFieldErrors(form, err.detail.fields);

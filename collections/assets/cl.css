@@ -79,3 +79,23 @@ footer.site a{color:var(--dim)}
 .toast{animation:wl-toast .45s var(--ease-spring) both}
 .waterline-card .tank{margin-top:4px}
 @media (prefers-reduced-motion:reduce){.btn,.toast{transition:none;animation:none}}
+
+/* ---------------------------------------------------------------- landing hero: the waterline rising as balances come in */
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:40px;align-items:center}
+@media(max-width:860px){.hero-grid{grid-template-columns:1fr;gap:28px}}
+.hero-demo{background:var(--surface);color:var(--text);border-radius:var(--r-xl);padding:18px;box-shadow:var(--shadow-pop);max-width:420px;width:100%;justify-self:end}
+@media(max-width:860px){.hero-demo{justify-self:start}}
+.hero-demo .hd-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px}
+.hero-demo .hd-name{font-weight:600;font-size:.95rem;color:var(--navy)}
+.hero-demo .hd-tag{font:500 .68rem var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-faint)}
+
+.hero-demo .hd-rows{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.hero-demo .hd-rows li{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;color:var(--text-dim);opacity:0;transform:translateY(6px);animation:wl-rise .45s var(--ease-out) forwards}
+.hero-demo .hd-rows li b{color:var(--navy);font-variant-numeric:tabular-nums;font-weight:600}
+.hero-demo .hd-rows li .ok{color:var(--green)}
+.hero-demo .hd-rows li:nth-child(1){animation-delay:.5s}.hero-demo .hd-rows li:nth-child(2){animation-delay:.9s}.hero-demo .hd-rows li:nth-child(3){animation-delay:1.3s}
+.hero-demo .hd-foot{margin:12px 0 0;font-size:.74rem;color:var(--text-faint)}
+@media (prefers-reduced-motion:reduce){.hero-demo .hd-rows li{animation:none;opacity:1;transform:none}}
+.hero-demo .tank{height:176px}
+.hero-demo .tank .tank-label{top:10px}
+.hero-demo .tank .tank-value{left:12px;right:auto;top:26px;font-size:1.65rem}

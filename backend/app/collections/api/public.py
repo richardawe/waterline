@@ -288,7 +288,7 @@ def resend_verification(body: EmailIn, db: Session = Depends(get_db)):
     if user and not user.email_verified_at and user.is_active:
         send_verification(db, user)
         db.commit()
-    return {"message": "If that address needs confirming, we've sent a new link."}
+    return {"message": "If that address needs confirming, we've sent a new link. Check your spam or junk folder if it isn't in your inbox."}
 
 
 class LoginIn(BaseModel):
@@ -333,7 +333,7 @@ def forgot_password(body: EmailIn, db: Session = Depends(get_db)):
                      f"{emailer.site_url('/collections/reset/?token=' + token)}\n\nIf it wasn't you, ignore this email.",
                      kind="client_reset_password", client_id=user.client_id)
         db.commit()
-    return {"message": "If an account exists for that email, we've sent a reset link."}
+    return {"message": "If an account exists for that email, we've sent a reset link. Check your spam or junk folder if it isn't in your inbox."}
 
 
 class ResetIn(BaseModel):
