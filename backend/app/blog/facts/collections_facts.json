@@ -1,0 +1,33 @@
+[
+ {
+  "id": "ndpa-organisations",
+  "category": "collections",
+  "keywords": [
+   "ndpa",
+   "data protection",
+   "privacy",
+   "arrears",
+   "debt collection",
+   "school",
+   "estate"
+  ],
+  "fact": "The Nigeria Data Protection Act (NDPA) 2023 applies to any organisation that processes personal data in Nigeria, including schools, estates and businesses that keep records of who owes them; it requires a lawful basis for processing, data minimisation and security safeguards, and is enforced by the Nigeria Data Protection Commission (NDPC).",
+  "as_of": "2026",
+  "source": "ndpc.gov.ng"
+ },
+ {
+  "id": "fccpc-collection-conduct",
+  "category": "collections",
+  "keywords": [
+   "debt collection",
+   "harassment",
+   "debt reminder",
+   "fccpc",
+   "loan app",
+   "whatsapp"
+  ],
+  "fact": "Nigeria's Federal Competition and Consumer Protection Commission (FCCPC) has acted against digital lenders that shamed or harassed borrowers, including contacting people in a borrower's phone contacts, treating such practices as unfair to consumers.",
+  "as_of": "2026",
+  "source": "fccpc.gov.ng"
+ }
+]

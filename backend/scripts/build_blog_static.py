@@ -60,6 +60,7 @@ PAGE_STYLE = """
 .article-head h1{font-size:clamp(28px,4vw,42px);line-height:1.15}
 .article-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;color:var(--text-faint);font-size:12px}
 .article-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.collections-cta{margin-top:28px;padding:16px 18px;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:var(--r-md);background:var(--accent-soft);line-height:1.55}
 .article-disclosure{margin-top:24px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-subtle);color:var(--text-dim);font-size:13px}
 .article-body{margin-top:34px;font-size:16px;line-height:1.75;color:var(--text)}
 .article-body h2{margin-top:38px;margin-bottom:12px;font-size:23px}.article-body h3{margin-top:26px;margin-bottom:10px;font-size:18px}
@@ -140,6 +141,22 @@ def _build_index(posts: list[BlogPost], base_url: str) -> str:
     )
 
 
+_COLLECTIONS_TERMS = ("school fee", "school", "bursar", "service charge", "estate", "levy", "arrears", "unpaid",
+                      "debt recovery", "debt collection", "reminder", "instalment plan", "payment plan")
+
+
+def _collections_cta(post: BlogPost, tags: list[str]) -> str:
+    """Articles about recovering fees or service charges end with a pointer to
+    Waterline Collections; credit explainers don't."""
+    text = " ".join([post.title or "", " ".join(tags)]).lower()
+    if not any(term in text for term in _COLLECTIONS_TERMS):
+        return ""
+    return ('<div class="collections-cta"><strong>Run a school or an estate?</strong> '
+            '<a href="/collections/">Waterline Collections</a> follows up unpaid fees and service charges for you '
+            'with polite WhatsApp reminders and instalment plans, and payments go straight into your account. '
+            'No upfront cost: you only pay when they pay.</div>')
+
+
 def _build_article(post: BlogPost, base_url: str) -> str:
     tags = json.loads(post.tags_json) if post.tags_json else []
     faq = json.loads(post.faq_json) if post.faq_json else []
@@ -202,6 +219,7 @@ def _build_article(post: BlogPost, base_url: str) -> str:
 <div class="article-body">{post.content_html or ""}</div>
 {f'<div class="faq-block"><h2>FAQ</h2>{faq_html}</div>' if faq else ''}
 {f'<div class="sources-block"><strong>Sources</strong><ul>{sources_html}</ul></div>' if news_refs else ''}
+{_collections_cta(post, tags)}
 </article>
 </div>"""
     return _page_shell(f"{post.title} — Waterline Blog", post.meta_description, canonical, extra_head, body)

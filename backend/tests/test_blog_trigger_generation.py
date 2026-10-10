@@ -41,7 +41,7 @@ def test_main_success_calls_notify_run_summary(monkeypatch):
     mock_notify.assert_called_once()
 
 
-def test_main_no_pending_topics_skips_notify(monkeypatch):
+def test_main_no_pending_topics_fails_loudly(monkeypatch):
     monkeypatch.setenv("BLOG_API_BASE", "https://api.example.com")
     monkeypatch.setenv("ADMIN_API_USERNAME", "admin")
     monkeypatch.setenv("ADMIN_API_PASSWORD", "secret")
@@ -52,9 +52,10 @@ def test_main_no_pending_topics_skips_notify(monkeypatch):
 
     with patch.object(trigger_blog_generation.httpx, "post", return_value=mock_response), patch.object(
         trigger_blog_generation.notify, "notify_run_summary"
-    ) as mock_notify:
-        assert trigger_blog_generation.main(1) == 0
+    ) as mock_notify, patch.object(trigger_blog_generation.notify, "notify_failure") as mock_failure:
+        assert trigger_blog_generation.main(1) == 1
     mock_notify.assert_not_called()
+    assert "No pending blog topics" in mock_failure.call_args[0][0]
 
 
 def test_main_http_error_calls_notify_failure_and_returns_1(monkeypatch):

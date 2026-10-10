@@ -71,9 +71,16 @@ def main(posts_per_run: int) -> int:
 
     if published or qa_failed:
         notify.notify_run_summary(published, qa_failed)
-    else:
-        logger.info("no pending blog topics — nothing generated this run")
-    return 0
+        return 0
+    # An empty queue used to exit 0, so the daily run stayed green while
+    # publishing nothing for days. Fail loudly instead: someone has to add
+    # topics (admin.html → Blog → Content queue, or TOPICS in
+    # app/seed/seed_blog_topics.py).
+    message = ("No pending blog topics, so nothing was generated. Add topics in admin.html (Blog → Content queue) "
+               "or to TOPICS in backend/app/seed/seed_blog_topics.py.")
+    logger.error(message)
+    notify.notify_failure(message)
+    return 1
 
 
 if __name__ == "__main__":

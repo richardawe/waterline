@@ -175,6 +175,15 @@ Apache/Passenger layer with a higher value, that's the fix.
   (comma-separated) in `backend/app/config.py` or via env var. Verify it's
   real RSS 2.0 first — `businessday.ng/feed/` was tried during design and
   403s to a generic fetch; Nairametrics and TechCabal are confirmed working.
+- **Empty queue = red run.** When no pending topics are left, the daily run
+  now fails and opens a "Blog run failed" issue instead of passing quietly
+  (it published nothing for days in Oct 2026 before anyone noticed). Top up
+  the queue when you see it.
+- **Collections link**: articles whose title or tags mention school fees,
+  service charges, arrears, reminders or payment plans end with a short
+  pointer to `/collections/` (`_collections_cta` in `build_blog_static.py`).
+  Topics in the `collections` category ground on
+  `app/blog/facts/collections_facts.json`.
 - **Add a topic**: use the "Content queue" panel in `admin.html`'s Blog tab
   (add/remove pending topics without touching code), add a row to `TOPICS`
   in `backend/app/seed/seed_blog_topics.py`, or insert a `BlogTopic`

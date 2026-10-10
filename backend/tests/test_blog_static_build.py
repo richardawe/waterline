@@ -126,3 +126,13 @@ def test_fetch_published_posts_via_api_requires_env_vars(monkeypatch):
         assert False, "expected SystemExit"
     except SystemExit:
         pass
+
+
+def test_collections_cta_only_on_fee_and_service_charge_articles():
+    credit = build_blog_static._build_article(_post(), "https://waterline.ng")
+    assert 'class="collections-cta"' not in credit
+    fees = build_blog_static._build_article(
+        _post(title="How schools in Nigeria can recover unpaid fees", tags_json=json.dumps(["school fees", "arrears"])),
+        "https://waterline.ng",
+    )
+    assert 'class="collections-cta"' in fees and 'href="/collections/"' in fees
