@@ -208,9 +208,10 @@ def send_email(db: Session, p: Prospect, *, subject: str, body: str, key: str, o
     subject = _clean(subject, 200)
     full = _clean(body, 6000) + footer(db, "Email")
     row = emailer.send(db, p.email, subject, full, kind="prospect", reply_to=settings_store.get(db, "contact_email"))
-    if row.status == "Failed":
-        _record(db, p, "Email", key=key, subject=subject, body=full, status="Failed", error=row.error, ops_user_id=ops_user_id)
-        raise ProspectRefused(f"The email didn't send: {row.error}")
+    if row.status != "Sent":  # "Logged" means SMTP isn't configured: nothing left the server
+        error = row.error or "Email (SMTP) isn't set up on the server, so nothing was sent."
+        _record(db, p, "Email", key=key, subject=subject, body=full, status="Failed", error=error, ops_user_id=ops_user_id)
+        raise ProspectRefused(f"The email didn't send: {error}")
     return _record(db, p, "Email", key=key, subject=subject, body=full, status="Sent", ops_user_id=ops_user_id)
 
 

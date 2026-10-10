@@ -67,6 +67,17 @@ def test_ops_emails_a_prospect_with_footer_and_reply_to(cl_api, cl_db, monkeypat
     assert r.status_code == 409 and "today" in r.json()["detail"]
 
 
+def test_email_without_smtp_is_not_recorded_as_sent(cl_api, cl_db):
+    _, h = make_ops(cl_db, role="Ops")
+    p = _prospect(cl_db)
+    r = cl_api.post(f"/collections/ops/prospects/{p.id}/email", json={"subject": "Hi", "body": "Hello"}, headers=h)
+    assert r.status_code == 409 and "SMTP" in r.json()["detail"]
+    cl_db.refresh(p)
+    assert p.status == "New"
+    touch = cl_db.execute(select(ProspectTouch).where(ProspectTouch.prospect_id == p.id)).scalar_one()
+    assert touch.status == "Failed"
+
+
 def test_whatsapp_link_then_mark_sent(cl_api, cl_db):
     _, h = make_ops(cl_db, role="Ops")
     p = _prospect(cl_db, email=None)
