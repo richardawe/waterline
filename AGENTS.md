@@ -4,7 +4,7 @@ Read this before touching deploy config, `admin.html`, or the frontend↔backend
 wiring. It's the operational context a fresh session/agent won't have —
 architecture is easy to re-derive by reading code; the state below isn't.
 
-Last updated: 2026-08-26.
+Last updated: 2026-10-11.
 
 ## What this is
 
@@ -35,7 +35,18 @@ A loan-book structured-finance platform for Nigerian lenders, in three parts:
    `/collections`; what stays out is the structured-finance product language
    (loan-book securitisation, SPVs, tranches, investors). Guarantors,
    references, relatives and employers are blocked for every segment. Full
-   reference: `docs/collections.md`.
+   reference: `docs/collections.md`. Also inside it: clients can add one
+   debtor by hand; ops have a **Prospects** tab (Waterline's own sales
+   outreach by email + click-to-chat WhatsApp, seeded with "First 20
+   Prospects"); the 8am–7pm contact window is off by default
+   (`enforce_contact_window` config — turn on before opening lenders).
+6. **Planned, NOT built: credit bureau reporting** for Collections (schools
+   first, then BNPL/leasing; not estates, not lenders). Opt-in, per-report
+   fee, Waterline as the client's agent, lawful identity matching only.
+   Blocked on bureau answers + a legal opinion. Read
+   `docs/credit-reporting-plan.md` before writing any of it; until then no
+   page or message may mention credit bureaus (it would be a misleading
+   threat).
 
 ## Architecture
 
@@ -85,7 +96,9 @@ backend.
   Passenger at `api.waterline.ng`. `bootstrap` FTP deployment stamps
   `tmp/restart.txt`; full server automation still needs SSH.
 
-- **Postgres is live and migrated** to Alembic head `c17443101dd9`; Tier 1
+- **Postgres is live and migrated** to Alembic head `a7c4e91b2d30` (Collections prospects).
+  After a backend deploy with a migration, run `python -m alembic upgrade
+  head` inside the server `.venv`; Tier 1
   seed data is loaded. Keep `DATABASE_URL` only in the server `.env`. Never
   copy database credentials into this repository.
 
@@ -131,6 +144,10 @@ backend.
   page's own script block.
 
 ## Where to look next
+
+- Collections credit bureau reporting (planned): `docs/credit-reporting-plan.md`
+- Analytics: Microsoft Clarity via `assets/clarity.js` on public pages only —
+  never add it to `/collections/app|ops|p/` or `admin.html` (customer data)
 
 - Full deploy secrets/variables reference and one-time cPanel setup steps:
   `DEPLOYMENT.md`

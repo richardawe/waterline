@@ -303,3 +303,9 @@ days overdue flags the client, and ops decide whether to suspend.
   client name).
 - The Terms, DPA and Privacy text are drafts pending legal review.
 - Only English templates (`LANGUAGES = {"en"}`).
+
+## Planned: credit bureau reporting
+
+Not built. Opt-in, per-report-fee add-on for schools (then BNPL/leasing).
+See `docs/credit-reporting-plan.md`. Until it ships, no page, template or
+message may mention credit bureaus.
