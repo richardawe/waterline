@@ -120,7 +120,7 @@ class OpsUser(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="Ops")  # Ops / Admin
-    totp_secret: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    totp_secret: Mapped[str] = mapped_column(EncryptedString, nullable=False)  # "" = no 2FA for this user
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 

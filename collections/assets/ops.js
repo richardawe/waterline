@@ -1,4 +1,4 @@
-/* Waterline ops console (/collections/ops/). Separate login with a 6-digit authenticator code. */
+/* Waterline ops console (/collections/ops/). Separate login; a 6-digit authenticator code is needed for users set up with 2FA. */
 (function () {
   var view = CL.$('#view'), esc = CL.esc, naira = CL.naira;
   var ME = null;
@@ -19,7 +19,7 @@
     view.innerHTML = '<div class="narrow"><h1>Ops sign-in</h1><form id="ol" class="card">' +
       '<div class="field"><label for="e">Email</label><input id="e" name="email" type="email" required autocomplete="username"></div>' +
       '<div class="field"><label for="p">Password</label><input id="p" name="password" type="password" required autocomplete="current-password"></div>' +
-      '<div class="field"><label for="c">Authenticator code</label><input id="c" name="code" type="text" inputmode="numeric" maxlength="6" required autocomplete="one-time-code"></div>' +
+      '<div class="field"><label for="c">Authenticator code</label><input id="c" name="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"><p class="tiny muted">Leave blank if your account was set up without an authenticator.</p></div>' +
       '<div id="m"></div><button class="btn block">Sign in</button></form></div>';
     CL.$('#ol').onsubmit = function (e) {
       e.preventDefault();
@@ -32,7 +32,7 @@
   function shell() {
     var on = tab();
     CL.$('#shell').innerHTML = '<header class="bar"><div class="wrap bar-in"><span class="logo"><span class="logo-mark">W</span>Collections ops</span>' +
-      '<button class="menu-btn" aria-label="Menu">☰</button><nav class="menu">' + TABS.map(function (t) {
+      '<button class="menu-btn" aria-label="Menu">☰</button><nav class="menu">' + TABS.concat(ME.role === 'Admin' ? [['team', 'Team']] : [], [['account', 'My account']]).map(function (t) {
         return '<a href="#' + t[0] + '"' + (t[0] === on ? ' class="on"' : '') + '>' + t[1] + '</a>';
       }).join('') + '<a href="#" id="out">Sign out (' + esc(ME.name.split(' ')[0]) + ')</a></nav></div></header>';
     CL.$('.menu-btn').onclick = function () { CL.$('.menu').classList.toggle('open'); };
@@ -567,6 +567,56 @@
         CL.download('/collections/ops/audit.csv' + (qs.length ? '?' + qs.join('&') : ''), 'ops', 'collections-audit.csv').catch(fail);
       };
     });
+  };
+
+  R.team = function () {
+    if (ME.role !== 'Admin') { view.innerHTML = '<div class="banner info">Only Waterline Admin can manage the team.</div>'; return Promise.resolve(); }
+    return get('/team').then(function (users) {
+      view.innerHTML = '<h1>Team</h1>' +
+        '<div class="card"><h2>Add a team member</h2><form id="tf">' +
+        '<div class="field"><label for="tn">Full name</label><input id="tn" name="name" type="text" required maxlength="160"></div>' +
+        '<div class="field"><label for="te">Email</label><input id="te" name="email" type="email" required></div>' +
+        '<div class="field"><label for="tr">Role</label><select id="tr" name="role"><option value="Ops">Ops — day-to-day collections work</option><option value="Admin">Admin — also templates, fees, config, data deletion and the team</option></select></div>' +
+        '<div class="field"><label for="tp">Starting password</label><input id="tp" name="password" type="text" required minlength="8" autocomplete="off"><p class="tiny muted">At least 8 characters, mixing letters with numbers or symbols. Send it to them privately; they can change it under My account.</p></div>' +
+        '<div class="field"><label><input type="checkbox" name="require_2fa" id="t2"> Require an authenticator code at sign-in</label></div>' +
+        '<div id="tm"></div><button class="btn">Add team member</button></form></div>' +
+        '<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>2FA</th><th>Status</th><th></th></tr></thead><tbody>' +
+        users.map(function (u) {
+          return '<tr><td>' + esc(u.name) + '</td><td class="small">' + esc(u.email) + '</td><td>' + esc(u.role) + '</td><td>' + (u.has_2fa ? 'On' : 'Off') + '</td><td>' + (u.is_active ? 'Active' : 'Deactivated') + '</td><td class="right">' +
+            (u.id === ME.id ? '<span class="tiny muted">You</span>' : '<button class="btn sm ghost" data-act="' + u.id + '" data-on="' + (u.is_active ? '0' : '1') + '">' + (u.is_active ? 'Deactivate' : 'Reactivate') + '</button>') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      CL.$('#tf').onsubmit = function (e) {
+        e.preventDefault();
+        var body = CL.formJSON(e.target); body.require_2fa = CL.$('#t2').checked;
+        post('/team', body).then(function (u) {
+          if (u.totp_secret) {
+            view.innerHTML = '<h1>Team</h1><div class="card"><h2>' + esc(u.name) + ' was added</h2><p>Ask them to add this secret to an authenticator app (Google Authenticator, 1Password, Authy). It is shown only once.</p>' +
+              '<p class="mono" style="word-break:break-all">' + esc(u.totp_secret) + '</p><p class="tiny mono muted" style="word-break:break-all">' + esc(u.otpauth_uri) + '</p><a class="btn" href="#team">Done</a></div>';
+          } else { CL.toast(u.name + ' was added'); R.team(); }
+        }).catch(function (err) { CL.$('#tm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+      CL.$$('[data-act]').forEach(function (b) {
+        b.onclick = function () {
+          var on = b.dataset.on === '1';
+          if (!on && !confirm('Deactivate this team member? They will be signed out straight away.')) return;
+          put('/team/' + b.dataset.act + '/active', { is_active: on }).then(function () { R.team(); }).catch(fail);
+        };
+      });
+    });
+  };
+
+  R.account = function () {
+    view.innerHTML = '<h1>My account</h1><div class="card"><p>' + esc(ME.name) + ' · ' + esc(ME.email) + ' · ' + esc(ME.role) + '</p></div>' +
+      '<div class="card"><h2>Change password</h2><form id="pw">' +
+      '<div class="field"><label for="pc">Current password</label><input id="pc" name="current_password" type="password" required autocomplete="current-password"></div>' +
+      '<div class="field"><label for="pn">New password</label><input id="pn" name="new_password" type="password" required minlength="8" autocomplete="new-password"></div>' +
+      '<div id="pm"></div><button class="btn">Change password</button></form></div>';
+    CL.$('#pw').onsubmit = function (e) {
+      e.preventDefault();
+      post('/me/password', CL.formJSON(e.target)).then(function () { e.target.reset(); CL.$('#pm').innerHTML = '<div class="banner ok">Password changed.</div>'; })
+        .catch(function (err) { CL.$('#pm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+    };
+    return Promise.resolve();
   };
 
   function route() {

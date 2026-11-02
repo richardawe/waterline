@@ -159,12 +159,19 @@ limits), `api/*.py` (thin HTTP handlers).
   localStorage and sent in the `Authorization` header. There are no cookies,
   so a cross-site request can't carry the credential. That is how the
   build meets the CSRF requirement. Client sessions last 7 days.
-- **Ops**: separate `cl_ops_user` table. Login needs password + TOTP code. The
-  token is kept in sessionStorage and the session lasts 12 hours. Create
-  users on the server with
-  `python scripts/collections_create_ops_user.py --name … --email … --role Admin`.
-  The script prints the authenticator secret. Only `Admin` can edit
-  templates, config, fees and data deletion.
+- **Ops**: separate `cl_ops_user` table. Login needs a password, plus a TOTP
+  code for users who have 2FA on. The token is kept in sessionStorage and the
+  session lasts 12 hours. Admins add, deactivate and reactivate ops users in
+  the console's **Team** tab, and choose per user whether 2FA is required (off
+  by default since 2026-11-02, owner decision; an empty `totp_secret` means
+  no 2FA). Deactivating someone ends their sessions at once. When 2FA is on,
+  the secret is shown once at creation. Everyone can change their own
+  password under **My account**. The first Admin is still created on the
+  server with
+  `python scripts/collections_create_ops_user.py --name … --email … --role Admin`
+  (always with 2FA), and that script's `--reset-totp` re-issues a secret.
+  Only `Admin` can edit templates, config, fees and data deletion, and manage
+  the team.
 - **Debtors**: an unguessable 43-character token in the link. Any problem
   with the token returns the same 404. The link dies 30 days after the
   account closes. Ops can reissue a link, which revokes the old one.

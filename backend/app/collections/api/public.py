@@ -366,14 +366,15 @@ def reset_password(body: ResetIn, request: Request, db: Session = Depends(get_db
 class OpsLoginIn(BaseModel):
     email: str
     password: str
-    code: str
+    code: str = ""  # only checked for users who have an authenticator set up
 
 
 @router.post("/ops-login", dependencies=[Depends(rate_limit("ops-login", 5, 900))])
 def ops_login(body: OpsLoginIn, request: Request, db: Session = Depends(get_db)):
     user = db.execute(select(OpsUser).where(OpsUser.email == body.email.strip().lower())).scalar_one_or_none()
     ok = user is not None and user.is_active and verify_password(body.password, user.password_hash)
-    if not ok or not totp.verify(user.totp_secret, body.code):
+    # An empty totp_secret means an Admin created this user without 2FA.
+    if not ok or (user.totp_secret and not totp.verify(user.totp_secret, body.code)):
         raise HTTPException(401, "Email, password or code is incorrect.")
     token = create_session(db, "ops", user.id, client_ip(request))
     audit.record(db, Actor(type="ops", id=user.id, ip=client_ip(request)), "ops.logged_in", "OpsUser", user.id)

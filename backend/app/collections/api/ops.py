@@ -27,8 +27,9 @@ from app.collections import (
     service,
     settings_store,
     templates,
+    totp,
 )
-from app.collections.auth import OpsContext, end_session, require_ops, require_ops_admin
+from app.collections.auth import OpsContext, end_all_sessions, end_session, require_ops, require_ops_admin
 from app.collections.models import (
     AuditLog,
     Client,
@@ -48,6 +49,7 @@ from app.collections.models import (
     UploadBatch,
     WaitlistEntry,
 )
+from app.collections.passwords import hash_password, password_problem, verify_password
 from app.collections.phone import normalise_phone
 from app.collections.upload import EMAIL_RE
 from app.collections.timeutil import (
@@ -83,6 +85,91 @@ def _get(db: Session, model, entity_id: str):
 @router.get("/me")
 def me(ctx: OpsContext = Depends(require_ops)):
     return {"id": ctx.user.id, "name": ctx.user.name, "email": ctx.user.email, "role": ctx.user.role}
+
+
+# ---------------------------------------------------------------- team (ops users)
+
+
+def _ops_user_out(u: OpsUser) -> dict:
+    return {"id": u.id, "name": u.name, "email": u.email, "role": u.role,
+            "has_2fa": bool(u.totp_secret), "is_active": u.is_active, "created_at": u.created_at}
+
+
+class OpsUserIn(BaseModel):
+    name: str = Field(min_length=1, max_length=160)
+    email: str = Field(max_length=254)
+    role: str = "Ops"
+    password: str
+    require_2fa: bool = False
+
+
+@router.get("/team")
+def team_list(ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
+    rows = db.execute(select(OpsUser).order_by(OpsUser.created_at)).scalars()
+    return [_ops_user_out(u) for u in rows]
+
+
+@router.post("/team")
+def team_create(body: OpsUserIn, ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
+    email = body.email.strip().lower()
+    if not EMAIL_RE.match(email):
+        raise HTTPException(422, "Enter a valid email address.")
+    if body.role not in ("Ops", "Admin"):
+        raise HTTPException(422, "Role must be Ops or Admin.")
+    problem = password_problem(body.password)
+    if problem:
+        raise HTTPException(422, problem)
+    if db.execute(select(OpsUser).where(OpsUser.email == email)).scalar_one_or_none():
+        raise HTTPException(409, "There is already an ops user with that email.")
+    secret = totp.new_secret() if body.require_2fa else ""
+    user = OpsUser(name=body.name.strip(), email=email, password_hash=hash_password(body.password),
+                   role=body.role, totp_secret=secret)
+    db.add(user)
+    db.flush()
+    audit.record(db, ctx.actor, "ops_user.created", "OpsUser", user.id,
+                 after={"email": email, "role": body.role, "has_2fa": bool(secret)})
+    db.commit()
+    out = _ops_user_out(user)
+    if secret:  # shown once, never returned again
+        out["totp_secret"] = secret
+        out["otpauth_uri"] = totp.provisioning_uri(secret, email)
+    return out
+
+
+class OpsUserActiveIn(BaseModel):
+    is_active: bool
+
+
+@router.put("/team/{user_id}/active")
+def team_set_active(user_id: str, body: OpsUserActiveIn, ctx: OpsContext = Depends(require_ops_admin),
+                    db: Session = Depends(get_db)):
+    user = _get(db, OpsUser, user_id)
+    if user.id == ctx.user.id:
+        raise HTTPException(409, "You can't deactivate your own account.")
+    user.is_active = body.is_active
+    if not body.is_active:
+        end_all_sessions(db, "ops", user.id)
+    audit.record(db, ctx.actor, "ops_user.activated" if body.is_active else "ops_user.deactivated", "OpsUser", user.id)
+    db.commit()
+    return _ops_user_out(user)
+
+
+class OpsPasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/me/password")
+def change_my_password(body: OpsPasswordIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    if not verify_password(body.current_password, ctx.user.password_hash):
+        raise HTTPException(403, "Your current password is incorrect.")
+    problem = password_problem(body.new_password)
+    if problem:
+        raise HTTPException(422, problem)
+    ctx.user.password_hash = hash_password(body.new_password)
+    audit.record(db, ctx.actor, "ops_user.password_changed", "OpsUser", ctx.user.id)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/logout")

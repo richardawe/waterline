@@ -130,6 +130,52 @@ def test_ops_login_requires_totp(cl_api, cl_db):
     assert cl_api.post("/collections/public/ops-login", json=body).status_code == 200
 
 
+def test_admin_adds_ops_user_without_2fa_who_can_log_in_without_a_code(cl_api, cl_db):
+    _, admin_h = make_ops(cl_db, role="Admin")
+    body = {"name": "Tosin B", "email": "Tosin@Example.com", "role": "Ops", "password": "starter-pass-123"}
+    r = cl_api.post("/collections/ops/team", json=body, headers=admin_h)
+    assert r.status_code == 200, r.text
+    assert r.json()["has_2fa"] is False and "totp_secret" not in r.json()
+    assert cl_api.post("/collections/ops/team", json=body, headers=admin_h).status_code == 409
+
+    login = {"email": "tosin@example.com", "password": "starter-pass-123"}
+    r = cl_api.post("/collections/public/ops-login", json=login)
+    assert r.status_code == 200 and r.json()["role"] == "Ops"
+    h = {"Authorization": f"Bearer {r.json()['token']}"}
+    assert cl_api.post("/collections/public/ops-login", json={**login, "password": "wrong-pass-1"}).status_code == 401
+
+    # she can change her own password, but can't manage the team
+    assert cl_api.post("/collections/ops/me/password", json={"current_password": "nope-123", "new_password": "fresh-pass-456"}, headers=h).status_code == 403
+    assert cl_api.post("/collections/ops/me/password", json={"current_password": "starter-pass-123", "new_password": "fresh-pass-456"}, headers=h).status_code == 200
+    assert cl_api.get("/collections/ops/team", headers=h).status_code == 403
+    assert cl_api.post("/collections/ops/team", json={**body, "email": "x@example.com"}, headers=h).status_code == 403
+
+    # deactivating her ends her session and blocks login
+    uid = next(u["id"] for u in cl_api.get("/collections/ops/team", headers=admin_h).json() if u["email"] == "tosin@example.com")
+    assert cl_api.put(f"/collections/ops/team/{uid}/active", json={"is_active": False}, headers=admin_h).status_code == 200
+    assert cl_api.get("/collections/ops/me", headers=h).status_code == 401
+    assert cl_api.post("/collections/public/ops-login", json={**login, "password": "fresh-pass-456"}).status_code == 401
+    actions = {a.action for a in cl_db.query(AuditLog).filter(AuditLog.entity_id == uid)}
+    assert {"ops_user.created", "ops_user.password_changed", "ops_user.deactivated"} <= actions
+
+
+def test_admin_adds_ops_user_with_2fa_who_needs_the_code(cl_api, cl_db):
+    _, admin_h = make_ops(cl_db, role="Admin")
+    r = cl_api.post("/collections/ops/team", headers=admin_h,
+                    json={"name": "Kemi", "email": "kemi@example.com", "password": "starter-pass-123", "require_2fa": True})
+    secret = r.json()["totp_secret"]
+    assert r.json()["has_2fa"] and r.json()["otpauth_uri"].startswith("otpauth://")
+    login = {"email": "kemi@example.com", "password": "starter-pass-123"}
+    assert cl_api.post("/collections/public/ops-login", json=login).status_code == 401
+    assert cl_api.post("/collections/public/ops-login", json={**login, "code": totp.code_at(secret, __import__("time").time())}).status_code == 200
+    assert "totp_secret" not in cl_api.get("/collections/ops/team", headers=admin_h).json()[0]
+
+
+def test_admin_cannot_deactivate_self(cl_api, cl_db):
+    admin, admin_h = make_ops(cl_db, role="Admin")
+    assert cl_api.put(f"/collections/ops/team/{admin.id}/active", json={"is_active": False}, headers=admin_h).status_code == 409
+
+
 def test_ops_approve_reject_suspend(cl_api, cl_db):
     _, ops_h = make_ops(cl_db, role="Ops")
     client, _ = make_client(cl_db, status=ClientStatus.PENDING)
