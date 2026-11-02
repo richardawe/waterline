@@ -2,7 +2,7 @@
 (function () {
   var view = CL.$('#view'), esc = CL.esc, naira = CL.naira;
   var ME = null;
-  var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['inbox', 'Inbox'], ['outbox', 'Outbox'], ['replies', 'Replies'],
+  var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['inbox', 'Inbox'], ['outbox', 'Outbox'], ['replies', 'Replies'], ['expenses', 'Expenses'],
     ['followups', 'Follow-ups'], ['clients', 'Clients'], ['fees', 'Fee proposals'], ['invoices', 'Invoices'], ['segments', 'Segments'],
     ['waitlist', 'Waitlist'], ['prospects', 'Prospects'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
   var SEG_NAMES = {};
@@ -841,6 +841,107 @@
       tr.disabled = true;
       post('/channels/whatsapp/templates/sync').then(function (r) { CL.toast(r.updated + ' updated'); R.channels(); }).catch(function (err) { fail(err); R.channels(); });
     };
+  }
+
+  // ---------------------------------------------------------------- expenses
+  var EXP_VIEW = null;
+  var EXP_PILL = { Submitted: 'amber', Approved: 'blue', Paid: 'green', Rejected: 'red' };
+  function expPill(st) { return '<span class="pill ' + (EXP_PILL[st] || '') + '">' + esc(st === 'Submitted' ? 'Waiting for approval' : st) + '</span>'; }
+  function bank(p) { return p ? esc(p.account_name) + ' · ' + esc(p.bank_name) + ' · <span class="mono">' + esc(p.account_number) + '</span>' : '<span style="color:var(--red)">No bank details yet</span>'; }
+
+  R.expenses = function () {
+    var admin = ME.role === 'Admin';
+    if (!EXP_VIEW) EXP_VIEW = admin ? 'topay' : 'mine';
+    var tabs = admin ? '<div class="tabs">' + [['topay', 'To pay'], ['all', 'All claims'], ['mine', 'My expenses']].map(function (t) {
+      return '<button data-ev="' + t[0] + '"' + (t[0] === EXP_VIEW ? ' class="on"' : '') + '>' + t[1] + '</button>';
+    }).join('') + '</div>' : '';
+    var done = EXP_VIEW === 'mine' ? expMine(tabs) : expTeam(tabs);
+    return done.then(function () {
+      CL.$$('[data-ev]').forEach(function (b) { b.onclick = function () { EXP_VIEW = b.dataset.ev; R.expenses(); }; });
+    });
+  };
+
+  function expMine(tabs) {
+    return Promise.all([get('/expenses?scope=mine'), get('/me/payout')]).then(function (res) {
+      var d = res[0], pay = res[1] || {}, today = new Date().toISOString().slice(0, 10);
+      var owed = d.expenses.filter(function (e) { return e.status === 'Submitted' || e.status === 'Approved'; }).reduce(function (a, e) { return a + e.amount; }, 0);
+      view.innerHTML = '<h1>Expenses</h1>' + tabs +
+        (pay.account_number ? '' : '<div class="banner warn">Add your bank details below so you can be paid back.</div>') +
+        '<div class="card"><h2>Add an expense</h2><p class="small muted">Anything you paid for out of pocket for Waterline work. A photo of the receipt helps it get approved faster.</p><form id="exf">' +
+        '<div class="field"><label for="exd">Date spent</label><input id="exd" name="spent_on" type="date" max="' + today + '" value="' + today + '" required></div>' +
+        '<div class="field"><label for="exa">Amount (₦)</label><input id="exa" name="amount" type="text" inputmode="decimal" placeholder="12,500" required></div>' +
+        '<div class="field"><label for="exc">Category</label><select id="exc" name="category">' + d.categories.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="field"><label for="exn">What was it for?</label><textarea id="exn" name="description" required minlength="3" maxlength="1000" placeholder="Uber to Greenfield Academy, Lekki for onboarding"></textarea></div>' +
+        '<div class="field"><label for="exr">Receipt (optional)</label><input id="exr" name="receipt" type="file" accept="image/jpeg,image/png,application/pdf"><p class="hint">JPG, PNG or PDF, up to 5 MB.</p></div>' +
+        '<div id="exm"></div><button class="btn">Add expense</button></form></div>' +
+        '<div class="card"><div class="row-btns" style="justify-content:space-between;align-items:center"><h2 style="margin:0">My claims</h2>' + (owed ? '<span class="small">Waiting to be paid: <b>' + naira(owed) + '</b></span>' : '') + '</div>' +
+        (d.expenses.length ? '<div class="table-wrap"><table><thead><tr><th>Date</th><th>What</th><th class="right">Amount</th><th>Status</th><th></th></tr></thead><tbody>' + d.expenses.map(function (e) {
+          return '<tr><td class="small nowrap">' + CL.date(e.spent_on) + '</td><td class="small">' + esc(e.category) + '<br><span class="muted">' + esc(e.description) + '</span>' + (e.receipt_url ? ' · <a href="' + esc(e.receipt_url) + '" target="_blank" rel="noopener">receipt</a>' : '') + '</td>' +
+            '<td class="right nowrap">' + naira(e.amount) + '</td><td>' + expPill(e.status) +
+            (e.status === 'Paid' ? '<div class="tiny muted">' + CL.date(e.paid_on) + (e.paid_reference ? ' · ' + esc(e.paid_reference) : '') + '</div>' : '') +
+            (e.status === 'Rejected' && e.reject_reason ? '<div class="tiny muted">' + esc(e.reject_reason) + '</div>' : '') + '</td>' +
+            '<td>' + (e.status === 'Submitted' ? '<button class="btn sm ghost" data-exdel="' + e.id + '">Delete</button>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div>' : '<p class="muted">No claims yet.</p>') + '</div>' +
+        '<div class="card"><h2>Where to pay you</h2><form id="pyf">' +
+        '<div class="field"><label for="pyb">Bank</label><input id="pyb" name="bank_name" type="text" value="' + esc(pay.bank_name || '') + '" required placeholder="GTBank"></div>' +
+        '<div class="field"><label for="pyn">Account number</label><input id="pyn" name="account_number" type="text" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" value="' + esc(pay.account_number || '') + '" required placeholder="10 digits"></div>' +
+        '<div class="field"><label for="pya">Account name</label><input id="pya" name="account_name" type="text" value="' + esc(pay.account_name || '') + '" required></div>' +
+        '<p class="hint">Only Waterline Admins see these, to pay your claims. Stored encrypted.</p><div id="pym"></div><button class="btn ghost">Save bank details</button></form></div>';
+      CL.$('#exf').onsubmit = function (ev) {
+        ev.preventDefault();
+        var btn = CL.$('#exf button.btn'); btn.disabled = true;
+        CL.api('/collections/ops/expenses', { auth: 'ops', method: 'POST', form: new FormData(ev.target) }).then(function () { CL.toast('Expense added'); R.expenses(); })
+          .catch(function (err) { btn.disabled = false; CL.$('#exm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+      CL.$('#pyf').onsubmit = function (ev) {
+        ev.preventDefault();
+        put('/me/payout', CL.formJSON(ev.target)).then(function () { CL.toast('Bank details saved'); R.expenses(); })
+          .catch(function (err) { CL.$('#pym').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+      CL.$$('[data-exdel]').forEach(function (b) {
+        b.onclick = function () { if (!confirm('Delete this claim?')) return; del('/expenses/' + b.dataset.exdel).then(function () { CL.toast('Deleted'); R.expenses(); }).catch(fail); };
+      });
+    });
+  }
+
+  function expTeam(tabs) {
+    var topay = EXP_VIEW === 'topay';
+    return Promise.all([get('/expenses?scope=all'), get('/expenses/summary')]).then(function (res) {
+      var rows = res[0].expenses, sm = res[1];
+      if (topay) rows = rows.filter(function (e) { return e.status === 'Submitted' || e.status === 'Approved'; });
+      view.innerHTML = '<h1>Expenses</h1>' + tabs +
+        (topay ? '<div class="stats"><div class="stat"><b>' + naira(sm.total_owed) + '</b><span>Owed to the team</span></div><div class="stat"><b>' + naira(sm.total_paid_this_month) + '</b><span>Paid this month</span></div></div>' +
+          (sm.people.filter(function (p) { return p.owed; }).length ? '<div class="card"><h2>Who to pay</h2>' + sm.people.filter(function (p) { return p.owed; }).map(function (p) {
+            return '<div class="list-item"><div class="row-btns" style="justify-content:space-between"><b>' + esc(p.name) + '</b><b>' + naira(p.owed) + '</b></div>' +
+              '<div class="small">' + bank(p.payout) + '</div><div class="tiny muted">' + p.count_open + ' claim' + (p.count_open === 1 ? '' : 's') + (p.submitted ? ' · ' + naira(p.submitted) + ' not yet approved' : '') + '</div></div>';
+          }).join('') + '</div>' : '') : '') +
+        '<div class="card">' + (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Who</th><th>Date</th><th>What</th><th class="right">Amount</th><th>Status</th><th></th></tr></thead><tbody>' + rows.map(function (e) {
+          var acts = '';
+          if (e.status === 'Submitted') acts += '<button class="btn sm" data-exap="' + e.id + '">Approve</button>';
+          if (e.status === 'Submitted' || e.status === 'Approved') acts += '<button class="btn sm ' + (e.status === 'Approved' ? '' : 'ghost') + '" data-expd="' + e.id + '">Mark paid</button><button class="btn sm ghost" data-exrj="' + e.id + '">Reject</button>';
+          return '<tr><td class="small">' + esc(e.name) + '</td><td class="small nowrap">' + CL.date(e.spent_on) + '</td>' +
+            '<td class="small">' + esc(e.category) + '<br><span class="muted">' + esc(e.description) + '</span>' + (e.receipt_url ? ' · <a href="' + esc(e.receipt_url) + '" target="_blank" rel="noopener">receipt</a>' : ' · <span class="muted">no receipt</span>') + '</td>' +
+            '<td class="right nowrap">' + naira(e.amount) + '</td><td>' + expPill(e.status) +
+            (e.status === 'Paid' ? '<div class="tiny muted">' + CL.date(e.paid_on) + (e.paid_reference ? ' · ' + esc(e.paid_reference) : '') + '</div>' : '') +
+            (e.status === 'Rejected' && e.reject_reason ? '<div class="tiny muted">' + esc(e.reject_reason) + '</div>' : '') + '</td>' +
+            '<td><div class="row-btns">' + acts + '</div></td></tr>';
+        }).join('') + '</tbody></table></div>' : '<p class="muted">' + (topay ? 'Nothing waiting to be paid.' : 'No claims yet.') + '</p>') + '</div>';
+      CL.$$('[data-exap]').forEach(function (b) { b.onclick = function () { post('/expenses/' + b.dataset.exap + '/approve').then(function () { CL.toast('Approved'); R.expenses(); }).catch(fail); }; });
+      CL.$$('[data-expd]').forEach(function (b) {
+        b.onclick = function () {
+          var ref = prompt('Mark as paid. Transfer reference (optional):', '');
+          if (ref === null) return;
+          post('/expenses/' + b.dataset.expd + '/paid', { reference: ref || null }).then(function () { CL.toast('Marked paid'); R.expenses(); }).catch(fail);
+        };
+      });
+      CL.$$('[data-exrj]').forEach(function (b) {
+        b.onclick = function () {
+          var why = prompt('Why is this claim not approved? They\'ll see this.');
+          if (!why) return;
+          post('/expenses/' + b.dataset.exrj + '/reject', { reason: why }).then(function () { CL.toast('Rejected'); R.expenses(); }).catch(fail);
+        };
+      });
+    });
   }
 
   R.team = function () {

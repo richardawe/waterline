@@ -189,6 +189,26 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
     After that, reply by email or wait for the next template in the queue.
     Media (photos, PDFs) is noted in the Inbox but not downloaded yet.
 
+## Team expenses (ops)
+
+Ops → Expenses (`api/ops_expenses.py`, table `cl_expense`):
+
+- Any ops user adds a claim: date (not in the future), amount in naira
+  (stored in kobo, up to ₦10m), category, what it was for, and an optional
+  receipt (JPG/PNG/PDF ≤5 MB, private storage, 15-minute signed links). They
+  see only their own claims, and can delete one while it's still
+  Submitted.
+- "Where to pay you" stores the person's bank, 10-digit account number and
+  account name, encrypted on `cl_ops_user.payout_details`. Only Admins see it.
+- Admins get "To pay" (what's owed per person, with bank details, plus paid
+  this month), "All claims" and "My expenses". Claims go Submitted →
+  Approved → Paid, or Rejected with a reason the person sees. "Mark paid"
+  also works on a Submitted claim and takes an optional transfer reference.
+- Emails: Admins on a new claim; the person when it's rejected or paid.
+  These go through the collections mailbox if it's connected, otherwise
+  they're only logged. Every step is in the audit log.
+- The portal records the payment; the money itself is sent from the bank.
+
 ## Map
 
 | Path | Who | File |

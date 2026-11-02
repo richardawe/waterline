@@ -122,6 +122,7 @@ class OpsUser(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="Ops")  # Ops / Admin
     totp_secret: Mapped[str] = mapped_column(EncryptedString, nullable=False)  # "" = no 2FA for this user
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    payout_details: Mapped[Optional[str]] = mapped_column(EncryptedString)  # JSON: bank_name, account_number, account_name
 
 
 class AuthSession(Base):
@@ -591,3 +592,27 @@ class WaMessage(Base):
     sent_by: Mapped[Optional[str]] = mapped_column(String(64))
     status_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Expense(Base):
+    """Money a team member spent for Waterline and wants paid back.
+    Submitted → Approved → Paid, or Rejected. Amounts in kobo."""
+
+    __tablename__ = "cl_expense"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    ops_user_id: Mapped[str] = mapped_column(ForeignKey("cl_ops_user.id"), nullable=False, index=True)
+    spent_on: Mapped[date] = mapped_column(Date, nullable=False)
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    category: Mapped[str] = mapped_column(String(40), nullable=False)
+    description: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    receipt_key: Mapped[Optional[str]] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="Submitted", index=True)
+    decided_by: Mapped[Optional[str]] = mapped_column(String(64))
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    reject_reason: Mapped[Optional[str]] = mapped_column(Text)
+    paid_by: Mapped[Optional[str]] = mapped_column(String(64))
+    paid_on: Mapped[Optional[date]] = mapped_column(Date)
+    paid_reference: Mapped[Optional[str]] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
