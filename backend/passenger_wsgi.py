@@ -24,6 +24,12 @@ sys.path.insert(0, str(APP_ROOT))
 
 from a2wsgi import ASGIMiddleware  # noqa: E402
 
+from app.migrate_on_start import upgrade_to_head  # noqa: E402
+
+# Bring the database up to date on every (re)start, i.e. after every deploy.
+# See app/migrate_on_start.py; set AUTO_MIGRATE=false in .env to disable.
+upgrade_to_head()
+
 from app.main import app as _asgi_app  # noqa: E402
 
 application = ASGIMiddleware(_asgi_app)

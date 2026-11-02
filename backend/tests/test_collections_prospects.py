@@ -45,8 +45,8 @@ def test_greeting_uses_name_only_once_confirmed(cl_db):
 
 def test_ops_emails_a_prospect_with_footer_and_reply_to(cl_api, cl_db, monkeypatch):
     sent = []
-    monkeypatch.setattr(emailer, "get_settings", lambda: type("S", (), {"smtp_host": "smtp.test", "collections_site_base_url": "https://waterline.ng"})())
-    monkeypatch.setattr(emailer, "_deliver", lambda to, subject, body, reply_to=None: sent.append((to, subject, body, reply_to)))
+    monkeypatch.setattr(emailer.mailbox, "sending_config", lambda db: {"smtp_host": "smtp.test"})
+    monkeypatch.setattr(emailer, "_deliver", lambda cfg, to, subject, body, reply_to=None, **kw: sent.append((to, subject, body, reply_to)))
     _, h = make_ops(cl_db, role="Ops")
     p = _prospect(cl_db)
     d = cl_api.get(f"/collections/ops/prospects/{p.id}", headers=h).json()

@@ -7,6 +7,7 @@ from app.collections.api import debtor as collections_debtor
 from app.collections.api import files as collections_files
 from app.collections.api import jobs as collections_jobs
 from app.collections.api import ops as collections_ops
+from app.collections.api import ops_messages as collections_ops_messages
 from app.collections.api import public as collections_public
 from app.config import get_settings
 
@@ -51,6 +52,7 @@ app.include_router(blog_admin.router)
 app.include_router(collections_public.router)
 app.include_router(collections_client.router)
 app.include_router(collections_ops.router)
+app.include_router(collections_ops_messages.router)
 app.include_router(collections_debtor.router)
 app.include_router(collections_files.router)
 app.include_router(collections_jobs.router)

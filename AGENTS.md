@@ -4,7 +4,7 @@ Read this before touching deploy config, `admin.html`, or the frontend↔backend
 wiring. It's the operational context a fresh session/agent won't have —
 architecture is easy to re-derive by reading code; the state below isn't.
 
-Last updated: 2026-08-26.
+Last updated: 2026-11-02.
 
 ## What this is
 
@@ -85,8 +85,13 @@ backend.
   Passenger at `api.waterline.ng`. `bootstrap` FTP deployment stamps
   `tmp/restart.txt`; full server automation still needs SSH.
 
-- **Postgres is live and migrated** to Alembic head `c17443101dd9`; Tier 1
-  seed data is loaded. Keep `DATABASE_URL` only in the server `.env`. Never
+- **Postgres is live.** Since 2026-11-02 migrations apply **automatically**
+  when Passenger starts the app (i.e. after every deploy):
+  `passenger_wsgi.py` calls `app/migrate_on_start.py`, which runs
+  `alembic upgrade head` under a Postgres advisory lock, logs to
+  `tmp/migrate.log`, and lets the app start even if a migration fails. Turn
+  it off with `AUTO_MIGRATE=false` in the server `.env`. Tier 1 seed data is
+  loaded. Keep `DATABASE_URL` only in the server `.env`. Never
   copy database credentials into this repository.
 
 - **SSH: blocked.** Ports 22/2222/22022 all timeout from outside, while
@@ -98,9 +103,9 @@ backend.
   and `CREATE EXTENSION vector` by hand. The GitHub Actions workflow has an
   *optional* SSH-based automation path (`CPANEL_SSH_HOST` etc., see
   `DEPLOYMENT.md`) that's simply skipped with a warning if unconfigured —
-  it is currently unconfigured, so every backend deploy needs a manual
-  `pip install`/`alembic upgrade head` pass via that Terminal until/unless
-  SSH access is sorted out.
+  it is currently unconfigured. Migrations no longer need it (see above),
+  but a **new Python dependency still needs a manual `pip install`** via
+  that Terminal, so prefer the standard library for new backend features.
 
 - **`CREATE EXTENSION vector;` unresolved, deliberately deprioritized.**
   Failed via phpPgAdmin's query box (it wraps every query in

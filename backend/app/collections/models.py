@@ -417,6 +417,54 @@ class EmailMessage(Base):
     error: Mapped[Optional[str]] = mapped_column(Text)
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Threading: replies quote our Message-ID, and to_index (blind index of the
+    # recipient) lets a reply without one still be matched to who we wrote to.
+    message_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    to_index: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    account_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    prospect_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    sent_by: Mapped[Optional[str]] = mapped_column(String(64))  # ops user id when a person sent it
+
+
+class Channel(Base):
+    """Connection settings for a messaging channel ("email" now, "whatsapp"
+    later), entered by an Admin in ops → Channels. Secrets live encrypted in
+    `settings`; `state` is non-secret bookkeeping (last check, last error)."""
+
+    __tablename__ = "cl_channel"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    settings: Mapped[Optional[str]] = mapped_column(EncryptedString)  # JSON
+    state: Mapped[Optional[str]] = mapped_column(Text)  # JSON
+    updated_by: Mapped[Optional[str]] = mapped_column(String(64))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class InboundMessage(Base):
+    """A message someone sent us, pulled from the collections mailbox (or,
+    later, WhatsApp). Matched to a party where possible: party_type is
+    "account" (a debtor), "prospect" or "client"; None means unmatched."""
+
+    __tablename__ = "cl_inbound"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    channel: Mapped[str] = mapped_column(String(10), nullable=False)  # Email / WhatsApp
+    from_address: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    from_index: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    from_name: Mapped[Optional[str]] = mapped_column(EncryptedString)
+    subject: Mapped[Optional[str]] = mapped_column(EncryptedString)
+    body: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    attachments: Mapped[Optional[str]] = mapped_column(Text)  # JSON list of file names (files stay in the mailbox)
+    message_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
+    in_reply_to: Mapped[Optional[str]] = mapped_column(String(255))
+    party_type: Mapped[Optional[str]] = mapped_column(String(10))
+    party_id: Mapped[Optional[str]] = mapped_column(String(64))
+    client_id: Mapped[Optional[str]] = mapped_column(String(64))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    handled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), index=True)
+    handled_by: Mapped[Optional[str]] = mapped_column(String(64))
+    auto_action: Mapped[Optional[str]] = mapped_column(String(40))  # e.g. "opted_out"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AuditLog(Base):

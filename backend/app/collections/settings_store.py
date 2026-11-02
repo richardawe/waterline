@@ -20,7 +20,7 @@ DEFAULTS: dict = {
     "retention_months": 12,
     "email_fallback_enabled": True,
     "contact_email": "collections@waterline.ng",
-    "contact_whatsapp": "+234 809 410 4100",
+    "contact_whatsapp": "+234 903 410 4100",
     # When true, messages can only be marked sent inside each segment's contact
     # window (baseline 08:00–19:00 WAT, Mon–Sat, no public holidays) and no queue
     # is built on Sundays/holidays. Off by owner decision (2026-10-10); the public

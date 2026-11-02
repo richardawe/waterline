@@ -207,7 +207,8 @@ def send_email(db: Session, p: Prospect, *, subject: str, body: str, key: str, o
     check_can_message(db, p, "Email")
     subject = _clean(subject, 200)
     full = _clean(body, 6000) + footer(db, "Email")
-    row = emailer.send(db, p.email, subject, full, kind="prospect", reply_to=settings_store.get(db, "contact_email"))
+    row = emailer.send(db, p.email, subject, full, kind="prospect", reply_to=settings_store.get(db, "contact_email"),
+                      prospect_id=p.id, sent_by=ops_user_id)
     if row.status != "Sent":  # "Logged" means SMTP isn't configured: nothing left the server
         error = row.error or "Email (SMTP) isn't set up on the server, so nothing was sent."
         _record(db, p, "Email", key=key, subject=subject, body=full, status="Failed", error=error, ops_user_id=ops_user_id)

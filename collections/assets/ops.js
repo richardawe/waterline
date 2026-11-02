@@ -2,7 +2,7 @@
 (function () {
   var view = CL.$('#view'), esc = CL.esc, naira = CL.naira;
   var ME = null;
-  var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['replies', 'Replies'],
+  var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['inbox', 'Inbox'], ['outbox', 'Outbox'], ['replies', 'Replies'],
     ['followups', 'Follow-ups'], ['clients', 'Clients'], ['fees', 'Fee proposals'], ['invoices', 'Invoices'], ['segments', 'Segments'],
     ['waitlist', 'Waitlist'], ['prospects', 'Prospects'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
   var SEG_NAMES = {};
@@ -32,7 +32,7 @@
   function shell() {
     var on = tab();
     CL.$('#shell').innerHTML = '<header class="bar"><div class="wrap bar-in"><span class="logo"><span class="logo-mark">W</span>Collections ops</span>' +
-      '<button class="menu-btn" aria-label="Menu">☰</button><nav class="menu">' + TABS.concat(ME.role === 'Admin' ? [['team', 'Team']] : [], [['account', 'My account']]).map(function (t) {
+      '<button class="menu-btn" aria-label="Menu">☰</button><nav class="menu">' + TABS.concat(ME.role === 'Admin' ? [['channels', 'Channels'], ['team', 'Team']] : [], [['account', 'My account']]).map(function (t) {
         return '<a href="#' + t[0] + '"' + (t[0] === on ? ' class="on"' : '') + '>' + t[1] + '</a>';
       }).join('') + '<a href="#" id="out">Sign out (' + esc(ME.name.split(' ')[0]) + ')</a></nav></div></header>';
     CL.$('.menu-btn').onclick = function () { CL.$('.menu').classList.toggle('open'); };
@@ -565,6 +565,156 @@
       CL.$('#exp').onclick = function () {
         var qs = []; if (CL.$('#as').value) qs.push('start=' + CL.$('#as').value); if (CL.$('#ae').value) qs.push('end=' + CL.$('#ae').value);
         CL.download('/collections/ops/audit.csv' + (qs.length ? '?' + qs.join('&') : ''), 'ops', 'collections-audit.csv').catch(fail);
+      };
+    });
+  };
+
+  // ---------------------------------------------------------------- inbox / outbox / channels
+  var INBOX_VIEW = 'needs_reply';
+  function splitQuoted(body) {
+    var lines = String(body || '').split('\n'), i;
+    for (i = 0; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (t.charAt(0) === '>' || /^On .{0,200}wrote:$/i.test(t) || /^-{2,}\s*Original Message/i.test(t)) break;
+    }
+    var top = lines.slice(0, i).join('\n').trim();
+    return top ? [top, lines.slice(i).join('\n').trim()] : [String(body || ''), ''];
+  }
+  var AUTO = { opted_out: 'Opted out automatically (they replied STOP)', do_not_contact: 'Marked Do not contact (they replied no thanks)', auto_reply: 'Automatic reply' };
+
+  R.inbox = function () {
+    var parts = location.hash.split('/'), selType = parts[1], selId = parts[2];
+    return get('/inbox?view=' + INBOX_VIEW).then(function (d) {
+      var c = d.counts, banner = '';
+      if (!d.connected) banner = '<div class="banner info">' + (ME.role === 'Admin' ? 'Replies will appear here once the collections mailbox is connected. Set it up under <a href="#channels">Channels</a>.' : 'Replies will appear here once an Admin connects the collections mailbox.') + '</div>';
+      else if (d.check_error || d.last_error) banner = '<div class="banner warn">Couldn\'t check the mailbox: ' + esc(d.check_error || d.last_error) + '</div>';
+      view.innerHTML = '<h1>Inbox</h1>' + banner +
+        '<div class="row-btns" style="justify-content:space-between;align-items:center;margin-bottom:12px"><div class="tabs" style="margin:0">' +
+        [['needs_reply', 'Needs reply (' + c.needs_reply + ')'], ['unmatched', 'Not matched (' + c.unmatched + ')'], ['all', 'All']].map(function (t) {
+          return '<button data-iv="' + t[0] + '"' + (t[0] === INBOX_VIEW ? ' class="on"' : '') + '>' + t[1] + '</button>';
+        }).join('') + '</div><span class="small muted">' + (d.last_check_at ? 'Checked ' + CL.datetime(d.last_check_at) + ' ' : '') +
+        (d.connected ? '<button class="btn sm ghost" id="ibchk">Check mail now</button>' : '') + '</span></div>' +
+        '<div class="ib' + (selId ? ' open' : '') + '"><div class="card ib-list">' + (d.conversations.length ? d.conversations.map(function (v) {
+          var on = v.type === selType && v.id === selId;
+          return '<button class="ib-conv' + (on ? ' on' : '') + '" data-ct="' + esc(v.type) + '" data-ci="' + esc(v.id) + '"><b>' + esc(v.name) + (v.unhandled ? '<span class="ib-new" aria-label="needs reply"></span>' : '') + '</b>' +
+            '<span class="small muted">' + esc(v.kind) + (v.client_name ? ' · ' + esc(v.client_name) : '') + ' · ' + CL.datetime(v.received_at) + '</span>' +
+            '<span class="small">' + esc(v.auto_action ? (AUTO[v.auto_action] || v.auto_action) : v.preview) + '</span></button>';
+        }).join('') : '<p class="muted" style="padding:14px">' + (INBOX_VIEW === 'needs_reply' ? 'Nothing waiting for a reply.' : 'No messages.') + '</p>') + '</div>' +
+        '<div class="ib-thread" id="ibt">' + (selId ? '<p class="muted">Loading…</p>' : '<div class="card"><p class="muted">Pick a conversation to read it and reply.</p></div>') + '</div></div>';
+      CL.$$('[data-iv]').forEach(function (b) { b.onclick = function () { INBOX_VIEW = b.dataset.iv; R.inbox(); }; });
+      CL.$$('[data-ct]').forEach(function (b) { b.onclick = function () { location.hash = '#inbox/' + b.dataset.ct + '/' + b.dataset.ci; }; });
+      var chk = CL.$('#ibchk');
+      if (chk) chk.onclick = function () { chk.disabled = true; post('/inbox/check').then(function (r) { CL.toast(r.new + ' new'); R.inbox(); }).catch(function (e) { fail(e); chk.disabled = false; }); };
+      if (selId) loadThread(selType, selId);
+    });
+  };
+
+  function loadThread(type, id) {
+    var box = CL.$('#ibt');
+    get('/inbox/thread?type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(id)).then(function (t) {
+      var p = t.party;
+      var head = '<div class="row-btns" style="align-items:center"><a class="btn sm ghost" href="#inbox">← All</a><h2 style="margin:0">' + esc(p.name) + '</h2>' + CL.pill(p.kind) + '</div>' +
+        '<p class="small muted" style="margin:6px 0 0">' + [p.client_name && esc(p.client_name), p.reference_code && '<span class="mono">' + esc(p.reference_code) + '</span>',
+          p.balance != null && 'Balance ' + naira(p.balance), p.status && esc(p.status)].filter(Boolean).join(' · ') + '</p>';
+      var msgs = t.messages.map(function (m) {
+        var q = m.direction === 'in' ? splitQuoted(m.body) : [m.body, ''];
+        var who = m.direction === 'in' ? esc(m.from || '') : (m.by ? esc(m.by) : 'Waterline');
+        var status = m.direction === 'out' && m.status && m.status !== 'Sent' ? ' · <span class="pill red">' + esc(m.status === 'Logged' ? 'Not sent' : m.status) + '</span>' : '';
+        return '<div class="ib-b ' + m.direction + '"><span class="meta">' + who + ' · ' + esc(m.channel) + ' · ' + CL.datetime(m.at) + status +
+          (m.subject ? '<br><b>' + esc(m.subject) + '</b>' : '') + '</span>' + esc(q[0]) +
+          (q[1] ? '<details><summary>Show quoted text</summary>' + esc(q[1]) + '</details>' : '') +
+          (m.attachments && m.attachments.length ? '<span class="meta">Attachments (open in webmail): ' + m.attachments.map(esc).join(', ') + '</span>' : '') +
+          (m.auto_action ? '<span class="meta">' + esc(AUTO[m.auto_action] || m.auto_action) + '</span>' : '') +
+          (m.error ? '<span class="meta">' + esc(m.error) + '</span>' : '') + '</div>';
+      }).join('');
+      var canReply = !p.opted_out && t.messages.some(function (m) { return m.direction === 'in'; });
+      var compose = p.opted_out ? '<div class="banner warn">' + (p.type === 'prospect' ? 'This organisation asked not to be contacted.' : 'This person asked us to stop messaging them.') + '</div>'
+        : canReply ? '<form id="ibr"><div class="field"><label for="ibbody">Reply by email</label><textarea id="ibbody" name="body" required maxlength="6000" placeholder="Write your reply…"></textarea>' +
+          (p.type === 'account' ? '<p class="hint">Checked for wording before it sends. Replies to people who wrote in don\'t count toward outreach limits.</p>' : '') + '</div>' +
+          '<div id="ibm"></div><div class="row-btns"><button class="btn">Send email</button><button type="button" class="btn ghost" id="ibdone">Mark done without replying</button>' +
+          (p.type === 'account' ? '<a class="btn ghost" href="#clients">Find account</a>' : p.type === 'prospect' ? '<a class="btn ghost" href="#prospects/' + esc(p.id) + '">Open prospect</a>' : '') + '</div></form>' : '';
+      box.innerHTML = '<div class="card">' + head + '<div class="ib-msgs">' + (msgs || '<p class="muted">No messages yet.</p>') + '</div>' + compose + '</div>';
+      var f = CL.$('#ibr');
+      if (f) {
+        f.onsubmit = function (e) {
+          e.preventDefault();
+          var btn = CL.$('button.btn', f); btn.disabled = true;
+          post('/inbox/reply', { type: type, id: id, body: CL.$('#ibbody').value }).then(function () { CL.toast('Sent'); R.inbox(); })
+            .catch(function (err) { btn.disabled = false; CL.$('#ibm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+        };
+        CL.$('#ibdone').onclick = function () { post('/inbox/done', { type: type, id: id }).then(function () { CL.toast('Marked done'); location.hash = '#inbox'; }).catch(fail); };
+      }
+      var last = CL.$$('.ib-b', box).pop(); if (last && window.innerWidth > 760) last.scrollIntoView({ block: 'nearest' });
+    }).catch(function (e) { box.innerHTML = '<div class="banner bad">' + esc(e.message) + '</div>'; });
+  }
+
+  var OUTBOX_FILTER = '';
+  R.outbox = function () {
+    var q = OUTBOX_FILTER === 'failed' ? '?failed=true' : OUTBOX_FILTER ? '?channel=' + OUTBOX_FILTER : '';
+    return get('/outbox' + q).then(function (rows) {
+      function st(r) {
+        var cls = r.status === 'Sent' ? 'green' : r.status === 'Marked sent' ? 'blue' : 'red';
+        return '<span class="pill ' + cls + '"' + (r.error ? ' title="' + esc(r.error) + '"' : '') + '>' + esc(r.status === 'Logged' ? 'Not sent' : r.status) + '</span>';
+      }
+      view.innerHTML = '<h1>Outbox</h1><p class="muted">Everything sent from the portal. WhatsApp and SMS show as “Marked sent” until WhatsApp is connected.</p>' +
+        '<div class="tabs">' + [['', 'All'], ['Email', 'Email'], ['WhatsApp', 'WhatsApp'], ['failed', 'Failed or not sent']].map(function (t) {
+          return '<button data-of="' + t[0] + '"' + (t[0] === OUTBOX_FILTER ? ' class="on"' : '') + '>' + t[1] + '</button>';
+        }).join('') + '</div>' +
+        '<div class="card table-wrap"><table><thead><tr><th>When</th><th>Channel</th><th>To</th><th>What</th><th>By</th><th>Status</th></tr></thead><tbody>' +
+        (rows.length ? rows.map(function (r) {
+          return '<tr><td class="small nowrap">' + CL.datetime(r.at) + '</td><td class="small">' + esc(r.channel) + '</td><td class="small">' + esc(r.to) + (r.client_name ? '<br><span class="muted">' + esc(r.client_name) + '</span>' : '') + '</td>' +
+            '<td class="small">' + esc(r.what || '') + '</td><td class="small">' + esc(r.by || '') + '</td><td>' + st(r) + (r.error ? '<div class="tiny muted" style="max-width:260px">' + esc(r.error) + '</div>' : '') + '</td></tr>';
+        }).join('') : '<tr><td colspan="6" class="muted">Nothing here.</td></tr>') + '</tbody></table></div>';
+      CL.$$('[data-of]').forEach(function (b) { b.onclick = function () { OUTBOX_FILTER = b.dataset.of; R.outbox(); }; });
+    });
+  };
+
+  R.channels = function () {
+    if (ME.role !== 'Admin') { view.innerHTML = '<div class="banner info">Only Waterline Admin can manage channels.</div>'; return Promise.resolve(); }
+    return get('/channels').then(function (ch) {
+      var e = ch.email, s = e.state || {};
+      var src = { portal: ['green', 'Connected from this page'], server: ['amber', 'Using the server\'s mail settings (sending only, no Inbox)'], none: ['red', 'Not connected'] }[e.source];
+      view.innerHTML = '<h1>Channels</h1>' +
+        '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><h2 style="margin:0">Email · ' + esc(e.address) + '</h2><span class="pill ' + src[0] + '">' + src[1] + '</span></div>' +
+        '<p class="small muted">Use the login of the collections mailbox in cPanel (the same email address and password you use for webmail). Portal emails are then sent from this address, and replies to it show up in the Inbox. Nothing in the mailbox is moved or deleted.</p>' +
+        (s.last_check_at ? '<p class="small">Last mailbox check: ' + CL.datetime(s.last_check_at) + (s.last_error ? ' · <span style="color:var(--red)">' + esc(s.last_error) + '</span>' : ' · OK') + '</p>' : '') +
+        '<form id="chf"><div class="field"><label for="ca">Mailbox email address</label><input id="ca" name="address" type="email" value="' + esc(e.address) + '" required></div>' +
+        '<div class="field"><label for="cp">Mailbox password</label><input id="cp" name="password" type="password" autocomplete="new-password" placeholder="' + (e.has_password ? 'Saved. Leave blank to keep it.' : 'The webmail password') + '"' + (e.has_password ? '' : ' required') + '></div>' +
+        '<div class="field"><label for="cn">Sender name people see</label><input id="cn" name="from_name" type="text" value="' + esc(e.from_name) + '"></div>' +
+        '<details><summary class="small">Server settings (change only if the defaults don\'t work)</summary><div style="margin-top:10px">' +
+        '<div class="field"><label for="csh">Outgoing (SMTP) server</label><input id="csh" name="smtp_host" type="text" value="' + esc(e.smtp_host) + '"></div>' +
+        '<div class="field"><label for="csp">Outgoing port</label><input id="csp" name="smtp_port" type="number" value="' + esc(e.smtp_port) + '"></div>' +
+        '<div class="field"><label><input type="checkbox" id="css" name="smtp_ssl"' + (e.smtp_ssl ? ' checked' : '') + '> SSL (port 465). Untick for STARTTLS (port 587).</label></div>' +
+        '<div class="field"><label for="cih">Incoming (IMAP) server</label><input id="cih" name="imap_host" type="text" value="' + esc(e.imap_host) + '"></div>' +
+        '<div class="field"><label for="cip">Incoming port</label><input id="cip" name="imap_port" type="number" value="' + esc(e.imap_port) + '"></div></div></details>' +
+        '<div id="chm"></div><button class="btn">Save</button></form></div>' +
+        '<div class="card"><h2>Test it</h2><p class="small muted">Sends a test email and logs in to the mailbox to read it. Reply to the test email, then check the Inbox.</p>' +
+        '<div class="row-btns"><input id="ct" type="email" value="' + esc(ME.email) + '" aria-label="Send the test to" style="max-width:280px"><button class="btn ghost" id="ctb">Send test email</button></div><div id="ctr" style="margin-top:10px"></div></div>' +
+        (function (d) {
+          if (!d) return '';
+          var ok = d.current && d.current === d.head;
+          return '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><h2 style="margin:0">Database</h2><span class="pill ' + (ok ? 'green' : 'red') + '">' + (ok ? 'Up to date' : 'Needs attention') + '</span></div>' +
+            '<p class="small muted">Updates apply by themselves after each deploy. Version ' + esc(d.current || 'unknown') + (ok ? '' : ', expected ' + esc(d.head || 'unknown')) + '.</p>' +
+            (d.error ? '<p class="small" style="color:var(--red)">' + esc(d.error) + '</p>' : '') +
+            (!ok && d.log && d.log.length ? '<details><summary class="small">Update log</summary><pre class="tiny" style="white-space:pre-wrap">' + esc(d.log.join('\n')) + '</pre></details>' : '') + '</div>';
+        })(ch.database) +
+        '<div class="card"><h2>WhatsApp</h2><p class="small muted">Not connected yet. Messages still go out with “Open WhatsApp” in the queue. Connecting the number to WhatsApp\'s business service is the next phase.</p></div>';
+      CL.$('#chf').onsubmit = function (ev) {
+        ev.preventDefault();
+        var body = CL.formJSON(ev.target);
+        if (!body.password) delete body.password;
+        body.smtp_port = parseInt(body.smtp_port, 10) || null; body.imap_port = parseInt(body.imap_port, 10) || null;
+        put('/channels/email', body).then(function () { CL.toast('Saved'); R.channels(); })
+          .catch(function (err) { CL.$('#chm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+      CL.$('#ctb').onclick = function () {
+        var b = CL.$('#ctb'); b.disabled = true; CL.$('#ctr').innerHTML = '<p class="muted small">Testing… this can take up to 20 seconds.</p>';
+        post('/channels/email/test', { to: CL.$('#ct').value }).then(function (r) {
+          b.disabled = false;
+          CL.$('#ctr').innerHTML =
+            '<div class="banner ' + (r.sending.ok ? 'ok' : 'bad') + '">' + (r.sending.ok ? 'Sending works. A test email went to ' + esc(r.sending.to) + '.' : 'Sending failed: ' + esc(r.sending.error)) + '</div>' +
+            '<div class="banner ' + (r.reading.ok ? 'ok' : 'bad') + '">' + (r.reading.ok ? 'Reading works. The mailbox has ' + r.reading.messages + ' messages in its inbox.' : 'Reading failed: ' + esc(r.reading.error)) + '</div>';
+        }).catch(function (err) { b.disabled = false; CL.$('#ctr').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
       };
     });
   };

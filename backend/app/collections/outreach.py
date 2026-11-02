@@ -422,7 +422,7 @@ def skip(db: Session, item: OutreachItem, reason: str, note: str | None, actor: 
             pass
         else:
             emailer.send(db, account.email, f"A message from {client.business_name} via Waterline", item.rendered_text,
-                         kind="debtor_outreach", client_id=client.id)
+                         kind="debtor_outreach", client_id=client.id, account_id=account.id, sent_by=actor.id)
             item.skip_reason = f"Phone skipped ({full_reason}); sent by email"
             _record_sent(db, item, account, "Email", actor, now)
             return item

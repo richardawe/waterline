@@ -130,6 +130,34 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
   interested / Do not contact. Delete (Admin only) erases the organisation
   and its history, for erasure requests.
 
+## Inbox, Outbox and Channels (ops)
+
+- **Channels** (Admin only): enter the collections mailbox login
+  (`collections@waterline.ng` and its webmail password). It's stored
+  encrypted in `cl_channel` and never returned by the API. Once saved, every
+  portal email is sent through that mailbox (SMTP, default
+  `mail.waterline.ng:465`), so replies come back to it; without it, the
+  server's `SMTP_*` env vars are used as before. "Send test email" checks
+  sending and logs in to the mailbox to check reading.
+- **Inbox** (all ops): `mailbox.py` reads the mailbox over IMAP, read-only
+  (`EXAMINE` + `BODY.PEEK`, so webmail is untouched). It checks when the
+  Inbox is opened (at most every 2 minutes), on "Check mail now" and in the
+  daily job. The first check looks back 14 days. Each message is matched by
+  In-Reply-To to the email we sent (every `cl_email` row now has a
+  `message_id`), then by the sender's address. Debtor "STOP" opts out on
+  every channel. Prospect "no thanks" sets Do not contact. Any other debtor
+  reply counts as a response. Auto-replies are filed as handled. Unmatched
+  mail has its own filter.
+- **Replies from the Inbox** go by email, threaded to the person's message.
+  They are *not* outreach: no `OutreachItem`, no daily/weekly limits. Debtor
+  replies still pass the forbidden-wording check, and opted-out debtors and
+  Do-not-contact prospects can't be written to. A failed send stays in the
+  Outbox.
+- **Outbox** (all ops): every `cl_email` row plus WhatsApp/SMS queue items
+  marked sent, newest first, with a "Failed or not sent" filter.
+- WhatsApp is not connected yet. That needs a Meta WhatsApp Business
+  account (see the messaging plan); the queue's "Open WhatsApp" still works.
+
 ## Map
 
 | Path | Who | File |
@@ -137,7 +165,7 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
 | `/collections/` | Public landing (segment cards + waitlist) | `collections/index.html` + `assets/landing.js` |
 | `/collections/signup/`, `login/`, `verify/`, `reset/` | Clients | `assets/auth.js` |
 | `/collections/app/…` (dashboard, uploads, uploads/new, accounts, accounts/<id>, confirmations, disputes, invoices, settings) | Clients | `assets/app.js` (picks the page from `<body data-page>`) |
-| `/collections/ops/` | Waterline ops (tabs via `#hash`) | `assets/ops.js` |
+| `/collections/ops/` | Waterline ops (tabs via `#hash`) | `assets/ops.js` (API: `api/ops.py`, `api/ops_messages.py`) |
 | `/collections/p/<token>` | Debtors | `p/index.html` + `assets/pay.js` (~25 KB total) |
 | `/collections/privacy/`, `terms/` (DPA at `terms/#dpa`) | Public | static (**drafts, need a Nigerian lawyer's review before launch**) |
 
@@ -279,9 +307,9 @@ days overdue flags the client, and ops decide whether to suspend.
      `SMTP_FROM`, and optionally `SMTP_USE_SSL`. Use a sending subdomain
      such as `mail.waterline.ng` with SPF/DKIM. Without `SMTP_HOST`, emails
      are only logged to `cl_email`.
-2. `pip install -r requirements.txt` (new: `bcrypt`, `cryptography`), then
-   `alembic upgrade head`. Do both through cPanel Terminal, because SSH is
-   still blocked.
+2. `pip install -r requirements.txt` (new: `bcrypt`, `cryptography`) through
+   cPanel Terminal, because SSH is still blocked. Database migrations apply
+   by themselves when the app restarts (`app/migrate_on_start.py`).
 3. Create the first Admin ops user with the script above.
 4. **Daily job**: add a cPanel cron entry for 07:30 WAT (06:30 UTC):
    `curl -fsS -X POST -H "Authorization: Bearer $COLLECTIONS_CRON_TOKEN" https://api.waterline.ng/collections/jobs/daily`.

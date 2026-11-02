@@ -7,7 +7,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.collections import billing
+from app.collections import billing, mailbox
 from app.config import get_settings
 from app.db import get_db
 
@@ -25,5 +25,7 @@ def require_cron(request: Request) -> None:
 @router.post("/daily", dependencies=[Depends(require_cron)])
 def daily(db: Session = Depends(get_db)):
     result = billing.run_daily(db)
+    db.commit()
+    result["mailbox"] = mailbox.check_mailbox(db)
     db.commit()
     return result
