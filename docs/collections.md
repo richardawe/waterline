@@ -155,8 +155,39 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
   Outbox.
 - **Outbox** (all ops): every `cl_email` row plus WhatsApp/SMS queue items
   marked sent, newest first, with a "Failed or not sent" filter.
-- WhatsApp is not connected yet. That needs a Meta WhatsApp Business
-  account (see the messaging plan); the queue's "Open WhatsApp" still works.
+- **WhatsApp** (`whatsapp.py`, Meta's WhatsApp Cloud API, called with
+  `urllib` so no new package is needed). An Admin saves the phone number ID,
+  WhatsApp Business account ID, a permanent system-user token and the app
+  secret under Channels. The token and secret are encrypted in `cl_channel`
+  and never returned. "Save and check" asks Meta for the number to prove
+  they work. As of 2026-11-02 it is Meta's **test number** (+1 555 058 4319,
+  phone number ID 1335405489665397, account 2151893508741594), which can
+  only message numbers on its allowed list. The site number +234 903 410
+  4100 stays on the phone app (owner decision). The portal will get its own
+  number.
+  - **Templates:** "Submit templates" sends each live segment's active
+    templates to Meta as `wl_<segment>_<key>_v<version>` (UTILITY, named
+    parameters = our placeholders). WhatsApp refuses empty parameters, so a
+    template with `{{discount_line}}` also gets an `_nd` variant without it.
+    Statuses are kept in `cl_wa_template` ("Refresh status" pulls them).
+    Editing a template makes a new version that has to be submitted again.
+  - **Queue:** items store the values they were built from
+    (`render_values`). When the item's template version and variant is
+    APPROVED, the card shows "Send on WhatsApp" (and "Send all"). It runs
+    the same `_check_sendable` rules as Mark sent, sends the template and
+    records the item as sent. Otherwise the card falls back to "Open
+    WhatsApp".
+  - **Webhook:** `/collections/whatsapp/webhook`. GET is Meta's verification
+    using the verify token shown on Channels. POST must carry a valid
+    `X-Hub-Signature-256` for the app secret. Incoming messages land in the
+    Inbox (matched by the number we last messaged, then a debtor's
+    `phone_index`, then a prospect's phone; STOP opts out). Statuses move
+    `cl_wa_message` through sent, delivered and read (never backwards) or
+    failed.
+  - **Inbox replies on WhatsApp** are free text, so they are only allowed
+    within 24 hours of the person's last WhatsApp message (Meta's rule).
+    After that, reply by email or wait for the next template in the queue.
+    Media (photos, PDFs) is noted in the Inbox but not downloaded yet.
 
 ## Map
 

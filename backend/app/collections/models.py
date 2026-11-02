@@ -281,6 +281,7 @@ class OutreachItem(Base, TimestampMixin):
     skip_reason: Mapped[Optional[str]] = mapped_column(String(120))
     reply_category: Mapped[Optional[str]] = mapped_column(String(40))
     reply_note: Mapped[Optional[str]] = mapped_column(Text)
+    render_values: Mapped[Optional[str]] = mapped_column(EncryptedString)  # JSON; WhatsApp template parameters
     replied_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
@@ -546,3 +547,47 @@ class ProspectTouch(Base):
     # set in Python, not by now(): several touches in one transaction must still be ordered
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                  default=lambda: datetime.now(timezone.utc))
+
+
+class WaTemplate(Base):
+    """One of our message templates as submitted to WhatsApp (Meta) for
+    approval. variant "nd" is the same text without {{discount_line}}, because
+    WhatsApp won't accept an empty parameter."""
+
+    __tablename__ = "cl_wa_template"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    segment: Mapped[str] = mapped_column(String(20), nullable=False)
+    key: Mapped[str] = mapped_column(String(40), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    variant: Mapped[str] = mapped_column(String(10), nullable=False, default="")
+    meta_name: Mapped[str] = mapped_column(String(120), nullable=False, unique=True)
+    meta_id: Mapped[Optional[str]] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="NOT_SUBMITTED")
+    reason: Mapped[Optional[str]] = mapped_column(Text)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WaMessage(Base):
+    """A WhatsApp message the portal sent. status follows Meta's webhooks:
+    sent → delivered → read, or failed."""
+
+    __tablename__ = "cl_wa_message"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    wamid: Mapped[Optional[str]] = mapped_column(String(200), unique=True)
+    to_phone: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    to_index: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    account_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    prospect_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    client_id: Mapped[Optional[str]] = mapped_column(String(64))
+    outreach_item_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)  # template / text
+    template_name: Mapped[Optional[str]] = mapped_column(String(120))
+    body: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)  # sent / delivered / read / failed
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    sent_by: Mapped[Optional[str]] = mapped_column(String(64))
+    status_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -182,24 +182,34 @@
     return get('/queue' + (day ? '?day=' + day : '')).then(function (q) {
       var queued = q.items.filter(function (i) { return i.status === 'Queued'; });
       var done = q.items.filter(function (i) { return i.status !== 'Queued'; });
+      var ready = queued.filter(function (i) { return i.wa_ready; });
       view.innerHTML = '<h1>Outreach queue — ' + CL.date(q.date) + '</h1>' +
+        (q.whatsapp_connected ? '<p class="small muted">WhatsApp is connected: “Send on WhatsApp” sends straight from the portal. Messages whose template WhatsApp hasn\'t approved yet still use Open WhatsApp.</p>' : '') +
         (q.contact_window_enforced ? '<div class="banner ' + (q.in_contact_window ? 'ok' : 'warn') + '">' + (q.in_contact_window ? 'Inside the contact window. Send from the Waterline phone, then mark each one.' : 'Outside 8am–7pm WAT Mon–Sat (or a public holiday). Sending is blocked.') + '</div>' : '<p class="muted small">Send each message from the Waterline phone, then mark it sent.</p>') +
-        '<div class="row-btns" style="margin-bottom:14px"><button class="btn ghost" id="build">Build / refresh today\'s queue</button><span class="small muted" style="align-self:center">' + queued.length + ' to send · ' + done.length + ' done</span></div>' +
+        '<div class="row-btns" style="margin-bottom:14px"><button class="btn ghost" id="build">Build / refresh today\'s queue</button>' +
+        (ready.length ? '<button class="btn wa" id="sendall">Send all ' + ready.length + ' on WhatsApp</button>' : '') + '<span class="small muted" style="align-self:center">' + queued.length + ' to send · ' + done.length + ' done</span></div>' +
         (queued.length ? queued.map(function (i) {
           return '<div class="card" data-item="' + i.id + '"><h3>' + esc(i.debtor_name) + ' <span class="small muted">' + esc(i.phone) + '</span></h3>' +
             '<p class="small muted">' + esc(i.client_name) + ' · ' + esc(i.reference_code) + ' · ' + esc(i.template_key.replace(/_/g, ' ').toLowerCase()) + (i.has_email ? ' · has email' : '') + '</p>' +
             '<div class="msg">' + esc(i.rendered_text) + '</div>' +
-            '<div class="row-btns" style="margin-top:10px"><a class="btn wa" href="' + esc(i.links.whatsapp) + '" target="_blank" rel="noopener">Open WhatsApp</a><a class="btn ghost" href="' + esc(i.links.sms) + '">Open SMS</a></div>' +
-            '<div class="row-btns" style="margin-top:8px"><button class="btn sm" data-sent="WhatsApp">Mark sent (WhatsApp)</button><button class="btn sm" data-sent="SMS">Mark sent (SMS)</button>' +
+            (i.wa_ready ? '<div class="row-btns" style="margin-top:10px"><button class="btn wa" data-wa-send>Send on WhatsApp</button>' + (i.links ? '<a class="btn ghost" href="' + esc(i.links.sms) + '">Open SMS</a>' : '') + '</div>' +
+              '<div class="row-btns" style="margin-top:8px"><button class="btn sm" data-sent="SMS">Mark sent (SMS)</button>'
+            : (i.links ? '<div class="row-btns" style="margin-top:10px"><a class="btn wa" href="' + esc(i.links.whatsapp) + '" target="_blank" rel="noopener">Open WhatsApp</a><a class="btn ghost" href="' + esc(i.links.sms) + '">Open SMS</a></div>' : '') +
+              '<div class="row-btns" style="margin-top:8px"><button class="btn sm" data-sent="WhatsApp">Mark sent (WhatsApp)</button><button class="btn sm" data-sent="SMS">Mark sent (SMS)</button>') +
             '<select data-skip-reason style="max-width:170px;min-height:34px" aria-label="Skip reason">' + q.skip_reasons.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') + '</select><button class="btn sm ghost" data-skip>Skip' + (i.has_email ? ' (email instead)' : '') + '</button></div></div>';
         }).join('') : '<div class="card"><p class="muted">Nothing left to send.</p></div>') +
         (done.length ? '<div class="card"><h2>Done today</h2>' + done.map(function (i) {
-          return '<div class="list-item">' + CL.pill(i.status) + ' <b>' + esc(i.debtor_name) + '</b> <span class="small muted">' + esc(i.client_name) + (i.channel ? ' · ' + i.channel : '') + (i.skip_reason ? ' · ' + esc(i.skip_reason) : '') + (i.reply_category ? ' · replied: ' + esc(i.reply_category) : '') + '</span>' +
+          return '<div class="list-item">' + CL.pill(i.status) + ' <b>' + esc(i.debtor_name) + '</b> <span class="small muted">' + esc(i.client_name) + (i.channel ? ' · ' + i.channel : '') + (i.wa_status ? ' ' + waPill(i.wa_status, i.wa_error) : '') + (i.skip_reason ? ' · ' + esc(i.skip_reason) : '') + (i.reply_category ? ' · replied: ' + esc(i.reply_category) : '') + '</span>' +
             (i.status === 'Sent' ? ' <button class="btn sm ghost" data-reply-item="' + i.id + '">Log reply</button>' : '') + '</div>';
         }).join('') + '</div>' : '');
       CL.$('#build').onclick = function () { post('/queue/build').then(function (r) { CL.toast(r.reason || (r.created + ' added')); R.queue(); }).catch(fail); };
       CL.$$('[data-item]').forEach(function (card) {
         var id = card.dataset.item;
+        var ws = CL.$('[data-wa-send]', card);
+        if (ws) ws.onclick = function () {
+          ws.disabled = true;
+          waSend(id).then(function () { card.remove(); CL.toast('Sent on WhatsApp'); }).catch(function (e) { fail(e); R.queue(); });
+        };
         CL.$$('[data-sent]', card).forEach(function (b) {
           b.onclick = function () { post('/queue/' + id + '/sent', { channel: b.dataset.sent }).then(function () { card.remove(); CL.toast('Marked sent'); }).catch(function (e) { fail(e); R.queue(); }); };
         });
@@ -208,6 +218,18 @@
           post('/queue/' + id + '/skip', { reason: reason, note: note }).then(function (r) { card.remove(); CL.toast(r.channel === 'Email' ? 'Sent by email instead' : 'Skipped'); }).catch(fail);
         };
       });
+      var all = CL.$('#sendall');
+      if (all) all.onclick = function () {
+        all.disabled = true;
+        var ids = ready.map(function (i) { return i.id; }), sent = 0;
+        (function next() {
+          if (!ids.length) { CL.toast(sent + ' sent on WhatsApp'); return R.queue(); }
+          var id = ids.shift();
+          all.textContent = 'Sending… ' + (sent + 1) + ' of ' + ready.length;
+          waSend(id).then(function () { sent++; var c = CL.$('[data-item="' + id + '"]'); if (c) c.remove(); next(); })
+            .catch(function (e) { CL.toast('Stopped after ' + sent + ': ' + (e.message || e)); R.queue(); });
+        })();
+      };
       bindReplyButtons(R.queue);
     });
   };
@@ -569,6 +591,13 @@
     });
   };
 
+  function waSend(id) { return post('/queue/' + id + '/whatsapp'); }
+  var WA_LABEL = { sent: ['Sent', 'green'], delivered: ['Delivered', 'blue'], read: ['Read', 'green'], failed: ['Failed', 'red'] };
+  function waPill(status, error) {
+    var l = WA_LABEL[(status || '').toLowerCase()] || [status, ''];
+    return '<span class="pill ' + l[1] + '"' + (error ? ' title="' + esc(error) + '"' : '') + '>' + esc(l[0]) + '</span>' + (error ? ' <span class="tiny muted">' + esc(error) + '</span>' : '');
+  }
+
   // ---------------------------------------------------------------- inbox / outbox / channels
   var INBOX_VIEW = 'needs_reply';
   function splitQuoted(body) {
@@ -619,19 +648,32 @@
       var msgs = t.messages.map(function (m) {
         var q = m.direction === 'in' ? splitQuoted(m.body) : [m.body, ''];
         var who = m.direction === 'in' ? esc(m.from || '') : (m.by ? esc(m.by) : 'Waterline');
-        var status = m.direction === 'out' && m.status && m.status !== 'Sent' ? ' · <span class="pill red">' + esc(m.status === 'Logged' ? 'Not sent' : m.status) + '</span>' : '';
+        var status = m.direction !== 'out' || !m.status ? ''
+          : m.channel === 'WhatsApp' && WA_LABEL[m.status] ? ' · ' + waPill(m.status)
+          : m.status !== 'Sent' ? ' · <span class="pill' + (m.status === 'Marked sent' ? '' : ' red') + '">' + esc(m.status === 'Logged' ? 'Not sent' : m.status) + '</span>' : '';
         return '<div class="ib-b ' + m.direction + '"><span class="meta">' + who + ' · ' + esc(m.channel) + ' · ' + CL.datetime(m.at) + status +
           (m.subject ? '<br><b>' + esc(m.subject) + '</b>' : '') + '</span>' + esc(q[0]) +
           (q[1] ? '<details><summary>Show quoted text</summary>' + esc(q[1]) + '</details>' : '') +
           (m.attachments && m.attachments.length ? '<span class="meta">Attachments (open in webmail): ' + m.attachments.map(esc).join(', ') + '</span>' : '') +
           (m.auto_action ? '<span class="meta">' + esc(AUTO[m.auto_action] || m.auto_action) + '</span>' : '') +
-          (m.error ? '<span class="meta">' + esc(m.error) + '</span>' : '') + '</div>';
+          (m.error && m.channel !== 'WhatsApp' ? '<span class="meta">' + esc(m.error) + '</span>' : '') + '</div>';
       }).join('');
-      var canReply = !p.opted_out && t.messages.some(function (m) { return m.direction === 'in'; });
+      var rp = t.reply || {}, waOpen = rp.whatsapp_connected && rp.whatsapp_number && rp.whatsapp_until;
+      var chans = [];
+      if (rp.whatsapp_connected && rp.whatsapp_number) chans.push('WhatsApp');
+      if (rp.email) chans.push('Email');
+      var chan = waOpen ? 'WhatsApp' : (rp.email ? 'Email' : chans[0]);
+      var canReply = !p.opted_out && chans.length && t.messages.some(function (m) { return m.direction === 'in'; });
+      function waHint() {
+        return rp.whatsapp_until ? 'WhatsApp chat open until ' + CL.datetime(rp.whatsapp_until) + '. After that, WhatsApp only allows approved templates.'
+          : 'Their last WhatsApp message was more than 24 hours ago, so WhatsApp won\'t accept a typed reply.' + (rp.email ? ' Reply by email instead.' : '');
+      }
       var compose = p.opted_out ? '<div class="banner warn">' + (p.type === 'prospect' ? 'This organisation asked not to be contacted.' : 'This person asked us to stop messaging them.') + '</div>'
-        : canReply ? '<form id="ibr"><div class="field"><label for="ibbody">Reply by email</label><textarea id="ibbody" name="body" required maxlength="6000" placeholder="Write your reply…"></textarea>' +
+        : canReply ? '<form id="ibr">' + (chans.length > 1 ? '<div class="tabs" id="ibch">' + chans.map(function (c) { return '<button type="button" data-ch="' + c + '"' + (c === chan ? ' class="on"' : '') + '>' + c + '</button>'; }).join('') + '</div>' : '') +
+          '<div class="field"><label for="ibbody" id="iblbl">Reply by ' + (chan === 'WhatsApp' ? 'WhatsApp' : 'email') + '</label><textarea id="ibbody" name="body" required maxlength="6000" placeholder="Write your reply…"></textarea>' +
+          '<p class="hint" id="ibwa"' + (chan === 'WhatsApp' ? '' : ' hidden') + '>' + waHint() + '</p>' +
           (p.type === 'account' ? '<p class="hint">Checked for wording before it sends. Replies to people who wrote in don\'t count toward outreach limits.</p>' : '') + '</div>' +
-          '<div id="ibm"></div><div class="row-btns"><button class="btn">Send email</button><button type="button" class="btn ghost" id="ibdone">Mark done without replying</button>' +
+          '<div id="ibm"></div><div class="row-btns"><button class="btn" id="ibsend">' + (chan === 'WhatsApp' ? 'Send on WhatsApp' : 'Send email') + '</button><button type="button" class="btn ghost" id="ibdone">Mark done without replying</button>' +
           (p.type === 'account' ? '<a class="btn ghost" href="#clients">Find account</a>' : p.type === 'prospect' ? '<a class="btn ghost" href="#prospects/' + esc(p.id) + '">Open prospect</a>' : '') + '</div></form>' : '';
       box.innerHTML = '<div class="card">' + head + '<div class="ib-msgs">' + (msgs || '<p class="muted">No messages yet.</p>') + '</div>' + compose + '</div>';
       var f = CL.$('#ibr');
@@ -639,9 +681,18 @@
         f.onsubmit = function (e) {
           e.preventDefault();
           var btn = CL.$('button.btn', f); btn.disabled = true;
-          post('/inbox/reply', { type: type, id: id, body: CL.$('#ibbody').value }).then(function () { CL.toast('Sent'); R.inbox(); })
+          post('/inbox/reply', { type: type, id: id, channel: chan, body: CL.$('#ibbody').value }).then(function () { CL.toast('Sent'); R.inbox(); })
             .catch(function (err) { btn.disabled = false; CL.$('#ibm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
         };
+        CL.$$('[data-ch]', f).forEach(function (b) {
+          b.onclick = function () {
+            chan = b.dataset.ch;
+            CL.$$('[data-ch]', f).forEach(function (x) { x.classList.toggle('on', x === b); });
+            CL.$('#iblbl').textContent = 'Reply by ' + (chan === 'WhatsApp' ? 'WhatsApp' : 'email');
+            CL.$('#ibsend').textContent = chan === 'WhatsApp' ? 'Send on WhatsApp' : 'Send email';
+            CL.$('#ibwa').hidden = chan !== 'WhatsApp';
+          };
+        });
         CL.$('#ibdone').onclick = function () { post('/inbox/done', { type: type, id: id }).then(function () { CL.toast('Marked done'); location.hash = '#inbox'; }).catch(fail); };
       }
       var last = CL.$$('.ib-b', box).pop(); if (last && window.innerWidth > 760) last.scrollIntoView({ block: 'nearest' });
@@ -653,10 +704,11 @@
     var q = OUTBOX_FILTER === 'failed' ? '?failed=true' : OUTBOX_FILTER ? '?channel=' + OUTBOX_FILTER : '';
     return get('/outbox' + q).then(function (rows) {
       function st(r) {
-        var cls = r.status === 'Sent' ? 'green' : r.status === 'Marked sent' ? 'blue' : 'red';
+        var cls = { Sent: 'green', Read: 'green', Delivered: 'blue', 'Marked sent': '' }[r.status];
+        if (cls === undefined) cls = 'red';
         return '<span class="pill ' + cls + '"' + (r.error ? ' title="' + esc(r.error) + '"' : '') + '>' + esc(r.status === 'Logged' ? 'Not sent' : r.status) + '</span>';
       }
-      view.innerHTML = '<h1>Outbox</h1><p class="muted">Everything sent from the portal. WhatsApp and SMS show as “Marked sent” until WhatsApp is connected.</p>' +
+      view.innerHTML = '<h1>Outbox</h1><p class="muted">Everything sent from the portal. WhatsApp messages sent from the portal show Sent, Delivered or Read. Ones sent by hand from the phone show “Marked sent”.</p>' +
         '<div class="tabs">' + [['', 'All'], ['Email', 'Email'], ['WhatsApp', 'WhatsApp'], ['failed', 'Failed or not sent']].map(function (t) {
           return '<button data-of="' + t[0] + '"' + (t[0] === OUTBOX_FILTER ? ' class="on"' : '') + '>' + t[1] + '</button>';
         }).join('') + '</div>' +
@@ -698,7 +750,8 @@
             (d.error ? '<p class="small" style="color:var(--red)">' + esc(d.error) + '</p>' : '') +
             (!ok && d.log && d.log.length ? '<details><summary class="small">Update log</summary><pre class="tiny" style="white-space:pre-wrap">' + esc(d.log.join('\n')) + '</pre></details>' : '') + '</div>';
         })(ch.database) +
-        '<div class="card"><h2>WhatsApp</h2><p class="small muted">Not connected yet. Messages still go out with “Open WhatsApp” in the queue. Connecting the number to WhatsApp\'s business service is the next phase.</p></div>';
+        '<div id="wacard"></div>';
+      renderWhatsApp(ch.whatsapp);
       CL.$('#chf').onsubmit = function (ev) {
         ev.preventDefault();
         var body = CL.formJSON(ev.target);
@@ -718,6 +771,77 @@
       };
     });
   };
+
+  var TPL_STATUS = { APPROVED: ['Approved', 'green'], PENDING: ['In review', 'amber'], REJECTED: ['Rejected', 'red'], ERROR: ['Not accepted', 'red'],
+    NOT_SUBMITTED: ['Not submitted', ''], PAUSED: ['Paused', 'amber'], DISABLED: ['Disabled', 'red'], IN_APPEAL: ['In appeal', 'amber'] };
+  function copyBtn(id) { return '<button type="button" class="btn sm ghost" data-copy="' + id + '">Copy</button>'; }
+  function renderWhatsApp(w) {
+    var box = CL.$('#wacard');
+    var pill = w.connected ? (w.display_number ? ['green', 'Connected · ' + w.display_number] : ['amber', 'Saved, not checked']) : ['red', 'Not connected'];
+    var approved = w.templates.filter(function (t) { return t.status === 'APPROVED'; }).length;
+    box.innerHTML = '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><h2 style="margin:0">WhatsApp</h2><span class="pill ' + pill[0] + '">' + esc(pill[1]) + '</span></div>' +
+      '<p class="small muted">Copy these from Meta: <b>developers.facebook.com → your app → WhatsApp → API Setup</b> (phone number ID and WhatsApp Business account ID), <b>business.facebook.com → Settings → System users</b> (permanent access token) and <b>App settings → Basic</b> (app secret). The token and app secret are stored encrypted and never shown again.</p>' +
+      (w.verified_name ? '<p class="small">Meta name: ' + esc(w.verified_name) + (w.quality_rating ? ' · quality ' + esc(w.quality_rating) : '') + '</p>' : '') +
+      '<form id="waf"><div class="field"><label for="wpn">Phone number ID</label><input id="wpn" name="phone_number_id" type="text" inputmode="numeric" value="' + esc(w.phone_number_id) + '" required></div>' +
+      '<div class="field"><label for="wwb">WhatsApp Business account ID</label><input id="wwb" name="waba_id" type="text" inputmode="numeric" value="' + esc(w.waba_id) + '" required></div>' +
+      '<div class="field"><label for="wtk">Permanent access token</label><input id="wtk" name="access_token" type="password" autocomplete="off" placeholder="' + (w.has_token ? 'Saved. Leave blank to keep it.' : 'From a system user in Meta Business settings') + '"' + (w.has_token ? '' : ' required') + '></div>' +
+      '<div class="field"><label for="was">App secret</label><input id="was" name="app_secret" type="password" autocomplete="off" placeholder="' + (w.has_app_secret ? 'Saved. Leave blank to keep it.' : 'App settings → Basic → App secret') + '"' + (w.has_app_secret ? '' : ' required') + '><p class="hint">Used to check that incoming messages really come from Meta.</p></div>' +
+      '<details><summary class="small">Advanced</summary><div class="field" style="margin-top:10px"><label for="wav">Graph API version</label><input id="wav" name="api_version" type="text" value="' + esc(w.api_version) + '"></div></details>' +
+      '<div id="wam"></div><button class="btn">Save and check</button></form></div>' +
+      (w.verify_token ? '<div class="card"><h2>Receive messages</h2><p class="small muted">In Meta, open your app → <b>WhatsApp → Configuration</b>. Under Webhook, click Edit, paste these two values and click <b>Verify and save</b>. Then, in Webhook fields, subscribe to <b>messages</b>.</p>' +
+        '<div class="copy-row"><div><div class="tiny muted">Callback URL</div><span class="mono small" id="wcu" style="word-break:break-all">' + esc(w.webhook_url) + '</span></div>' + copyBtn('wcu') + '</div>' +
+        '<div class="copy-row"><div><div class="tiny muted">Verify token</div><span class="mono small" id="wvt" style="word-break:break-all">' + esc(w.verify_token) + '</span></div>' + copyBtn('wvt') + '</div>' +
+        '<p class="small">' + (w.last_webhook_at ? 'Last message from Meta: ' + CL.datetime(w.last_webhook_at) : 'Nothing received from Meta yet.') + '</p></div>' : '') +
+      (w.connected ? '<div class="card"><h2>Send a test</h2><p class="small muted">Sends WhatsApp\'s built-in “hello world” message. While you\'re on Meta\'s test number, only numbers on its allowed list (API Setup → To) can receive it.</p>' +
+        '<div class="row-btns"><input id="wtt" type="tel" placeholder="0803 123 4567" aria-label="Send the test to" style="max-width:220px"><button class="btn ghost" id="wtb">Send test</button></div><div id="wtr" style="margin-top:10px"></div></div>' +
+        '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><h2 style="margin:0">Message templates</h2><span class="small muted">' + approved + ' of ' + w.templates.length + ' approved</span></div>' +
+        '<p class="small muted">WhatsApp only delivers messages we start if Meta has approved the wording. Submit sends every live segment\'s current template for review (usually minutes to a day). An edited template needs submitting again.</p>' +
+        '<div class="row-btns" style="margin-bottom:10px"><button class="btn" id="wts">Submit templates</button><button class="btn ghost" id="wtr2">Refresh status</button></div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Segment</th><th>Message</th><th>Status</th></tr></thead><tbody>' + w.templates.map(function (t) {
+          var st = TPL_STATUS[t.status] || [t.status, ''];
+          return '<tr><td class="small">' + esc(SEG_NAMES[t.segment] || t.segment) + '</td><td class="small">' + esc(t.key.replace(/_/g, ' ').toLowerCase()) + (t.variant === 'nd' ? ' (no discount line)' : '') + ' <span class="tiny muted mono">' + esc(t.name) + '</span></td>' +
+            '<td><span class="pill ' + st[1] + '">' + esc(st[0]) + '</span>' + (t.reason ? '<div class="tiny muted" style="max-width:280px">' + esc(t.reason) + '</div>' : '') + '</td></tr>';
+        }).join('') + '</tbody></table></div></div>' : '');
+
+    CL.$('#waf').onsubmit = function (ev) {
+      ev.preventDefault();
+      var body = CL.formJSON(ev.target);
+      ['access_token', 'app_secret'].forEach(function (k) { if (!body[k]) delete body[k]; });
+      var btn = CL.$('#waf button.btn'); btn.disabled = true;
+      put('/channels/whatsapp', body).then(function (r) {
+        renderWhatsApp(r);
+        CL.$('#wam').innerHTML = r.check_error ? '<div class="banner bad">Saved, but Meta said: ' + esc(r.check_error) + '</div>' : '<div class="banner ok">Saved. Meta confirmed the number' + (r.display_number ? ' ' + esc(r.display_number) : '') + '.</div>';
+      }).catch(function (err) { btn.disabled = false; CL.$('#wam').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+    };
+    CL.$$('[data-copy]', box).forEach(function (b) {
+      b.onclick = function () {
+        var t = CL.$('#' + b.dataset.copy).textContent;
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { CL.toast('Copied'); }).catch(function () {
+          var r = document.createRange(); r.selectNodeContents(CL.$('#' + b.dataset.copy)); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); CL.toast('Selected. Copy it now.');
+        });
+      };
+    });
+    var tb = CL.$('#wtb');
+    if (tb) tb.onclick = function () {
+      tb.disabled = true;
+      post('/channels/whatsapp/test', { to: CL.$('#wtt').value }).then(function (r) {
+        tb.disabled = false; CL.$('#wtr').innerHTML = '<div class="banner ok">Sent to ' + esc(r.to) + '. Check that phone\'s WhatsApp.</div>';
+      }).catch(function (err) { tb.disabled = false; CL.$('#wtr').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+    };
+    var ts = CL.$('#wts');
+    if (ts) ts.onclick = function () {
+      ts.disabled = true; ts.textContent = 'Submitting…';
+      post('/channels/whatsapp/templates/submit').then(function (r) {
+        CL.toast(r.submitted + ' submitted' + (r.errors.length ? ', ' + r.errors.length + ' not accepted' : ''));
+        R.channels();
+      }).catch(function (err) { fail(err); R.channels(); });
+    };
+    var tr = CL.$('#wtr2');
+    if (tr) tr.onclick = function () {
+      tr.disabled = true;
+      post('/channels/whatsapp/templates/sync').then(function (r) { CL.toast(r.updated + ' updated'); R.channels(); }).catch(function (err) { fail(err); R.channels(); });
+    };
+  }
 
   R.team = function () {
     if (ME.role !== 'Admin') { view.innerHTML = '<div class="banner info">Only Waterline Admin can manage the team.</div>'; return Promise.resolve(); }

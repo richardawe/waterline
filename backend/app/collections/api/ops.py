@@ -28,6 +28,7 @@ from app.collections import (
     settings_store,
     templates,
     totp,
+    whatsapp,
 )
 from app.collections.auth import OpsContext, end_all_sessions, end_session, require_ops, require_ops_admin
 from app.collections.models import (
@@ -48,6 +49,7 @@ from app.collections.models import (
     SegmentSetting,
     UploadBatch,
     WaitlistEntry,
+    WaMessage,
 )
 from app.collections.passwords import hash_password, password_problem, verify_password
 from app.collections.phone import normalise_phone
@@ -388,11 +390,26 @@ def queue(day: date | None = None, status: str | None = None, ctx: OpsContext = 
     if status:
         stmt = stmt.where(OutreachItem.status == status)
     rows = db.execute(stmt).all()
+    wa_on = whatsapp.connected(db)
+    approved = whatsapp.approved_set(db) if wa_on else set()
+    wa_status = {w.outreach_item_id: w for w in db.execute(select(WaMessage).where(
+        WaMessage.outreach_item_id.in_([i.id for i, _, _ in rows]))).scalars()} if rows else {}
+    items = []
+    for i, a, c in rows:
+        row = _queue_row(db, i, a, c)
+        values = json.loads(i.render_values) if i.render_values else None
+        row["wa_ready"] = bool(wa_on and values is not None and a.phone and (
+            c.segment, i.template_key, i.template_version, whatsapp.variant_for(values)) in approved)
+        w = wa_status.get(i.id)
+        row["wa_status"] = w.status if w else None
+        row["wa_error"] = w.error if w else None
+        items.append(row)
     return {
         "date": day,
+        "whatsapp_connected": wa_on,
         "in_contact_window": in_contact_window(now, settings_store.holidays(db)),
         "contact_window_enforced": bool(settings_store.get(db, "enforce_contact_window")),
-        "items": [_queue_row(db, i, a, c) for i, a, c in rows],
+        "items": items,
         "skip_reasons": outreach.SKIP_REASONS,
         "reply_categories": outreach.REPLY_CATEGORIES,
     }

@@ -9,6 +9,7 @@ from app.collections.api import jobs as collections_jobs
 from app.collections.api import ops as collections_ops
 from app.collections.api import ops_messages as collections_ops_messages
 from app.collections.api import public as collections_public
+from app.collections.api import whatsapp_webhook as collections_whatsapp
 from app.config import get_settings
 
 settings = get_settings()
@@ -56,6 +57,7 @@ app.include_router(collections_ops_messages.router)
 app.include_router(collections_debtor.router)
 app.include_router(collections_files.router)
 app.include_router(collections_jobs.router)
+app.include_router(collections_whatsapp.router)
 
 
 @app.get("/health")

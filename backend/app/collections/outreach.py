@@ -22,6 +22,7 @@ never loosen them past the baseline.
 """
 
 import json
+import re
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
 
@@ -195,7 +196,7 @@ def plan_reminder(
 
 
 def render_for(db: Session, account: DebtorAccount, client: Client, key: str, rules: dict, today: date,
-               instalment: dict | None = None) -> tuple[str, int]:
+               instalment: dict | None = None, *, with_values: bool = False):
     tpl = templates.active(db, key, client.segment)
     discount = active_discount(rules, account.balance, today)
     discount_line = ""
@@ -214,7 +215,11 @@ def render_for(db: Session, account: DebtorAccount, client: Client, key: str, ru
         "instalment_amount": format_naira(instalment["remaining"]) if instalment else "",
         "due_date": date.fromisoformat(instalment["due"]).strftime("%d/%m/%Y") if instalment else "",
     }
-    return templates.render(tpl.body, values), tpl.version
+    text = templates.render(tpl.body, values)
+    if not with_values:
+        return text, tpl.version
+    used = set(re.findall(r"{{\s*(\w+)\s*}}", tpl.body))  # only what the template uses (WhatsApp parameters)
+    return text, tpl.version, {k: v for k, v in values.items() if k in used}
 
 
 def debtor_link(account: DebtorAccount) -> str:
@@ -335,7 +340,7 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
         if not key:
             skipped[why or "not due"] = skipped.get(why or "not due", 0) + 1
             continue
-        text, version = render_for(db, account, client, key, rules, today, instalment)
+        text, version, values = render_for(db, account, client, key, rules, today, instalment, with_values=True)
         db.add(
             OutreachItem(
                 account_id=account.id,
@@ -344,6 +349,7 @@ def build_queue(db: Session, now: datetime | None = None) -> dict:
                 template_version=version,
                 context_key=context_key,
                 rendered_text=text,
+                render_values=json.dumps(values),
                 queue_date=today,
                 scheduled_for=max(now, lagos_datetime(today, window(policy)[0])),
                 status="Queued",

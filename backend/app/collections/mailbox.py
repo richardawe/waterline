@@ -93,6 +93,7 @@ def _set_state(db: Session, **changes) -> None:
     if row is None:
         row = Channel(key=KEY)
         db.add(row)
+        db.flush()  # so a second lookup in the same request finds it
     current = json.loads(row.state) if row.state else {}
     current.update(changes)
     row.state = json.dumps(current, default=str)
@@ -131,6 +132,7 @@ def save_settings(db: Session, data: dict, actor_id: str) -> None:
     if row is None:
         row = Channel(key=KEY)
         db.add(row)
+        db.flush()  # so a second lookup in the same request finds it
     row.settings = json.dumps(new)
     row.updated_by = actor_id
 
