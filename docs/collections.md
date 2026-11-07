@@ -119,7 +119,8 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
   Reply-To set to the `contact_email` config, so replies land in the
   Collections inbox. **WhatsApp** opens a click-to-chat link with the text
   filled in on the Waterline phone or WhatsApp Web; ops then mark it sent.
-  There is no WhatsApp API integration.
+  Prospect WhatsApp stays click-to-chat (the API connection below is for the
+  debtor queue and Inbox replies).
 - Every message gets a fixed footer (3D7 Technologies Limited, RC 6979200,
   contact number, and "reply 'no thanks'"). Ops can edit the body, not the
   footer.
@@ -389,3 +390,8 @@ days overdue flags the client, and ops decide whether to suspend.
   client name).
 - The Terms, DPA and Privacy text are drafts pending legal review.
 - Only English templates (`LANGUAGES = {"en"}`).
+- WhatsApp runs on Meta's test number until business verification and a
+  portal number are done. It can only message numbers on its allowed list.
+- Photos and PDFs sent on WhatsApp or by email aren't downloaded into the
+  portal. The Inbox notes them; email attachments stay in webmail.
+- Prospect WhatsApp messages aren't sent through the API yet.

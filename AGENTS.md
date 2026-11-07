@@ -4,7 +4,7 @@ Read this before touching deploy config, `admin.html`, or the frontend↔backend
 wiring. It's the operational context a fresh session/agent won't have —
 architecture is easy to re-derive by reading code; the state below isn't.
 
-Last updated: 2026-11-02.
+Last updated: 2026-11-07.
 
 ## What this is
 
@@ -107,6 +107,37 @@ backend.
   but a **new Python dependency still needs a manual `pip install`** via
   that Terminal, so prefer the standard library for new backend features.
 
+- **cPanel access: currently unavailable to the owner** (since 2026-11-02).
+  So nothing that needs the cPanel Terminal or the server `.env` can be done
+  right now: new pip packages, cron entries, `.env` edits. That's why the
+  recent Collections features use only the standard library, keep their
+  settings in the database (Admin-editable, encrypted) and rely on
+  automatic migrations.
+
+- **Collections ops state (2026-11-07).** All of this is live on production;
+  details are in `docs/collections.md`.
+  - **Team:** Admins add, deactivate and reactivate ops users in ops → Team.
+    2FA (TOTP) is optional per user and off by default (owner decision).
+    Tosin Bashua (`tosinbashua@gmail.com`) runs collections with the **Ops**
+    role and no 2FA. The owner is the Admin.
+  - **Email:** ops → Channels holds the collections@waterline.ng mailbox
+    login. Portal mail is sent through it, and replies are read over IMAP
+    into the Inbox. The Outbox lists everything sent.
+  - **WhatsApp:** Meta Cloud API, connected from ops → Channels. Owner
+    portfolio "3d7 Technologies"; Meta's **test number** +1 555 058 4319
+    (phone number ID 1335405489665397, WhatsApp Business account
+    2151893508741594). Not public secrets, but the token and app secret are
+    only ever entered by the owner in the portal; never ask for them in
+    chat.
+  - **Expenses:** team members claim money they spent. Admins approve and
+    mark claims paid in ops → Expenses.
+  - **Owner's open to-dos:** enter the mailbox password and WhatsApp token
+    and secret in Channels, configure the Meta webhook, submit templates,
+    finish Meta business verification and get a **new SIM** for the portal
+    (then swap the phone number ID in Channels), and check
+    `waterline_bank_details` in Config. Whether the daily-job cron was ever
+    set up is unknown; until confirmed, an Admin uses "Run daily jobs now".
+
 - **`CREATE EXTENSION vector;` unresolved, deliberately deprioritized.**
   Failed via phpPgAdmin's query box (it wraps every query in
   `SELECT COUNT(*) FROM (...) AS sub` for pagination, which chokes on DDL —
@@ -134,6 +165,21 @@ backend.
   API_BASE = window.WATERLINE_API_BASE || 'http://localhost:8001';`, and
   include `<script src="assets/config.js"></script>` in `<head>` before your
   page's own script block.
+
+- **Collections decisions by the owner (2026-11-02):**
+  - The site's WhatsApp number **+234 903 410 4100** (the old +234 809 410
+    4100 was wrong) stays on the phone app. **Do not move it to the API**:
+    coexistence reportedly isn't available for Nigerian numbers, so moving
+    it would be one-way. The portal gets its own new number.
+  - **Outreach limits stay as they are** (1 a day, 2 a week per debtor). The
+    owner asked to remove them, then said "leave for now" after hearing the
+    WhatsApp-ban and harassment-rule risks. Inbox replies to someone who
+    wrote in don't count toward them.
+  - The contact window is not enforced (since 2026-10-10).
+- **Ask before building, and don't deploy unasked.** The owner wants options
+  first ("tell me what's possible before you start building"). Pushing to
+  `main` deploys to production, so only push when they've asked for it to
+  go live.
 
 ## Where to look next
 
