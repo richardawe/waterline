@@ -23,10 +23,12 @@ manual pip install on the server, which we can't do without cPanel."""
 
 import hashlib
 import hmac
+import http.client
 import json
 import logging
 import re
 import secrets
+import unicodedata
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -127,14 +129,35 @@ def _save(db: Session, data: dict, actor_id: str | None = None) -> None:
         row.updated_by = actor_id
 
 
+SECRET_LABELS = {"access_token": "access token", "app_secret": "app secret"}
+ID_LABELS = {"phone_number_id": "phone number ID", "waba_id": "WhatsApp Business account ID"}
+
+
+def _clean_secret(value: str, label: str) -> str:
+    """Tokens and app secrets are plain ASCII with no spaces. Copying them
+    from Meta, email or a notes app can add line breaks, spaces or invisible
+    characters (dropped here), or a "…" from a shortened display (refused:
+    the value is incomplete). Without this, sending the token in an HTTP
+    header fails outside our error handling."""
+    cleaned = "".join(ch for ch in value if not (ch.isspace() or unicodedata.category(ch) == "Cf"))
+    if not cleaned.isascii() or not cleaned.isprintable():
+        raise WhatsAppError(f"The {label} contains characters that can't be part of it (for example \"…\" from a "
+                            "shortened copy). Copy the full value from Meta again and paste it in.")
+    return cleaned
+
+
 def save_settings(db: Session, data: dict, actor_id: str) -> None:
+    """Raises WhatsAppError (nothing saved) if a value can't be valid."""
     s = stored(db)
     for k in ("phone_number_id", "waba_id", "api_version"):
         if data.get(k) is not None:
-            s[k] = re.sub(r"\s", "", str(data[k]))[:64]
+            value = re.sub(r"\s", "", str(data[k]))[:64]
+            if k in ID_LABELS and value and not (value.isascii() and value.isdigit()):
+                raise WhatsAppError(f"The {ID_LABELS[k]} should be digits only, as shown in Meta's API Setup.")
+            s[k] = value
     for k in ("access_token", "app_secret"):  # blank keeps the saved one
         if data.get(k):
-            s[k] = str(data[k]).strip()
+            s[k] = _clean_secret(str(data[k]), SECRET_LABELS[k])
     s.setdefault("verify_token", secrets.token_urlsafe(24))
     _save(db, s, actor_id)
 
@@ -169,7 +192,7 @@ def _call(cfg: dict, method: str, path: str, payload: dict | None = None) -> dic
         "Authorization": f"Bearer {cfg['access_token']}", "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
-            return json.loads(resp.read().decode() or "{}")
+            raw = resp.read()
     except urllib.error.HTTPError as exc:
         try:
             err = json.loads(exc.read().decode()).get("error", {})
@@ -179,6 +202,20 @@ def _call(cfg: dict, method: str, path: str, payload: dict | None = None) -> dic
         raise WhatsAppError(_friendly(err.get("code"), detail), err.get("code")) from exc
     except urllib.error.URLError as exc:
         raise WhatsAppError(f"Couldn't reach WhatsApp: {exc.reason}") from exc
+    except (TimeoutError, OSError, http.client.HTTPException) as exc:
+        # Read timeouts, dropped or reset connections: urllib doesn't wrap
+        # these in URLError once the connection is open.
+        raise WhatsAppError(f"Couldn't reach WhatsApp ({type(exc).__name__}). Try again in a minute.") from exc
+    except ValueError:
+        # http.client refuses header/URL values it can't send (line breaks,
+        # non-ASCII). Its message quotes the value, i.e. the token, so it is
+        # deliberately not passed on.
+        raise WhatsAppError("The saved access token or IDs contain characters that can't be sent to WhatsApp. "
+                            "Paste them in again under Channels.") from None
+    try:
+        return json.loads(raw.decode() or "{}")
+    except ValueError as exc:
+        raise WhatsAppError("WhatsApp sent back a reply we couldn't read. Try again in a minute.") from exc
 
 
 def _friendly(code, detail: str) -> str:

@@ -11,6 +11,7 @@ from app.collections.api import ops_expenses as collections_ops_expenses
 from app.collections.api import ops_messages as collections_ops_messages
 from app.collections.api import public as collections_public
 from app.collections.api import whatsapp_webhook as collections_whatsapp
+from app.collections.errors import CollectionsErrorMiddleware
 from app.config import get_settings
 
 settings = get_settings()
@@ -24,6 +25,8 @@ app = FastAPI(
     openapi_url=None if is_production else "/openapi.json",
 )
 
+# Added before CORS so it runs inside it: its JSON 500s get CORS headers.
+app.add_middleware(CollectionsErrorMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

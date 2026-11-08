@@ -449,7 +449,10 @@ def _wa_out(db: Session, request_base: str | None = None) -> dict:
 def save_whatsapp_channel(body: WhatsAppChannelIn, request: Request, ctx: OpsContext = Depends(require_ops_admin),
                           db: Session = Depends(get_db)):
     data = body.model_dump(exclude_none=True)
-    whatsapp.save_settings(db, data, ctx.user.id)
+    try:
+        whatsapp.save_settings(db, data, ctx.user.id)
+    except WhatsAppError as exc:
+        raise HTTPException(422, str(exc)) from exc
     check = None
     if whatsapp.connected(db):
         try:

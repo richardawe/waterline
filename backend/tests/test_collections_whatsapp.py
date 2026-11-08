@@ -247,3 +247,106 @@ def test_first_save_then_number_check_in_one_session(cl_db, monkeypatch):
     mailbox._set_state(cl_db, last_check_at="x")
     cl_db.flush()
     assert whatsapp.stored(cl_db)["display_number"] == "+1 555-058-4319"
+
+
+class _GraphResponse:
+    def __init__(self, body: dict):
+        self.raw = json.dumps(body).encode()
+
+    def read(self):
+        return self.raw
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_save_channel_with_token_and_app_secret_checks_the_number_with_meta(cl_api, cl_db, monkeypatch):
+    """The real request path (urllib, not a faked _call): a token pasted with
+    a line break and stray spaces is cleaned, sent as a Bearer header to the
+    v23.0 Graph API, and the number's details come back. Both secrets are
+    stored encrypted and never returned."""
+    import urllib.request
+
+    seen = []
+
+    def fake_urlopen(req, timeout=None):
+        seen.append(req)
+        return _GraphResponse({"display_phone_number": "+1 555-058-4319", "verified_name": "Test Number",
+                               "quality_rating": "GREEN", "id": "1335405489665397"})
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    _, admin_h = make_ops(cl_db, role="Admin")
+    r = cl_api.put("/collections/ops/channels/whatsapp", headers=admin_h, json={
+        "phone_number_id": " 1335405489665397 ", "waba_id": "2151893508741594",
+        "access_token": "  EAAGtoken\n123\u200b ", "app_secret": " 0123abcdef\n"})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["check_error"] is None and out["connected"] and out["has_token"] and out["has_app_secret"]
+    assert out["display_number"] == "+1 555-058-4319" and out["verified_name"] == "Test Number"
+    req = seen[-1]
+    assert req.full_url.startswith("https://graph.facebook.com/v23.0/1335405489665397?fields=display_phone_number")
+    assert req.get_header("Authorization") == "Bearer EAAGtoken123"
+    cfg = whatsapp.config(cl_db)
+    assert cfg["access_token"] == "EAAGtoken123" and cfg["app_secret"] == "0123abcdef"
+    assert "EAAGtoken123" not in r.text and "0123abcdef" not in r.text
+    raw = cl_db.execute(text("SELECT settings FROM cl_channel WHERE key = 'whatsapp'")).scalar_one()
+    assert "EAAGtoken123" not in raw and "0123abcdef" not in raw
+
+
+def test_save_channel_when_meta_times_out_still_saves_and_reports_it(cl_api, cl_db, monkeypatch):
+    import urllib.request
+
+    def timeout(req, timeout=None):
+        raise TimeoutError("The read operation timed out")  # not a URLError: used to escape as a 500
+
+    monkeypatch.setattr(urllib.request, "urlopen", timeout)
+    _, admin_h = make_ops(cl_db, role="Admin")
+    r = cl_api.put("/collections/ops/channels/whatsapp", headers=admin_h, json={
+        "phone_number_id": "1335405489665397", "access_token": "EAAGtoken", "app_secret": "s3cret"})
+    assert r.status_code == 200, r.text
+    assert "Couldn't reach WhatsApp" in r.json()["check_error"]
+    assert whatsapp.config(cl_db)["access_token"] == "EAAGtoken"
+
+
+def test_save_channel_refuses_a_shortened_token_or_bad_id_without_saving(cl_api, cl_db, monkeypatch):
+    monkeypatch.setattr(whatsapp, "_call", FakeGraph())
+    _, admin_h = make_ops(cl_db, role="Admin")
+    r = cl_api.put("/collections/ops/channels/whatsapp", headers=admin_h, json={
+        "phone_number_id": "1335405489665397", "access_token": "EAAGto…", "app_secret": "s3cret"})
+    assert r.status_code == 422 and "access token" in r.json()["detail"]
+    r = cl_api.put("/collections/ops/channels/whatsapp", headers=admin_h, json={
+        "phone_number_id": "1335\uff1405489665397", "access_token": "EAAGtoken"})
+    assert r.status_code == 422 and "phone number ID" in r.json()["detail"]
+    assert whatsapp.stored(cl_db) == {}
+
+
+def test_unhandled_collections_errors_are_json_with_cors(cl_api, cl_db, monkeypatch):
+    """The console must see the real error, not "We couldn't reach Waterline"
+    (a 500 without CORS headers is hidden from the page by the browser)."""
+    from app.config import get_settings
+
+    def boom(db):
+        raise RuntimeError("could not decrypt collections field")
+
+    monkeypatch.setattr(whatsapp, "connected", boom)
+    _, admin_h = make_ops(cl_db, role="Admin")
+    origin = get_settings().cors_origins[0]
+    r = cl_api.put("/collections/ops/channels/whatsapp", headers={**admin_h, "Origin": origin}, json={})
+    assert r.status_code == 500
+    assert r.headers["access-control-allow-origin"] == origin
+    detail = r.json()["detail"]
+    assert "RuntimeError: could not decrypt collections field" in detail and "Reference" in detail
+
+    # Public pages (debtors, prospects) get a plain message: no internals.
+    from app.collections import segments
+
+    def boom_view(db, seg):
+        raise RuntimeError("internal detail")
+
+    monkeypatch.setattr(segments, "public_view", boom_view)
+    r = cl_api.get("/collections/public/config", headers={"Origin": origin})
+    assert r.status_code == 500 and r.headers["access-control-allow-origin"] == origin
+    assert "internal detail" not in r.text and "Reference" in r.json()["detail"]
