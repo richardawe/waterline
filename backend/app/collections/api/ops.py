@@ -21,6 +21,7 @@ from app.collections import (
     crypto,
     fees,
     outreach,
+    proposal_letter,
     prospects,
     segments,
     serialize,
@@ -906,6 +907,55 @@ def get_prospect(prospect_id: str, ctx: OpsContext = Depends(require_ops), db: S
             blocked[channel] = str(exc)
     return {"prospect": _prospect_row(db, p), "touches": [_touch_row(t, names) for t in touches],
             "drafts": prospects.drafts(db, p, ctx.user.name), "blocked": blocked}
+
+
+@router.get("/prospects/{prospect_id}/letter")
+def prospect_letter_draft(prospect_id: str, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    """A proposal letter pre-filled for this organisation, for ops to edit."""
+    p = _get(db, Prospect, prospect_id)
+    return {"prospect": _prospect_row(db, p), "letter": proposal_letter.draft(db, p, ctx.user.name, lagos_date(utcnow()))}
+
+
+class LetterIn(BaseModel):
+    date: str = ""
+    recipient: str = ""
+    subject: str = ""
+    body: str = ""
+    signoff: str = ""
+
+
+def _letter(body: LetterIn) -> dict:
+    try:
+        return proposal_letter.clean(body.model_dump())
+    except proposal_letter.LetterError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post("/prospects/{prospect_id}/letter.docx")
+def prospect_letter_docx(prospect_id: str, body: LetterIn, ctx: OpsContext = Depends(require_ops),
+                         db: Session = Depends(get_db)):
+    """The edited letter as a Word document; kept in the prospect's History."""
+    p = _get(db, Prospect, prospect_id)
+    letter = _letter(body)
+    data = proposal_letter.to_docx(db, letter)
+    proposal_letter.record(db, p, letter, "Downloaded as Word", ctx.user.id)
+    audit.record(db, ctx.actor, "prospect.letter", "Prospect", p.id, after={"format": "docx"})
+    db.commit()
+    name = proposal_letter.filename(p, lagos_date(utcnow()))
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.post("/prospects/{prospect_id}/letter/printed")
+def prospect_letter_printed(prospect_id: str, body: LetterIn, ctx: OpsContext = Depends(require_ops),
+                            db: Session = Depends(get_db)):
+    """Printing / Save as PDF happens in the browser; this keeps the text in History."""
+    p = _get(db, Prospect, prospect_id)
+    letter = _letter(body)
+    proposal_letter.record(db, p, letter, "Printed or saved as PDF", ctx.user.id)
+    audit.record(db, ctx.actor, "prospect.letter", "Prospect", p.id, after={"format": "print"})
+    db.commit()
+    return {"ok": True}
 
 
 class ProspectEmailIn(BaseModel):

@@ -415,6 +415,7 @@
   R.prospects = function () {
     var id = (location.hash.split('/')[1] || '');
     if (id === 'new') return prospectForm(null);
+    if (id && location.hash.split('/')[2] === 'letter') return proposalLetter(id);
     if (id) return prospectDetail(id);
     var st = CL.param('pst') || '', list = CL.param('plist') || '';
     return get('/prospects?' + (st ? 'status=' + encodeURIComponent(st) + '&' : '') + (list ? 'list_id=' + encodeURIComponent(list) : '')).then(function (d) {
@@ -467,6 +468,75 @@
     }).catch(function (err) { btn.disabled = false; show('bad', esc(err.message)); });
   }
 
+  // Proposal letter: pre-filled for this organisation, every part but the letterhead editable,
+  // then Word (.docx from the server) or Print / Save as PDF (the browser's print dialog).
+  var LETTER_FIELDS = ['date', 'recipient', 'subject', 'body', 'signoff'];
+  var LETTER_HEADINGS = /^(How it works|How we behave|Fees|Next steps)$/;
+
+  function proposalLetter(id) {
+    return get('/prospects/' + id + '/letter').then(function (d) {
+      var p = d.prospect, key = 'cl-letter-' + id, saved = null;
+      try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { saved = null; }
+      var L = Object.assign({}, d.letter, saved || {});
+      var ta = function (k, label, rows) {
+        return '<div class="field"><label for="lt-' + k + '">' + label + '</label><textarea id="lt-' + k + '" data-lt="' + k + '" rows="' + rows + '" style="min-height:0">' + esc(L[k] || '') + '</textarea></div>';
+      };
+      view.innerHTML = '<p><a href="#prospects/' + esc(id) + '">← ' + esc(p.org_name) + '</a></p>' +
+        '<div class="bar-in" style="min-height:0;margin-bottom:8px"><h1 style="margin:0">Proposal letter</h1><div class="row-btns">' +
+        '<button class="btn sm" id="lt-word">Download Word</button><button class="btn sm ghost" id="lt-print">Print / Save as PDF</button></div></div>' +
+        '<p class="muted small">Filled in for ' + esc(p.org_name) + '. Edit anything below except the letterhead. Your edits are kept on this device until you start again. ' +
+        'Blank lines separate paragraphs. For a PDF, choose Print, then “Save as PDF” (on iPhone: Print, then Share → Save to Files).' +
+        (saved ? ' <button class="btn sm ghost" id="lt-reset" style="margin-left:4px">Start again</button>' : '') + '</p>' +
+        '<div class="card letter-edit"><div class="letter-head">' + d.letter.letterhead.map(function (l, i) { return i ? '<div class="tiny muted">' + esc(l) + '</div>' : '<div class="letter-brand">' + esc(l) + '</div>'; }).join('') + '</div>' +
+        '<div class="field"><label for="lt-date">Date</label><input id="lt-date" data-lt="date" type="text" value="' + esc(L.date || '') + '"></div>' +
+        ta('recipient', 'To', 5) +
+        '<div class="field"><label for="lt-subject">Subject</label><input id="lt-subject" data-lt="subject" type="text" value="' + esc(L.subject || '') + '"></div>' +
+        ta('body', 'Letter', 28) + ta('signoff', 'Signed', 4) + '</div>';
+
+      function read() { var o = {}; LETTER_FIELDS.forEach(function (k) { o[k] = CL.$('[data-lt="' + k + '"]').value; }); return o; }
+      CL.$$('[data-lt]').forEach(function (el) {
+        el.oninput = function () { try { localStorage.setItem(key, JSON.stringify(read())); } catch (e) { /* private mode */ } };
+      });
+      var rs = CL.$('#lt-reset');
+      if (rs) rs.onclick = function () { if (!confirm('Throw away your edits and start from the pre-filled letter?')) return; try { localStorage.removeItem(key); } catch (e) { /* ignore */ } proposalLetter(id); };
+
+      CL.$('#lt-word').onclick = function () {
+        var b = this; CL.busy(b, true, 'Preparing…');
+        CL.api('/collections/ops/prospects/' + id + '/letter.docx', { auth: 'ops', method: 'POST', json: read(), raw: true })
+          .then(function (r) {
+            var slug = p.org_name.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'prospect';
+            var now = new Date(), day = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+            return r.blob().then(function (blob) {
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob); a.download = 'Waterline-proposal-' + slug + '-' + day + '.docx';
+              document.body.appendChild(a); a.click();
+              setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 1000);
+            });
+          }).then(function () { CL.busy(b, false); CL.toast('Downloaded. Saved in the prospect\'s history.'); })
+          .catch(function (e) { CL.busy(b, false); fail(e); });
+      };
+
+      CL.$('#lt-print').onclick = function () {
+        var l = read();
+        if (!l.body.trim()) { CL.toast('The letter is empty.'); return; }
+        var blocks = function (text, headings) {
+          return text.trim().split(/\n\s*\n/).map(function (c) {
+            return '<p>' + c.split('\n').map(function (line) { return headings && LETTER_HEADINGS.test(line.trim()) ? '<b>' + esc(line) + '</b>' : esc(line); }).join('<br>') + '</p>';
+          }).join('');
+        };
+        var el = document.getElementById('letter-print');
+        if (!el) { el = document.createElement('div'); el.id = 'letter-print'; document.body.appendChild(el); }
+        el.innerHTML = '<div class="lp-head"><div class="lp-brand">' + esc(d.letter.letterhead[0]) + '</div>' + d.letter.letterhead.slice(1).map(function (x) { return '<div>' + esc(x) + '</div>'; }).join('') + '</div>' +
+          '<p>' + esc(l.date) + '</p>' + (l.recipient.trim() ? blocks(l.recipient) : '') + (l.subject.trim() ? '<p><b>' + esc(l.subject) + '</b></p>' : '') +
+          blocks(l.body, true) + (l.signoff.trim() ? '<p class="lp-sign">' + esc(l.signoff.trim()).replace(/\n/g, '<br>') + '</p>' : '');
+        post('/prospects/' + id + '/letter/printed', l).catch(function () { /* printing still works */ });
+        var title = document.title; document.title = 'Waterline proposal - ' + p.org_name;
+        window.print();
+        setTimeout(function () { document.title = title; }, 1000);
+      };
+    });
+  }
+
   var P_FIELDS = [['org_name', 'Organisation', 'text', true], ['org_type', 'What they are', 'text'], ['city', 'City', 'text'], ['address', 'Address', 'text'],
     ['contact_name', 'Contact name (as published)', 'text'], ['contact_role', 'Their role', 'text'], ['email', 'Official email', 'email'],
     ['phone', 'Phone (mobile, for WhatsApp)', 'tel'], ['phone_note', 'Phone note', 'text'], ['fit_note', 'Why they fit', 'text'], ['source', 'Source', 'text'],
@@ -514,7 +584,7 @@
     return Promise.all([get('/prospects/' + id), get('/prospects?status=__none__')]).then(function (res) {
       var d = res[0], p = d.prospect, dr = d.drafts, statuses = res[1].statuses;
       var tpl = 'intro', channel = p.email ? 'Email' : 'WhatsApp';
-      view.innerHTML = '<p><a href="#prospects">← Prospects</a></p>' +
+      view.innerHTML = '<div class="bar-in" style="min-height:0"><a href="#prospects">← Prospects</a><a class="btn sm ghost" href="#prospects/' + esc(id) + '/letter">Proposal letter</a></div>' +
         '<h1 style="margin-bottom:4px">' + esc(p.org_name) + '</h1><p class="muted" style="margin-top:0">' + esc(p.org_type || SEG_NAMES[p.segment] || '') + (p.city ? ' · ' + esc(p.city) : '') + ' · ' + ppill(p.status) +
         (p.fit ? ' <span class="pill ' + FIT_CLASS[p.fit] + '">' + esc(p.fit) + ' fit</span>' : '') + '</p>' +
         '<div class="card"><h2>Reach them</h2>' +

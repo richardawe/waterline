@@ -116,3 +116,19 @@ footer.site a{color:var(--dim)}
 .ib-b.out{align-self:flex-end;background:var(--accent-soft);border-top-right-radius:4px}
 .ib-b .meta{display:block;font-size:.74rem;color:var(--faint);margin-bottom:4px;white-space:normal}
 .ib-b details{margin-top:6px;font-size:.8rem;color:var(--dim)}
+
+/* Proposal letter (ops): on-screen editor + print layout */
+.letter-head{border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:14px}
+.letter-brand{font-weight:700;font-size:1.15rem;color:var(--accent)}
+.letter-edit textarea{font-family:inherit;line-height:1.5}
+#letter-print{display:none}
+@media print{
+  @page{size:A4;margin:20mm}
+  body > *:not(#letter-print){display:none !important}
+  body{background:#fff !important}
+  #letter-print{display:block;color:#000;font:11pt/1.5 Arial,Helvetica,sans-serif}
+  #letter-print p{margin:0 0 10pt}
+  #letter-print .lp-head{font-size:9pt;color:#555;margin-bottom:24pt}
+  #letter-print .lp-brand{font-size:16pt;font-weight:700;color:#0f6b4f}
+  #letter-print .lp-sign{margin-top:20pt}
+}

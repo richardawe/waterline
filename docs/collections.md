@@ -131,6 +131,26 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
   interested / Do not contact. Delete (Admin only) erases the organisation
   and its history, for erasure requests.
 
+### Proposal letters
+
+A prospect's page → **Proposal letter** (Ops and Admin; `GET
+/collections/ops/prospects/{id}/letter`, code in `proposal_letter.py`) opens
+a letter pre-filled from who it's going to: segment wording (fees vs.
+service charges, parents vs. residents), the organisation's address, the
+named head only once ops have confirmed them (otherwise "The Head of
+School" / "Dear Head of School … Yours faithfully"), the segment's current
+default fee, and the sender's name. Everything except the letterhead is
+editable; edits are kept in the browser (localStorage) until "Start again".
+
+- **Download Word**: `POST …/letter.docx` builds a real .docx with the
+  standard library (`zipfile`, no new pip package).
+- **Print / Save as PDF**: the browser's print dialog with an A4 print
+  layout; PDF comes from "Save as PDF" (iPhone: Print → Share → Save to
+  Files). `POST …/letter/printed` records it.
+- Both keep the final text in the prospect's History as a **Letter** entry
+  and in the audit log. A letter doesn't change the prospect's status or
+  count towards the one-a-day / three-unanswered messaging limits.
+
 ### Daily leads digest (internal, WhatsApp)
 
 Prospects → **Send today's digest** (Ops or Admin; `GET/POST
