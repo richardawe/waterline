@@ -131,6 +131,30 @@ migration `a7c4e91b2d30` creates `cl_prospect_list`, `cl_prospect` and
   interested / Do not contact. Delete (Admin only) erases the organisation
   and its history, for erasure requests.
 
+### Daily leads digest (internal, WhatsApp)
+
+Prospects → **Send today's digest** (Ops or Admin; `GET/POST
+/collections/ops/leads-digest[/send]`, code in `leads_digest.py`) sends the
+prospects created today (Lagos date) that are still **New** to our own team:
+one WhatsApp message per number in Config → `leads_digest_recipients`, each
+logged in the Outbox as "Daily leads digest".
+
+- Template `wl_internal_leads_digest_v1` (UTILITY, English; wording in
+  `whatsapp.LEADS_DIGEST`, not in `cl_message_template`). It's part of
+  Channels → Submit templates / Refresh status like the segment templates.
+  Each line: organisation, city, phone, why they fit (`fit_note`, else the
+  fit level). WhatsApp parameters can't contain line breaks, so the list is
+  one numbered line, cut short with "…and N more in the portal" past ~660
+  characters.
+- Recipients: only an Admin can edit the list (Config). Numbers are
+  normalised to E.164 on save; Nigerian local formats and `+` international
+  numbers are accepted; at most 10. `whatsapp._send` refuses any
+  `wl_internal_*` template to a number not on its list, before calling Meta.
+- A recipient who already got today's digest is skipped; the UI asks before
+  re-sending. Nothing is sent when there are no new prospects or the template
+  isn't approved yet. On Meta's test number, recipients must also be on its
+  allowed list.
+
 ## Inbox, Outbox and Channels (ops)
 
 - **Channels** (Admin only): enter the collections mailbox login

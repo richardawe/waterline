@@ -977,12 +977,15 @@ class ConfigIn(BaseModel):
 def set_config(key: str, body: ConfigIn, ctx: OpsContext = Depends(require_ops_admin), db: Session = Depends(get_db)):
     before = settings_store.get(db, key)
     try:
-        settings_store.set_value(db, key, body.value, ctx.user.id)
+        value = settings_store.clean_value(key, body.value)
+        settings_store.set_value(db, key, value, ctx.user.id)
     except KeyError as exc:
         raise HTTPException(404, "Unknown setting.") from exc
-    audit.record(db, ctx.actor, "config.changed", "Config", key, before=before, after=body.value)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    audit.record(db, ctx.actor, "config.changed", "Config", key, before=before, after=value)
     db.commit()
-    return {"key": key, "value": body.value}
+    return {"key": key, "value": value}
 
 
 # ---------------------------------------------------------------- audit + jobs

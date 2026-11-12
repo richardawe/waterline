@@ -2,6 +2,7 @@
 stored as JSON in cl_config with code defaults for anything unset."""
 
 import json
+import re
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -26,6 +27,11 @@ DEFAULTS: dict = {
     # is built on Sundays/holidays. Off by owner decision (2026-10-10); the public
     # pages therefore make no fixed-hours promise. Turn on before lenders go live.
     "enforce_contact_window": False,
+    # Internal team numbers that get the daily leads digest on WhatsApp
+    # (template wl_internal_leads_digest_v1). The digest is never sent to any
+    # other number. E.164, e.g. ["+2348031234567"]; Nigerian local formats are
+    # accepted and normalised on save.
+    "leads_digest_recipients": [],
     "waterline_bank_details": {
         "bank_name": "To be configured",
         "account_number": "0000000000",
@@ -52,9 +58,39 @@ def get(db: Session, key: str):
     return json.loads(row.value)
 
 
+MAX_DIGEST_RECIPIENTS = 10
+
+
+def _recipient(raw) -> str:
+    from app.collections.phone import normalise_phone
+
+    try:
+        return normalise_phone(raw)
+    except ValueError:
+        digits = re.sub(r"[\s\-().]", "", str(raw or "").strip())
+        if digits.startswith("+") and digits[1:].isdigit() and 8 <= len(digits) - 1 <= 15:
+            return digits  # a non-Nigerian number in international format
+        raise ValueError(f"'{raw}' isn't a phone number. Use the full international format, e.g. +2348031234567.")
+
+
+def clean_value(key: str, value):
+    """Checks and normalises values that have a fixed shape. Raises ValueError."""
+    if key == "leads_digest_recipients":
+        if value in (None, ""):
+            return []
+        if not isinstance(value, list):
+            raise ValueError("Enter a list of phone numbers, e.g. [\"+2348031234567\"].")
+        out = list(dict.fromkeys(_recipient(v) for v in value))
+        if len(out) > MAX_DIGEST_RECIPIENTS:
+            raise ValueError(f"At most {MAX_DIGEST_RECIPIENTS} recipients.")
+        return out
+    return value
+
+
 def set_value(db: Session, key: str, value, actor_id: str | None = None) -> None:
     if key not in DEFAULTS:
         raise KeyError(key)
+    value = clean_value(key, value)
     row = db.get(ConfigEntry, key)
     if row is None:
         db.add(ConfigEntry(key=key, value=json.dumps(value), updated_by=actor_id))

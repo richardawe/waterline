@@ -255,6 +255,32 @@ def _body_for(body: str, variant: str) -> str:
     return re.sub(r"\s{2,}", " ", body).strip()
 
 
+# Internal templates: messages to our own team, not to debtors or prospects.
+# They aren't tied to a client segment and their wording lives here, not in
+# cl_message_template. Only numbers in the matching Config list may get them
+# (enforced in _send).
+INTERNAL = "internal"
+LEADS_DIGEST = {
+    "segment": INTERNAL, "key": "leads_digest", "version": 1, "variant": "",
+    "body": ("Waterline Collections daily leads digest for {{digest_date}}.\n\n"
+             "New prospects added today: {{lead_count}}\n\n"
+             "{{lead_list}}\n\n"
+             "Open the ops console (Prospects) to follow up. This is an internal team update."),
+}
+INTERNAL_TEMPLATES = (LEADS_DIGEST,)
+# Who may receive each internal template: the Config key holding the list.
+INTERNAL_RECIPIENT_KEYS = {"leads_digest": "leads_digest_recipients"}
+EXAMPLES.update({
+    "digest_date": "12/11/2026", "lead_count": "2",
+    "lead_list": "1) Greenfield Academy, Lekki, +2348031234567. Why: 900 pupils, fee arrears every term. "
+                 "2) Palm Court Estate, Ikeja, +2348091234567. Why: 300 units, service-charge backlog.",
+})
+
+
+def leads_digest_name() -> str:
+    return _meta_name(LEADS_DIGEST["segment"], LEADS_DIGEST["key"], LEADS_DIGEST["version"], LEADS_DIGEST["variant"])
+
+
 def wanted_templates(db: Session) -> list[tuple[MessageTemplate, str]]:
     """Active templates of live segments, plus the no-discount variant."""
     live = [k for k in segments.SEGMENTS if segments.status(db, k) == "live"]
@@ -270,15 +296,24 @@ def wanted_templates(db: Session) -> list[tuple[MessageTemplate, str]]:
     return out
 
 
+def _wanted_specs(db: Session) -> list[dict]:
+    """Everything that should exist on Meta: segment templates (and their
+    no-discount variants) plus our internal templates."""
+    specs = [{"segment": t.segment, "key": t.key, "version": t.version, "variant": variant,
+              "body": _body_for(t.body, variant)} for t, variant in wanted_templates(db)]
+    specs += [dict(t) for t in INTERNAL_TEMPLATES]
+    return specs
+
+
 def template_rows(db: Session) -> list[dict]:
     have = {(r.segment, r.key, r.version, r.variant): r for r in db.execute(select(WaTemplate)).scalars()}
     out = []
-    for t, variant in wanted_templates(db):
-        r = have.get((t.segment, t.key, t.version, variant))
-        out.append({"segment": t.segment, "key": t.key, "version": t.version, "variant": variant,
-                    "name": _meta_name(t.segment, t.key, t.version, variant),
+    for t in _wanted_specs(db):
+        r = have.get((t["segment"], t["key"], t["version"], t["variant"]))
+        out.append({"segment": t["segment"], "key": t["key"], "version": t["version"], "variant": t["variant"],
+                    "name": _meta_name(t["segment"], t["key"], t["version"], t["variant"]),
                     "status": r.status if r else "NOT_SUBMITTED", "reason": r.reason if r else None})
-    return sorted(out, key=lambda x: (x["segment"], x["key"], x["variant"]))
+    return sorted(out, key=lambda x: (x["segment"] == INTERNAL, x["segment"], x["key"], x["variant"]))
 
 
 def submit_templates(db: Session) -> dict:
@@ -287,12 +322,13 @@ def submit_templates(db: Session) -> dict:
         raise WhatsAppError("Save the WhatsApp Business account ID and access token first.")
     have = {(r.segment, r.key, r.version, r.variant): r for r in db.execute(select(WaTemplate)).scalars()}
     submitted, errors = 0, []
-    for t, variant in wanted_templates(db):
-        row = have.get((t.segment, t.key, t.version, variant))
+    for t in _wanted_specs(db):
+        segment, key, version, variant = t["segment"], t["key"], t["version"], t["variant"]
+        row = have.get((segment, key, version, variant))
         if row is not None and row.status not in ("NOT_SUBMITTED", "ERROR"):
             continue
-        name = _meta_name(t.segment, t.key, t.version, variant)
-        body = _body_for(t.body, variant)
+        name = _meta_name(segment, key, version, variant)
+        body = t["body"]
         params = list(dict.fromkeys(re.findall(r"{{\s*(\w+)\s*}}", body)))
         body = re.sub(r"{{\s*(\w+)\s*}}", r"{{\1}}", body)
         component = {"type": "BODY", "text": body}
@@ -300,7 +336,7 @@ def submit_templates(db: Session) -> dict:
             component["example"] = {"body_text_named_params": [{"param_name": p, "example": EXAMPLES.get(p, "example")}
                                                                 for p in params]}
         if row is None:
-            row = WaTemplate(segment=t.segment, key=t.key, version=t.version, variant=variant, meta_name=name)
+            row = WaTemplate(segment=segment, key=key, version=version, variant=variant, meta_name=name)
             db.add(row)
         try:
             res = _call(cfg, "POST", f"/{cfg['waba_id']}/message_templates", {
@@ -366,6 +402,7 @@ def _record(db: Session, *, to: str, kind: str, body: str, template_name: str | 
 def _send(db: Session, cfg: dict, to: str, payload: dict, *, kind: str, body: str, template_name: str | None,
           **links) -> WaMessage:
     to = to_e164(to)
+    _check_internal_recipient(db, to, template_name)
     payload = {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to.lstrip("+"), **payload}
     try:
         res = _call(cfg, "POST", f"/{cfg['phone_number_id']}/messages", payload)
@@ -375,6 +412,20 @@ def _send(db: Session, cfg: dict, to: str, payload: dict, *, kind: str, body: st
         raise
     wamid = ((res.get("messages") or [{}])[0]).get("id")
     return _record(db, to=to, kind=kind, body=body, template_name=template_name, wamid=wamid, status="sent", **links)
+
+
+def _check_internal_recipient(db: Session, to: str, template_name: str | None) -> None:
+    """Internal templates (team digests) only ever go to the numbers in their
+    Config recipient list; anything else is refused before calling Meta."""
+    prefix = f"wl_{INTERNAL}_"
+    if not (template_name or "").startswith(prefix):
+        return
+    from app.collections import settings_store
+
+    key = next((v for k, v in INTERNAL_RECIPIENT_KEYS.items() if template_name.startswith(prefix + k + "_v")), None)
+    allowed = {to_e164(n) for n in (settings_store.get(db, key) or [])} if key else set()
+    if to not in allowed:
+        raise WhatsAppError("That number isn't on the internal recipient list, so nothing was sent.")
 
 
 def send_template(db: Session, to: str, tpl: WaTemplate, values: dict, *, body: str, **links) -> WaMessage:
@@ -392,6 +443,10 @@ def send_template(db: Session, to: str, tpl: WaTemplate, values: dict, *, body: 
 
 
 def _template_text(db: Session, tpl: WaTemplate) -> str:
+    if tpl.segment == INTERNAL:
+        spec = next((t for t in INTERNAL_TEMPLATES if (t["key"], t["version"], t["variant"])
+                     == (tpl.key, tpl.version, tpl.variant)), None)
+        return spec["body"] if spec else ""
     row = db.execute(select(MessageTemplate).where(
         MessageTemplate.segment == tpl.segment, MessageTemplate.key == tpl.key, MessageTemplate.version == tpl.version,
         MessageTemplate.language == "en")).scalars().first()

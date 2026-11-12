@@ -420,7 +420,7 @@
     return get('/prospects?' + (st ? 'status=' + encodeURIComponent(st) + '&' : '') + (list ? 'list_id=' + encodeURIComponent(list) : '')).then(function (d) {
       var counts = {}; d.prospects.forEach(function (p) { counts[p.status] = (counts[p.status] || 0) + 1; });
       var cur = d.lists.filter(function (l) { return l.id === list; })[0];
-      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Prospects</h1><a class="btn sm" href="#prospects/new">Add prospect</a></div>' +
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:12px"><h1 style="margin:0">Prospects</h1><div class="row-btns"><button class="btn sm ghost" id="pdig">Send today\'s digest</button><a class="btn sm" href="#prospects/new">Add prospect</a></div></div><div id="pdigm"></div>' +
         '<p class="muted small">Schools, estates and other organisations we\'d like as clients. Email goes out from the app with replies to the Collections inbox; WhatsApp opens on this computer with the message filled in, then you mark it sent. Every message carries our company details and a way to opt out.</p>' +
         '<div class="row-btns" style="margin-bottom:10px"><select id="plist" aria-label="List" style="max-width:360px;min-height:36px"><option value="">All lists</option>' +
         d.lists.map(function (l) { return '<option value="' + esc(l.id) + '"' + (l.id === list ? ' selected' : '') + '>' + esc(l.name) + '</option>'; }).join('') + '</select></div>' +
@@ -438,10 +438,34 @@
             '<td class="small nowrap">' + (p.last_contacted_at ? CL.date(p.last_contacted_at) : '<span class="muted">Never</span>') + (p.next_follow_up ? '<div class="tiny muted">follow up ' + CL.date(p.next_follow_up) + '</div>' : '') + '</td></tr>';
         }).join('') : '<tr><td colspan="6" class="muted">No prospects here.</td></tr>') + '</tbody></table></div>';
       var go = function (k, v) { var u = new URLSearchParams(location.search); v ? u.set(k, v) : u.delete(k); history.replaceState(null, '', '?' + u.toString() + location.hash); R.prospects(); };
+      CL.$('#pdig').onclick = sendDigest;
       CL.$('#plist').onchange = function () { go('plist', this.value); };
       CL.$$('[data-pst]').forEach(function (b) { b.onclick = function () { go('pst', b.dataset.pst); }; });
     });
   };
+
+  // Daily leads digest: today's New prospects to the team numbers in Config, on WhatsApp.
+  function sendDigest() {
+    var btn = CL.$('#pdig'), box = CL.$('#pdigm');
+    var show = function (cls, html) { box.innerHTML = '<div class="banner ' + cls + '">' + html + '</div>'; };
+    btn.disabled = true;
+    get('/leads-digest').then(function (d) {
+      if (!d.recipients) { btn.disabled = false; return show('info', 'No digest recipients yet. ' + (ME.role === 'Admin' ? 'Add team numbers under <a href="#config">Config</a> → leads digest recipients.' : 'An Admin adds team numbers under Config.')); }
+      if (!d.leads.length) { btn.disabled = false; return show('info', 'No new prospects were added today, so there\'s nothing to send.'); }
+      if (d.template_status !== 'APPROVED') { btn.disabled = false; return show('info', 'WhatsApp hasn\'t approved the leads digest template yet (' + esc(d.template_status.toLowerCase().replace(/_/g, ' ')) + '). ' + (ME.role === 'Admin' ? 'Submit it under <a href="#channels">Channels</a>.' : 'An Admin submits it under Channels.')); }
+      var resend = false;
+      if (d.already_sent >= d.recipients) {
+        if (!confirm('Today\'s digest already went to all ' + d.recipients + ' recipient(s). Send it again?')) { btn.disabled = false; return; }
+        resend = true;
+      } else if (!confirm('Send ' + d.leads.length + ' new prospect(s) to ' + (d.recipients - d.already_sent) + ' team number(s) on WhatsApp?\n\n' + d.text)) { btn.disabled = false; return; }
+      return post('/leads-digest/send', { resend: resend }).then(function (r) {
+        btn.disabled = false;
+        show(r.failed.length ? 'bad' : 'ok', 'Digest of ' + r.leads + ' prospect(s) sent to ' + r.sent.length + ' number(s)' +
+          (r.skipped.length ? ', ' + r.skipped.length + ' already had it today' : '') +
+          (r.failed.length ? '. Not sent: ' + r.failed.map(function (f) { return esc(f.to) + ' (' + esc(f.error) + ')'; }).join('; ') : '') + '. See <a href="#outbox">Outbox</a>.');
+      });
+    }).catch(function (err) { btn.disabled = false; show('bad', esc(err.message)); });
+  }
 
   var P_FIELDS = [['org_name', 'Organisation', 'text', true], ['org_type', 'What they are', 'text'], ['city', 'City', 'text'], ['address', 'Address', 'text'],
     ['contact_name', 'Contact name (as published)', 'text'], ['contact_role', 'Their role', 'text'], ['email', 'Official email', 'email'],
@@ -559,19 +583,25 @@
     });
   }
 
+  var CFG_HINTS = {
+    leads_digest_recipients: 'Team WhatsApp numbers that get the daily leads digest (Prospects → Send today\'s digest). The digest is never sent to any other number. Example: ["+2348031234567"]. While on Meta\'s test number, each must also be on its allowed list.'
+  };
+
   R.config = function () {
     return get('/config').then(function (cfg) {
       var admin = ME.role === 'Admin';
       view.innerHTML = '<h1>Config</h1>' + (admin ? '' : '<div class="banner info">Only Waterline Admin can change these.</div>') +
         Object.keys(cfg).map(function (k) {
-          return '<div class="card" data-cfg="' + k + '"><h3>' + esc(k.replace(/_/g, ' ')) + '</h3><textarea data-val style="min-height:' + (typeof cfg[k] === 'object' ? 120 : 48) + 'px"' + (admin ? '' : ' disabled') + '>' + esc(JSON.stringify(cfg[k], null, typeof cfg[k] === 'object' ? 1 : 0)) + '</textarea>' +
+          return '<div class="card" data-cfg="' + k + '"><h3>' + esc(k.replace(/_/g, ' ')) + '</h3>' + (CFG_HINTS[k] ? '<p class="small muted">' + CFG_HINTS[k] + '</p>' : '') + '<textarea data-val style="min-height:' + (typeof cfg[k] === 'object' ? 120 : 48) + 'px"' + (admin ? '' : ' disabled') + '>' + esc(JSON.stringify(cfg[k], null, typeof cfg[k] === 'object' ? 1 : 0)) + '</textarea>' +
             (admin ? '<button class="btn sm" data-save style="margin-top:6px">Save</button>' : '') + '</div>';
         }).join('');
       CL.$$('[data-cfg] [data-save]').forEach(function (b) {
         b.onclick = function () {
           var card = b.closest('[data-cfg]'), val;
           try { val = JSON.parse(CL.$('[data-val]', card).value); } catch (e) { CL.toast('That isn\'t valid JSON'); return; }
-          put('/config/' + card.dataset.cfg, { value: val }).then(function () { CL.toast('Saved'); }).catch(fail);
+          put('/config/' + card.dataset.cfg, { value: val }).then(function (r) {
+            var v = r.value; CL.$('[data-val]', card).value = JSON.stringify(v, null, typeof v === 'object' ? 1 : 0); CL.toast('Saved');
+          }).catch(fail);
         };
       });
     });
@@ -799,7 +829,7 @@
         '<div class="row-btns" style="margin-bottom:10px"><button class="btn" id="wts">Submit templates</button><button class="btn ghost" id="wtr2">Refresh status</button></div>' +
         '<div class="table-wrap"><table><thead><tr><th>Segment</th><th>Message</th><th>Status</th></tr></thead><tbody>' + w.templates.map(function (t) {
           var st = TPL_STATUS[t.status] || [t.status, ''];
-          return '<tr><td class="small">' + esc(SEG_NAMES[t.segment] || t.segment) + '</td><td class="small">' + esc(t.key.replace(/_/g, ' ').toLowerCase()) + (t.variant === 'nd' ? ' (no discount line)' : '') + ' <span class="tiny muted mono">' + esc(t.name) + '</span></td>' +
+          return '<tr><td class="small">' + esc(t.segment === 'internal' ? 'Internal (team)' : (SEG_NAMES[t.segment] || t.segment)) + '</td><td class="small">' + esc(t.key.replace(/_/g, ' ').toLowerCase()) + (t.variant === 'nd' ? ' (no discount line)' : '') + ' <span class="tiny muted mono">' + esc(t.name) + '</span></td>' +
             '<td><span class="pill ' + st[1] + '">' + esc(st[0]) + '</span>' + (t.reason ? '<div class="tiny muted" style="max-width:280px">' + esc(t.reason) + '</div>' : '') + '</td></tr>';
         }).join('') + '</tbody></table></div></div>' : '');
 

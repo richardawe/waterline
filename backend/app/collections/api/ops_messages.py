@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from app.collections import audit, emailer, mailbox, outreach, prospects, segments, whatsapp
+from app.collections import audit, emailer, leads_digest, mailbox, outreach, prospects, segments, whatsapp
 from app.collections.auth import OpsContext, require_ops, require_ops_admin
 from app.collections.models import (
     Client,
@@ -350,13 +350,15 @@ def outbox(channel: str = "", failed: bool = False, limit: int = 200, ctx: OpsCo
         if failed:
             stmt = stmt.where(WaMessage.status == "failed")
         was = db.execute(stmt).scalars().all()
+        digest_name = whatsapp.leads_digest_name()
         ids = [w.account_id for w in was if w.account_id]
         if ids:
             accounts_by_index = {a.id: a for a in db.execute(select(DebtorAccount).where(DebtorAccount.id.in_(ids))).scalars()}
         for w in was:
             a = accounts_by_index.get(w.account_id)
             rows.append({"at": w.created_at, "channel": "WhatsApp", "to": a.debtor_name if a else w.to_phone,
-                         "what": w.template_name or "Reply", "kind": w.kind, "client_name": clients.get(w.client_id),
+                         "what": "Daily leads digest" if w.template_name == digest_name else (w.template_name or "Reply"),
+                         "kind": "leads_digest" if w.template_name == digest_name else w.kind, "client_name": clients.get(w.client_id),
                          "status": w.status.capitalize(), "error": w.error, "by": names.get(w.sent_by) if w.sent_by else "System"})
     if channel in ("", "WhatsApp", "SMS") and not failed:
         chans = ("WhatsApp", "SMS") if not channel else (channel,)
@@ -539,3 +541,34 @@ def queue_send_whatsapp(item_id: str, ctx: OpsContext = Depends(require_ops), db
     outreach._record_sent(db, item, account, "WhatsApp", ctx.actor, now)
     db.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- daily leads digest (Ops)
+
+
+@router.get("/leads-digest")
+def leads_digest_preview(ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    """What "Send today's digest" would send, and to how many team numbers."""
+    return leads_digest.preview(db)
+
+
+class LeadsDigestIn(BaseModel):
+    resend: bool = False
+
+
+@router.post("/leads-digest/send")
+def leads_digest_send(body: LeadsDigestIn, ctx: OpsContext = Depends(require_ops), db: Session = Depends(get_db)):
+    """Sends today's new prospects (status New) to each number in Config →
+    leads_digest_recipients, one WhatsApp message each, logged in the Outbox."""
+    try:
+        result = leads_digest.send(db, sent_by=ctx.user.id, resend=body.resend)
+    except leads_digest.DigestRefused as exc:
+        raise HTTPException(409, str(exc)) from exc
+    audit.record(db, ctx.actor, "leads_digest.sent", "WaTemplate", whatsapp.leads_digest_name(),
+                 after={"leads": result["leads"], "sent": len(result["sent"]), "skipped": len(result["skipped"]),
+                        "failed": len(result["failed"]), "resend": body.resend})
+    db.commit()  # failed attempts stay in the Outbox too
+    if result["failed"] and not result["sent"]:
+        raise HTTPException(502, "WhatsApp didn't send the digest: " + "; ".join(
+            f"{f['to']}: {f['error']}" for f in result["failed"]))
+    return result
