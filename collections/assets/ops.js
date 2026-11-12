@@ -584,7 +584,7 @@
   }
 
   var CFG_HINTS = {
-    leads_digest_recipients: 'Team WhatsApp numbers that get the daily leads digest (Prospects → Send today\'s digest). The digest is never sent to any other number. Example: ["+2348031234567"]. While on Meta\'s test number, each must also be on its allowed list.'
+    leads_digest_recipients: 'Team WhatsApp numbers that get the daily leads digest (Prospects → Send today\'s digest). The digest is never sent to any other number. Example: ["+2348031234567"], or just the numbers, one per line. While on Meta\'s test number, each must also be on its allowed list.'
   };
 
   R.config = function () {
@@ -592,13 +592,18 @@
       var admin = ME.role === 'Admin';
       view.innerHTML = '<h1>Config</h1>' + (admin ? '' : '<div class="banner info">Only Waterline Admin can change these.</div>') +
         Object.keys(cfg).map(function (k) {
-          return '<div class="card" data-cfg="' + k + '"><h3>' + esc(k.replace(/_/g, ' ')) + '</h3>' + (CFG_HINTS[k] ? '<p class="small muted">' + CFG_HINTS[k] + '</p>' : '') + '<textarea data-val style="min-height:' + (typeof cfg[k] === 'object' ? 120 : 48) + 'px"' + (admin ? '' : ' disabled') + '>' + esc(JSON.stringify(cfg[k], null, typeof cfg[k] === 'object' ? 1 : 0)) + '</textarea>' +
+          return '<div class="card" data-cfg="' + k + '"><h3>' + esc(k.replace(/_/g, ' ')) + '</h3>' + (CFG_HINTS[k] ? '<p class="small muted">' + CFG_HINTS[k] + '</p>' : '') + '<textarea data-val autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="min-height:' + (typeof cfg[k] === 'object' ? 120 : 48) + 'px"' + (admin ? '' : ' disabled') + '>' + esc(JSON.stringify(cfg[k], null, typeof cfg[k] === 'object' ? 1 : 0)) + '</textarea>' +
             (admin ? '<button class="btn sm" data-save style="margin-top:6px">Save</button>' : '') + '</div>';
         }).join('');
       CL.$$('[data-cfg] [data-save]').forEach(function (b) {
         b.onclick = function () {
           var card = b.closest('[data-cfg]'), val;
-          try { val = JSON.parse(CL.$('[data-val]', card).value); } catch (e) { CL.toast('That isn\'t valid JSON'); return; }
+          // Phones (iOS especially) turn " into “ ” as you type; JSON needs straight quotes.
+          var raw = CL.$('[data-val]', card).value.replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"').replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'");
+          try { val = JSON.parse(raw); } catch (e) {
+            if (card.dataset.cfg !== 'leads_digest_recipients') { CL.toast('That isn\'t valid JSON'); return; }
+            val = raw.split(/[\n,;]+/).map(function (x) { return x.replace(/[\[\]"']/g, '').trim(); }).filter(Boolean);  // plain numbers are fine here
+          }
           put('/config/' + card.dataset.cfg, { value: val }).then(function (r) {
             var v = r.value; CL.$('[data-val]', card).value = JSON.stringify(v, null, typeof v === 'object' ? 1 : 0); CL.toast('Saved');
           }).catch(fail);
