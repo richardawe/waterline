@@ -616,3 +616,29 @@ class Expense(Base):
     paid_reference: Mapped[Optional[str]] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class FbPost(Base):
+    """A post to the Waterline Collections Facebook Page, written in the ops
+    console. Draft → (Pending approval → ) Scheduled / Published, or
+    Rejected / Failed / Cancelled. Scheduling is done by Facebook itself
+    (published=false + scheduled_publish_time), so no cron is needed."""
+
+    __tablename__ = "cl_fb_post"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_uuid)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    link: Mapped[Optional[str]] = mapped_column(String(500))
+    image_key: Mapped[Optional[str]] = mapped_column(String(200))
+    scheduled_for: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="Draft", index=True)
+    fb_post_id: Mapped[Optional[str]] = mapped_column(String(100))
+    permalink: Mapped[Optional[str]] = mapped_column(String(500))
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    reject_reason: Mapped[Optional[str]] = mapped_column(Text)
+    created_by: Mapped[Optional[str]] = mapped_column(String(64))
+    approved_by: Mapped[Optional[str]] = mapped_column(String(64))
+    published_by: Mapped[Optional[str]] = mapped_column(String(64))
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

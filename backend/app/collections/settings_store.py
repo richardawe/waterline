@@ -32,6 +32,9 @@ DEFAULTS: dict = {
     # other number. E.164, e.g. ["+2348031234567"]; Nigerian local formats are
     # accepted and normalised on save.
     "leads_digest_recipients": [],
+    # Facebook Page posts (ops → Facebook): when true, Ops send posts to an
+    # Admin for approval; when false, Ops publish directly. Admins always can.
+    "facebook_posts_need_approval": True,
     "waterline_bank_details": {
         "bank_name": "To be configured",
         "account_number": "0000000000",
@@ -84,6 +87,9 @@ def clean_value(key: str, value):
         if len(out) > MAX_DIGEST_RECIPIENTS:
             raise ValueError(f"At most {MAX_DIGEST_RECIPIENTS} recipients.")
         return out
+    if key == "facebook_posts_need_approval":
+        if not isinstance(value, bool):
+            raise ValueError("Enter true or false.")
     return value
 
 

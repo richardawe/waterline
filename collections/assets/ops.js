@@ -4,7 +4,7 @@
   var ME = null;
   var TABS = [['overview', 'Overview'], ['approvals', 'Approvals'], ['queue', 'Outreach queue'], ['inbox', 'Inbox'], ['outbox', 'Outbox'], ['replies', 'Replies'], ['expenses', 'Expenses'],
     ['followups', 'Follow-ups'], ['clients', 'Clients'], ['fees', 'Fee proposals'], ['invoices', 'Invoices'], ['segments', 'Segments'],
-    ['waitlist', 'Waitlist'], ['prospects', 'Prospects'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
+    ['waitlist', 'Waitlist'], ['prospects', 'Prospects'], ['facebook', 'Facebook'], ['templates', 'Templates'], ['config', 'Config'], ['audit', 'Audit']];
   var SEG_NAMES = {};
 
   function get(p) { return CL.api('/collections/ops' + p, { auth: 'ops' }); }
@@ -653,7 +653,177 @@
     });
   }
 
+  // ---------------------------------------------------------------- Facebook Page posts
+  var FB_PILL = { 'Draft': '', 'Pending approval': 'amber', 'Rejected': 'red', 'Scheduled': 'amber', 'Published': 'green', 'Failed': 'red', 'Cancelled': '' };
+
+  function renderFacebookChannel() {
+    var box = CL.$('#fbcard');
+    return get('/channels/facebook').then(function (f) {
+      box.innerHTML = '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><h2 style="margin:0">Facebook Page' + (f.page_name ? ' · ' + esc(f.page_name) : '') + '</h2>' +
+        '<span class="pill ' + (f.connected ? 'green' : 'red') + '">' + (f.connected ? 'Connected' : 'Not connected') + '</span></div>' +
+        '<p class="small muted">Lets the team post to the Page from the Facebook tab. In Meta Business Settings, give a system user access to the Page, then generate a token for the app with <b>pages_manage_posts</b> and <b>pages_read_engagement</b>, and paste it here. The Page ID is under the Page\'s About → Page transparency.</p>' +
+        (f.page_link ? '<p class="small"><a href="' + esc(f.page_link) + '" target="_blank" rel="noopener">Open the Page on Facebook</a></p>' : '') +
+        '<form id="fbf"><div class="field"><label for="fbp">Page ID</label><input id="fbp" name="page_id" type="text" inputmode="numeric" value="' + esc(f.page_id) + '"></div>' +
+        '<div class="field"><label for="fbt">Page access token</label><input id="fbt" name="access_token" type="password" autocomplete="off" placeholder="' + (f.has_token ? 'Saved. Leave blank to keep it.' : 'Paste the token from Meta') + '"></div>' +
+        '<div id="fbm"></div><button class="btn">Save and check</button></form></div>';
+      CL.$('#fbf').onsubmit = function (ev) {
+        ev.preventDefault();
+        var body = CL.formJSON(ev.target); if (!body.access_token) delete body.access_token;
+        var b = CL.$('#fbf button'); CL.busy(b, true, 'Checking…');
+        put('/channels/facebook', body).then(function (r) {
+          renderFacebookChannel().then(function () {
+            CL.$('#fbm').innerHTML = r.check_error ? '<div class="banner bad">Saved, but Facebook said: ' + esc(r.check_error) + '</div>'
+              : (r.connected ? '<div class="banner ok">Saved. Facebook confirmed the Page' + (r.page_name ? ' “' + esc(r.page_name) + '”' : '') + '.</div>' : '<div class="banner info">Saved.</div>');
+          });
+        }).catch(function (err) { CL.busy(b, false); CL.$('#fbm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
+      };
+    }).catch(fail);
+  }
+
+  function fbWhen(iso) {
+    // ISO (UTC) → "YYYY-MM-DDTHH:MM" in Lagos time (UTC+1, no daylight saving) for the datetime input.
+    if (!iso) return '';
+    var d = new Date(new Date(iso).getTime() + 3600 * 1000);
+    return d.toISOString().slice(0, 16);
+  }
+
+  R.facebook = function () {
+    return get('/facebook/posts').then(function (d) {
+      var editing = null;
+      var pending = d.posts.filter(function (p) { return p.status === 'Pending approval'; }).length;
+      view.innerHTML = '<div class="bar-in" style="min-height:0;margin-bottom:8px"><h1 style="margin:0">Facebook</h1>' +
+        (d.page.page_link ? '<a class="btn sm ghost" href="' + esc(d.page.page_link) + '" target="_blank" rel="noopener">Open the Page</a>' : '') + '</div>' +
+        (d.connected ? '' : '<div class="banner info">The Facebook Page isn\'t connected yet. ' + (ME.role === 'Admin' ? 'Connect it under <a href="#channels">Channels</a>.' : 'An Admin connects it under Channels.') + ' You can still write drafts.</div>') +
+        '<p class="muted small">' + (d.need_approval ? (ME.role === 'Admin' ? 'Ops send posts to an Admin for approval; you can publish directly.' : 'Posts go to an Admin for approval before they\'re published.') : 'Anyone in ops can publish.') +
+        ' Never name, picture or identify anyone who owes money: posts with a debtor\'s name or phone number are refused, but images can\'t be checked, so check them yourself.</p>' +
+        '<div class="card" id="fbc"></div>' +
+        '<h2>Posts' + (pending && ME.role === 'Admin' ? ' <span class="pill amber">' + pending + ' to approve</span>' : '') + '</h2><div id="fbl"></div>';
+
+      function composer(p) {
+        editing = p || null;
+        p = p || { message: '', link: '', scheduled_for: null };
+        var known = Object.keys(d.links).filter(function (k) { return d.links[k] === p.link; })[0];
+        var linkSel = p.link ? (known || 'custom') : '';
+        var verb = d.can_publish ? '' : 'approval';
+        CL.$('#fbc').innerHTML = '<h2 style="margin-top:0">' + (editing ? 'Edit post' : 'New post') + '</h2><form id="fbx">' +
+          '<div class="field"><label for="fx-m">Post</label><textarea id="fx-m" name="message" rows="6" style="min-height:0" maxlength="5000" required>' + esc(p.message) + '</textarea><p class="tiny muted" id="fx-n"></p></div>' +
+          '<div class="field"><label for="fx-ls">Link</label><select id="fx-ls"><option value="">No link</option>' +
+          Object.keys(d.links).map(function (k) { return '<option value="' + esc(k) + '"' + (k === linkSel ? ' selected' : '') + '>' + esc(k) + '</option>'; }).join('') +
+          '<option value="custom"' + (linkSel === 'custom' ? ' selected' : '') + '>Another web address…</option></select>' +
+          '<input id="fx-l" type="url" placeholder="https://" style="margin-top:6px;' + (linkSel === 'custom' ? '' : 'display:none') + '" value="' + esc(linkSel === 'custom' ? p.link : '') + '"></div>' +
+          '<div class="field"><label for="fx-i">Image (optional, JPG or PNG, 5 MB max)</label>' +
+          (editing && editing.has_image ? '<div id="fx-cur"><img src="' + esc(editing.image_url) + '" alt="" style="max-width:220px;border-radius:8px;display:block;margin-bottom:6px"><label class="check"><input type="checkbox" name="remove_image"> Remove this image</label></div>' : '') +
+          '<input id="fx-i" name="image" type="file" accept="image/jpeg,image/png"><img id="fx-pv" alt="" style="max-width:220px;border-radius:8px;display:none;margin-top:6px"></div>' +
+          '<div class="field"><label>When</label><div class="row-btns"><label class="check"><input type="radio" name="when" value="now"' + (p.scheduled_for ? '' : ' checked') + '> Now</label>' +
+          '<label class="check"><input type="radio" name="when" value="later"' + (p.scheduled_for ? ' checked' : '') + '> Schedule</label>' +
+          '<input id="fx-t" type="datetime-local" style="max-width:240px;' + (p.scheduled_for ? '' : 'display:none') + '" value="' + esc(fbWhen(p.scheduled_for)) + '"></div><p class="tiny muted">Lagos time. Between 10 minutes and 30 days from now. Facebook publishes it at that time.</p></div>' +
+          '<div id="fx-msg"></div><div class="row-btns">' +
+          (d.can_publish ? '<button type="button" class="btn" data-go="publish" id="fx-pub">Publish now</button>' : '<button type="button" class="btn" data-go="submit">Send for approval</button>') +
+          '<button type="button" class="btn ghost" data-go="draft">Save draft</button>' + (editing ? '<button type="button" class="btn ghost" id="fx-x">Cancel editing</button>' : '') + '</div></form>';
+        var form = CL.$('#fbx'), m = CL.$('#fx-m');
+        var count = function () { CL.$('#fx-n').textContent = m.value.length + ' / 5000'; }; count(); m.oninput = count;
+        CL.$('#fx-ls').onchange = function () { CL.$('#fx-l').style.display = this.value === 'custom' ? '' : 'none'; };
+        var label = function () {
+          var later = form.elements.when.value === 'later';
+          CL.$('#fx-t').style.display = later ? '' : 'none';
+          var pb = CL.$('#fx-pub'); if (pb) pb.textContent = later ? 'Schedule' : 'Publish now';
+        };
+        CL.$$('input[name="when"]', form).forEach(function (r) { r.onchange = label; }); label();
+        CL.$('#fx-i').onchange = function () {
+          var f = this.files[0], pv = CL.$('#fx-pv');
+          if (f) { pv.src = URL.createObjectURL(f); pv.style.display = 'block'; } else { pv.style.display = 'none'; }
+        };
+        var x = CL.$('#fx-x'); if (x) x.onclick = function () { composer(null); };
+        CL.$$('[data-go]', form).forEach(function (b) {
+          b.onclick = function () {
+            var go = b.dataset.go, later = form.elements.when.value === 'later';
+            if (!m.value.trim()) { CL.toast('Write the post first.'); return; }
+            if (later && !CL.$('#fx-t').value) { CL.toast('Pick a date and time, or choose Now.'); return; }
+            if (go === 'publish' && !confirm(later ? 'Schedule this post on the Facebook Page?' : 'Publish this post on the Facebook Page now? Everyone will see it.')) return;
+            var fd = new FormData();
+            fd.append('message', m.value);
+            var sel = CL.$('#fx-ls').value;
+            fd.append('link', sel === 'custom' ? CL.$('#fx-l').value.trim() : (sel ? d.links[sel] : ''));
+            fd.append('scheduled_for', later ? CL.$('#fx-t').value : '');
+            var file = CL.$('#fx-i').files[0]; if (file) fd.append('image', file);
+            var rm = form.elements.remove_image; if (rm && rm.checked) fd.append('remove_image', 'true');
+            CL.busy(b, true, go === 'publish' ? 'Posting…' : 'Saving…');
+            var req;
+            if (editing) {
+              req = CL.api('/collections/ops/facebook/posts/' + editing.id, { auth: 'ops', method: 'PUT', form: fd }).then(function (r) {
+                return go === 'draft' ? r : post('/facebook/posts/' + r.id + '/' + go);
+              });
+            } else {
+              fd.append('action', go);
+              req = CL.api('/collections/ops/facebook/posts', { auth: 'ops', method: 'POST', form: fd });
+            }
+            req.then(function (r) {
+              CL.toast({ Published: 'Published on Facebook', Scheduled: 'Scheduled', 'Pending approval': 'Sent for approval', Draft: 'Draft saved' }[r.status] || 'Saved');
+              R.facebook();
+            }).catch(function (err) {
+              CL.busy(b, false);
+              CL.$('#fx-msg').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>';
+              if (err.status === 502) list();  // the failed attempt is kept as a post
+            });
+          };
+        });
+      }
+
+      function list() {
+        return get('/facebook/posts').then(function (dd) {
+          d = dd;
+          CL.$('#fbl').innerHTML = d.posts.length ? d.posts.map(function (p) {
+            var when = p.status === 'Published' ? 'Published ' + CL.datetime(p.published_at) : (p.scheduled_for ? (p.status === 'Scheduled' ? 'Goes out ' : 'For ') + CL.datetime(p.scheduled_for) : '');
+            var btns = [];
+            if (p.permalink) btns.push('<a class="btn sm ghost" href="' + esc(p.permalink) + '" target="_blank" rel="noopener">View on Facebook</a>');
+            if (p.can_publish) btns.push('<button class="btn sm" data-act="publish" data-id="' + p.id + '">' + (p.status === 'Pending approval' ? 'Approve and ' : '') + (p.scheduled_for ? 'schedule' : 'publish').replace(/^./, function (c) { return p.status === 'Pending approval' ? c : c.toUpperCase(); }) + '</button>');
+            if (p.can_submit) btns.push('<button class="btn sm" data-act="submit" data-id="' + p.id + '">Send for approval</button>');
+            if (p.can_edit) btns.push('<button class="btn sm ghost" data-act="edit" data-id="' + p.id + '">Edit</button>');
+            if (p.can_reject) btns.push('<button class="btn sm ghost" data-act="reject" data-id="' + p.id + '">Reject</button>');
+            if (p.can_cancel) btns.push('<button class="btn sm ghost" data-act="cancel" data-id="' + p.id + '">Cancel schedule</button>');
+            if (p.can_delete) btns.push('<button class="btn sm ghost" data-act="delete" data-id="' + p.id + '">Delete</button>');
+            return '<div class="card"><div class="row-btns" style="align-items:center;justify-content:space-between"><span class="pill ' + (FB_PILL[p.status] || '') + '">' + esc(p.status) + '</span>' +
+              '<span class="tiny muted">' + esc(when) + '</span></div>' +
+              '<div class="msg small" style="margin-top:8px">' + esc(p.message) + '</div>' +
+              (p.image_url ? '<img src="' + esc(p.image_url) + '" alt="" style="max-width:220px;border-radius:8px;display:block;margin-top:8px">' : '') +
+              (p.link ? '<p class="small" style="margin:8px 0 0">🔗 <a href="' + esc(p.link) + '" target="_blank" rel="noopener">' + esc(p.link) + '</a></p>' : '') +
+              '<p class="tiny muted" style="margin:8px 0 0">By ' + esc(p.created_by || '—') + (p.approved_by ? ' · approved by ' + esc(p.approved_by) : '') + (p.published_by && !p.approved_by ? ' · posted by ' + esc(p.published_by) : '') + '</p>' +
+              (p.error ? '<div class="banner bad small" style="margin-top:8px">' + esc(p.error) + '</div>' : '') +
+              (p.reject_reason ? '<div class="banner warn small" style="margin-top:8px">Rejected: ' + esc(p.reject_reason) + '</div>' : '') +
+              (btns.length ? '<div class="row-btns" style="margin-top:10px">' + btns.join('') + '</div>' : '') + '</div>';
+          }).join('') : '<p class="muted">No posts yet.</p>';
+          CL.$$('[data-act]', CL.$('#fbl')).forEach(function (b) {
+            b.onclick = function () {
+              var id = b.dataset.id, act = b.dataset.act, p = d.posts.filter(function (x) { return x.id === id; })[0];
+              var done = function (msg) { return function () { CL.toast(msg); R.facebook(); }; };
+              var oops = function (err) { CL.busy(b, false); fail(err); list(); };
+              if (act === 'edit') { composer(p); CL.$('#fbc').scrollIntoView({ behavior: 'smooth' }); return; }
+              if (act === 'publish') {
+                if (!confirm(p.scheduled_for ? 'Schedule this post on the Facebook Page?' : 'Publish this post on the Facebook Page now? Everyone will see it.')) return;
+                CL.busy(b, true, 'Posting…'); post('/facebook/posts/' + id + '/publish').then(done(p.scheduled_for ? 'Scheduled' : 'Published on Facebook')).catch(oops);
+              } else if (act === 'submit') {
+                post('/facebook/posts/' + id + '/submit').then(done('Sent for approval')).catch(oops);
+              } else if (act === 'reject') {
+                var why = prompt('Why is it rejected? The writer will see this.'); if (!why) return;
+                post('/facebook/posts/' + id + '/reject', { reason: why }).then(done('Rejected')).catch(oops);
+              } else if (act === 'cancel') {
+                if (!confirm('Cancel this scheduled post? It won\'t go out.')) return;
+                post('/facebook/posts/' + id + '/cancel').then(done('Schedule cancelled')).catch(oops);
+              } else if (act === 'delete') {
+                if (!confirm('Delete this post from the list?')) return;
+                del('/facebook/posts/' + id).then(done('Deleted')).catch(oops);
+              }
+            };
+          });
+        });
+      }
+      composer(null);
+      return list();
+    });
+  };
+
   var CFG_HINTS = {
+    facebook_posts_need_approval: 'true: Ops send Facebook posts to an Admin for approval. false: Ops publish directly. Admins can always publish.',
     leads_digest_recipients: 'Team WhatsApp numbers that get the daily leads digest (Prospects → Send today\'s digest). The digest is never sent to any other number. Example: ["+2348031234567"], or just the numbers, one per line. While on Meta\'s test number, each must also be on its allowed list.'
   };
 
@@ -855,8 +1025,9 @@
             (d.error ? '<p class="small" style="color:var(--red)">' + esc(d.error) + '</p>' : '') +
             (!ok && d.log && d.log.length ? '<details><summary class="small">Update log</summary><pre class="tiny" style="white-space:pre-wrap">' + esc(d.log.join('\n')) + '</pre></details>' : '') + '</div>';
         })(ch.database) +
-        '<div id="wacard"></div>';
+        '<div id="wacard"></div><div id="fbcard"></div>';
       renderWhatsApp(ch.whatsapp);
+      renderFacebookChannel();
       CL.$('#chf').onsubmit = function (ev) {
         ev.preventDefault();
         var body = CL.formJSON(ev.target);

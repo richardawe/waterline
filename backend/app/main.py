@@ -8,6 +8,7 @@ from app.collections.api import files as collections_files
 from app.collections.api import jobs as collections_jobs
 from app.collections.api import ops as collections_ops
 from app.collections.api import ops_expenses as collections_ops_expenses
+from app.collections.api import ops_facebook as collections_ops_facebook
 from app.collections.api import ops_messages as collections_ops_messages
 from app.collections.api import public as collections_public
 from app.collections.api import whatsapp_webhook as collections_whatsapp
@@ -59,6 +60,7 @@ app.include_router(collections_client.router)
 app.include_router(collections_ops.router)
 app.include_router(collections_ops_messages.router)
 app.include_router(collections_ops_expenses.router)
+app.include_router(collections_ops_facebook.router)
 app.include_router(collections_debtor.router)
 app.include_router(collections_files.router)
 app.include_router(collections_jobs.router)

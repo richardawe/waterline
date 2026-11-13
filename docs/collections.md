@@ -175,6 +175,40 @@ logged in the Outbox as "Daily leads digest".
   isn't approved yet. On Meta's test number, recipients must also be on its
   allowed list.
 
+## Facebook Page posts (ops)
+
+Ops → **Facebook** (code: `facebook.py`, `api/ops_facebook.py`, table
+`cl_fb_post`, migration `e2b7f4a9c6d1`) writes posts to the Waterline
+Collections Facebook Page: text, an optional link (Collections home,
+schools or estates page, or any https address) and one optional JPG/PNG
+image (5 MB, private storage), published now or scheduled 10 minutes to 30
+days ahead (Lagos time).
+
+- **Connection** (Channels, Admin only): Page ID and a Page access token
+  from a system user with `pages_manage_posts` and `pages_read_engagement`.
+  Stored encrypted in `cl_channel["facebook"]`, never returned. "Save and
+  check" asks Facebook for the Page name. Posting to our own Page doesn't
+  need Meta App Review.
+- **Who publishes**: Config → `facebook_posts_need_approval` (default
+  true). When true, Ops "Send for approval" (Admins are emailed) and an
+  Admin approves (publishes) or rejects with a reason; when false, Ops
+  publish directly. Admins can always publish. Anyone can save drafts.
+- **Statuses**: Draft → Pending approval → Scheduled / Published, or
+  Rejected, Failed (Facebook's error is kept; edit and retry) and Cancelled
+  (a scheduled post withdrawn before it went out).
+- **Scheduling** is Facebook's own (`published=false` +
+  `scheduled_publish_time`), so it doesn't depend on our cron. Opening the
+  Facebook tab asks Facebook about scheduled posts whose time has passed and
+  marks them Published with their link.
+- **Images** are uploaded unpublished first, then attached to the post. A
+  photo post can't carry a link preview, so the link is added to the text.
+- **Safety check** (`facebook.check_safe`, on save, submit and publish):
+  refuses text or a link containing a debtor's name (full name, or first +
+  last in either order; single-word names are skipped) or a debtor's phone
+  number (matched by blind index). The message doesn't repeat what matched.
+  Images can't be checked; the tab tells ops to check them.
+- Every step is in the audit log (`facebook.post_*`, `channel.facebook_saved`).
+
 ## Inbox, Outbox and Channels (ops)
 
 - **Channels** (Admin only): enter the collections mailbox login
