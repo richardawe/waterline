@@ -24,6 +24,7 @@ class FakeGraph:
         self.calls = []
         self.tokens = []
         self.fail = None
+        self.no_page_perms = False
 
     def __call__(self, cfg, method, path, payload=None, *, files=None):
         self.calls.append((method, path, payload, files))
@@ -31,8 +32,11 @@ class FakeGraph:
             raise facebook.FacebookError("(#100) Something went wrong", 100)
         if "fields=name,link" in path:
             self.tokens.append(cfg["access_token"])
-            return {"name": "Waterline Collections", "link": "https://facebook.com/waterlinecollections",
-                    "access_token": "EAAPageOwn-token"}
+            return {"name": "Waterline Collections", "link": "https://facebook.com/waterlinecollections"}
+        if path.endswith("?fields=access_token"):
+            if self.no_page_perms:
+                raise facebook.FacebookError("(#100) Tried accessing nonexisting field (access_token)", 100)
+            return {"access_token": "EAAPageOwn-token"}
         self.tokens.append(cfg["access_token"])
         if path.endswith("/photos"):
             return {"id": "photo1"}
@@ -79,10 +83,17 @@ def test_page_connection_is_admin_only_and_token_never_returned(cl_api, cl_db, m
     assert "EAAPage-secret" not in cl_api.get("/collections/ops/channels/facebook", headers=admin_h).text
     assert "EAAPageOwn-token" not in r.text
     # the check used the system user token; posting then uses the Page's own token
-    assert fake.tokens == ["EAAPage-secret"]
+    assert set(fake.tokens) == {"EAAPage-secret"}
     assert facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
     cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"access_token": "EAANew-system"})
     assert fake.tokens[-1] == "EAANew-system" and facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
+
+    # a token without the Page permissions: the Page is found, but the reason it can't post is spelled out
+    fake.no_page_perms = True
+    r = cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"access_token": "EAANoPages"})
+    assert "can't post to it yet" in r.json()["check_error"] and "pages_manage_posts" in r.json()["check_error"]
+    assert r.json()["page_name"] == "Waterline Collections"
+    assert facebook.config(cl_db)["access_token"] == "EAANoPages"  # no stale Page token left behind
     assert cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"page_id": "abc"}).status_code == 422
 
 

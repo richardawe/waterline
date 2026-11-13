@@ -127,14 +127,27 @@ def refresh_page(db: Session) -> dict:
     if cfg is None:
         raise FacebookError("Enter the Page ID and Page access token first.")
     s = stored(db)
-    # Ask with the token as entered (the system user's): Facebook returns the
-    # Page's own token alongside the name if the user has access to the Page.
-    info = _call({**cfg, "access_token": s["access_token"]}, "GET", f"/{cfg['page_id']}?fields=name,link,access_token")
+    entered = {**cfg, "access_token": s["access_token"]}  # the system user's token, as entered
+    info = _call(entered, "GET", f"/{cfg['page_id']}?fields=name,link")
     s.update(page_name=info.get("name"), page_link=info.get("link"))
-    if info.get("access_token"):
-        s["page_token"] = info["access_token"]
     _save(db, s)
-    return {k: v for k, v in info.items() if k != "access_token"}
+    # Then the Page's own token, which posting uses. Facebook only gives it
+    # out when the token has the Page permissions.
+    try:
+        page_token = _call(entered, "GET", f"/{cfg['page_id']}?fields=access_token").get("access_token")
+    except FacebookError as exc:
+        page_token, why = None, str(exc)
+    else:
+        why = "Facebook didn't return a Page token."
+    if not page_token:
+        raise FacebookError(
+            f"Found the Page{' “' + info['name'] + '”' if info.get('name') else ''}, but this token can't post to it yet: "
+            "it's missing the Page permissions (pages_manage_posts, pages_read_engagement, pages_show_list). "
+            "Add them to the app in Meta, generate a new token with them ticked, and save it here. "
+            f"(Facebook said: {why})")
+    s["page_token"] = page_token
+    _save(db, s)
+    return info
 
 
 # ---------------------------------------------------------------- HTTP
@@ -192,7 +205,7 @@ def _friendly(code, detail: str) -> str:
         190: "The Page access token is invalid or expired. Generate a new one and save it under Channels.",
         200: "The token doesn't have permission to post to this Page (it needs pages_manage_posts).",
         10: "The token doesn't have permission to post to this Page (it needs pages_manage_posts).",
-        100: f"Facebook didn't accept the post: {detail}",
+        100: f"Facebook didn't accept the request: {detail}",
         368: "Facebook has temporarily blocked posting from this Page. Check the Page's notifications.",
     }
     return hints.get(code, detail)
