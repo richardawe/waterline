@@ -673,7 +673,7 @@
         put('/channels/facebook', body).then(function (r) {
           renderFacebookChannel().then(function () {
             CL.$('#fbm').innerHTML = r.check_error ? '<div class="banner bad">Saved, but Facebook said: ' + esc(r.check_error) + '</div>'
-              : (r.connected ? '<div class="banner ok">Saved. Facebook confirmed the Page' + (r.page_name ? ' “' + esc(r.page_name) + '”' : '') + '.</div>' : '<div class="banner info">Saved.</div>');
+              : (r.connected ? '<div class="banner ok">Saved. Facebook confirmed the Page' + (r.page_name ? ' “' + esc(r.page_name) + '”' : '') + '.' + (r.note ? ' ' + esc(r.note) : '') + '</div>' : '<div class="banner info">Saved.</div>');
           });
         }).catch(function (err) { CL.busy(b, false); CL.$('#fbm').innerHTML = '<div class="banner bad">' + esc(err.message) + '</div>'; });
       };

@@ -24,19 +24,18 @@ class FakeGraph:
         self.calls = []
         self.tokens = []
         self.fail = None
-        self.no_page_perms = False
+        self.pages = [{"id": "61550000000000", "name": "Waterline Collections",
+                       "link": "https://facebook.com/waterlinecollections", "access_token": "EAAPageOwn-token"}]
 
     def __call__(self, cfg, method, path, payload=None, *, files=None):
         self.calls.append((method, path, payload, files))
         if self.fail and path.endswith(self.fail):
             raise facebook.FacebookError("(#100) Something went wrong", 100)
-        if "fields=name,link" in path:
+        if path.startswith("/me/accounts"):
             self.tokens.append(cfg["access_token"])
-            return {"name": "Waterline Collections", "link": "https://facebook.com/waterlinecollections"}
-        if path.endswith("?fields=access_token"):
-            if self.no_page_perms:
-                raise facebook.FacebookError("(#100) Tried accessing nonexisting field (access_token)", 100)
-            return {"access_token": "EAAPageOwn-token"}
+            return {"data": self.pages}
+        if "metadata=1" in path:
+            return {"id": path[1:].split("?")[0], "name": "waterline-collections", "metadata": {"type": "user"}}
         self.tokens.append(cfg["access_token"])
         if path.endswith("/photos"):
             return {"id": "photo1"}
@@ -75,26 +74,46 @@ def test_page_connection_is_admin_only_and_token_never_returned(cl_api, cl_db, m
     monkeypatch.setattr(facebook, "_call", fake)
     _, ops_h = make_ops(cl_db, role="Ops")
     _, admin_h = make_ops(cl_db, role="Admin")
+    url = "/collections/ops/channels/facebook"
     body = {"page_id": "61550000000000", "access_token": "EAAPage-secret"}
-    assert cl_api.put("/collections/ops/channels/facebook", headers=ops_h, json=body).status_code == 403
-    r = cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json=body)
+    assert cl_api.put(url, headers=ops_h, json=body).status_code == 403
+    r = cl_api.put(url, headers=admin_h, json=body)
     assert r.status_code == 200 and r.json()["connected"] and r.json()["page_name"] == "Waterline Collections"
-    assert "EAAPage-secret" not in r.text
-    assert "EAAPage-secret" not in cl_api.get("/collections/ops/channels/facebook", headers=admin_h).text
-    assert "EAAPageOwn-token" not in r.text
+    assert r.json()["check_error"] is None and r.json()["note"] is None
+    for text in (r.text, cl_api.get(url, headers=admin_h).text):
+        assert "EAAPage-secret" not in text and "EAAPageOwn-token" not in text
     # the check used the system user token; posting then uses the Page's own token
     assert set(fake.tokens) == {"EAAPage-secret"}
     assert facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
-    cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"access_token": "EAANew-system"})
-    assert fake.tokens[-1] == "EAANew-system" and facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
+    assert cl_api.put(url, headers=admin_h, json={"page_id": "abc"}).status_code == 422
 
-    # a token without the Page permissions: the Page is found, but the reason it can't post is spelled out
-    fake.no_page_perms = True
-    r = cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"access_token": "EAANoPages"})
-    assert "can't post to it yet" in r.json()["check_error"] and "pages_manage_posts" in r.json()["check_error"]
-    assert r.json()["page_name"] == "Waterline Collections"
-    assert facebook.config(cl_db)["access_token"] == "EAANoPages"  # no stale Page token left behind
-    assert cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"page_id": "abc"}).status_code == 422
+
+def test_wrong_page_id_is_corrected_or_explained(cl_api, cl_db, monkeypatch):
+    fake = FakeGraph()
+    monkeypatch.setattr(facebook, "_call", fake)
+    _, admin_h = make_ops(cl_db, role="Admin")
+    url = "/collections/ops/channels/facebook"
+    # the system user's own ID by mistake: the one Page the token manages is used instead
+    r = cl_api.put(url, headers=admin_h, json={"page_id": "61596294633935", "access_token": "EAAsys"})
+    assert r.json()["check_error"] is None and r.json()["page_id"] == "61550000000000"
+    assert "changed to 61550000000000" in r.json()["note"]
+    assert facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
+
+    fake.pages = fake.pages + [{"id": "999", "name": "Other Page", "access_token": "x"}]
+    r = cl_api.put(url, headers=admin_h, json={"page_id": "123", "access_token": "EAAsys2"})
+    assert "Waterline Collections: 61550000000000" in r.json()["check_error"] and "Other Page: 999" in r.json()["check_error"]
+
+    # a token that reaches no Page, with a user's ID: both problems are named
+    fake.pages = []
+    r = cl_api.put(url, headers=admin_h, json={"page_id": "61596294633935", "access_token": "EAAsys3"})
+    err = r.json()["check_error"]
+    assert "is a user" in err and "not a Page" in err and "pages_show_list" in err
+    assert facebook.config(cl_db)["access_token"] == "EAAsys3"  # no stale Page token left behind
+
+    # the Page is reachable but without posting rights
+    fake.pages = [{"id": "61550000000000", "name": "Waterline Collections"}]
+    r = cl_api.put(url, headers=admin_h, json={"page_id": "61550000000000", "access_token": "EAAsys4"})
+    assert "can't post to it yet" in r.json()["check_error"]
 
 
 def test_ops_need_approval_by_default_admin_approves(cl_api, cl_db, monkeypatch):

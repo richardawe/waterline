@@ -122,32 +122,51 @@ def save_settings(db: Session, data: dict, actor_id: str) -> None:
 
 
 def refresh_page(db: Session) -> dict:
-    """Ask Facebook about the Page: proves the token and ID work."""
+    """Ask Facebook about the Page and fetch the Page's own token (posting
+    uses it). Starts from the Pages the entered token can reach
+    (/me/accounts), so a wrong Page ID, such as the system user's own ID, is
+    corrected when the token reaches exactly one Page, and explained otherwise."""
     cfg = config(db)
     if cfg is None:
         raise FacebookError("Enter the Page ID and Page access token first.")
     s = stored(db)
     entered = {**cfg, "access_token": s["access_token"]}  # the system user's token, as entered
-    info = _call(entered, "GET", f"/{cfg['page_id']}?fields=name,link")
-    s.update(page_name=info.get("name"), page_link=info.get("link"))
-    _save(db, s)
-    # Then the Page's own token, which posting uses. Facebook only gives it
-    # out when the token has the Page permissions.
     try:
-        page_token = _call(entered, "GET", f"/{cfg['page_id']}?fields=access_token").get("access_token")
-    except FacebookError as exc:
-        page_token, why = None, str(exc)
-    else:
-        why = "Facebook didn't return a Page token."
-    if not page_token:
-        raise FacebookError(
-            f"Found the Page{' “' + info['name'] + '”' if info.get('name') else ''}, but this token can't post to it yet: "
-            "it's missing the Page permissions (pages_manage_posts, pages_read_engagement, pages_show_list). "
-            "Add them to the app in Meta, generate a new token with them ticked, and save it here. "
-            f"(Facebook said: {why})")
-    s["page_token"] = page_token
+        pages = _call(entered, "GET", "/me/accounts?fields=id,name,link,access_token&limit=50").get("data") or []
+    except FacebookError:
+        pages = []
+    page = next((p for p in pages if str(p.get("id")) == s["page_id"]), None)
+    note = None
+    if page is None and len(pages) == 1:
+        page = pages[0]
+        note = f"The Page ID was changed to {page['id']}, the Page this token manages (the ID entered wasn't it)."
+    if page is None and pages:
+        raise FacebookError("That ID isn't one of the Pages this token can manage. Use one of these Page IDs: "
+                            + "; ".join(f"{p.get('name')}: {p.get('id')}" for p in pages) + ".")
+    if page is None:
+        raise FacebookError(_no_page_reason(entered, s["page_id"]))
+    if not page.get("access_token"):
+        raise FacebookError(f"Found the Page “{page.get('name')}”, but this token can't post to it yet: it's missing "
+                            "pages_manage_posts. Add it to the app, generate a new token with it ticked, and save it here.")
+    s.update(page_id=str(page["id"]), page_name=page.get("name"), page_link=page.get("link"), page_token=page["access_token"])
     _save(db, s)
-    return info
+    return {"name": page.get("name"), "link": page.get("link"), "note": note}
+
+
+def _no_page_reason(cfg: dict, object_id: str) -> str:
+    """The token reaches no Page. Say whether the ID is even a Page."""
+    try:
+        meta = _call(cfg, "GET", f"/{object_id}?metadata=1&fields=id,name")
+        kind = ((meta.get("metadata") or {}).get("type") or "").lower()
+        name = meta.get("name")
+    except FacebookError:
+        kind, name = "", None
+    perms = ("Also check the token: generate it for the Waterline app with pages_show_list, pages_manage_posts and "
+             "pages_read_engagement ticked, from a system user that has the Page assigned.")
+    if kind and kind != "page":
+        return (f"The ID {object_id} is a {kind.replace('_', ' ')}" + (f" (“{name}”)" if name else "") + ", not a Page. "
+                "Use the Page ID from the Page's About → Page transparency. " + perms)
+    return "This token can't see any Facebook Page. " + perms
 
 
 # ---------------------------------------------------------------- HTTP

@@ -354,13 +354,13 @@ def save_facebook_channel(body: FacebookChannelIn, request: Request, ctx: OpsCon
         facebook.save_settings(db, data, ctx.user.id)
     except FacebookError as exc:
         raise HTTPException(422, str(exc)) from exc
-    check = None
+    check = note = None
     if facebook.connected(db):
         try:
-            facebook.refresh_page(db)
+            note = facebook.refresh_page(db).get("note")
         except FacebookError as exc:
             check = str(exc)
     audit.record(db, ctx.actor, "channel.facebook_saved", "Channel", "facebook",
                  after={"page_id": data.get("page_id"), "token_changed": bool(data.get("access_token"))})
     db.commit()
-    return {**facebook.public_settings(db), "check_error": check}
+    return {**facebook.public_settings(db), "check_error": check, "note": note}
