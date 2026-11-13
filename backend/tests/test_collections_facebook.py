@@ -22,6 +22,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 class FakeGraph:
     def __init__(self):
         self.calls = []
+        self.tokens = []
         self.fail = None
 
     def __call__(self, cfg, method, path, payload=None, *, files=None):
@@ -29,7 +30,10 @@ class FakeGraph:
         if self.fail and path.endswith(self.fail):
             raise facebook.FacebookError("(#100) Something went wrong", 100)
         if "fields=name,link" in path:
-            return {"name": "Waterline Collections", "link": "https://facebook.com/waterlinecollections"}
+            self.tokens.append(cfg["access_token"])
+            return {"name": "Waterline Collections", "link": "https://facebook.com/waterlinecollections",
+                    "access_token": "EAAPageOwn-token"}
+        self.tokens.append(cfg["access_token"])
         if path.endswith("/photos"):
             return {"id": "photo1"}
         if path.endswith("/feed"):
@@ -73,6 +77,12 @@ def test_page_connection_is_admin_only_and_token_never_returned(cl_api, cl_db, m
     assert r.status_code == 200 and r.json()["connected"] and r.json()["page_name"] == "Waterline Collections"
     assert "EAAPage-secret" not in r.text
     assert "EAAPage-secret" not in cl_api.get("/collections/ops/channels/facebook", headers=admin_h).text
+    assert "EAAPageOwn-token" not in r.text
+    # the check used the system user token; posting then uses the Page's own token
+    assert fake.tokens == ["EAAPage-secret"]
+    assert facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
+    cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"access_token": "EAANew-system"})
+    assert fake.tokens[-1] == "EAANew-system" and facebook.config(cl_db)["access_token"] == "EAAPageOwn-token"
     assert cl_api.put("/collections/ops/channels/facebook", headers=admin_h, json={"page_id": "abc"}).status_code == 422
 
 

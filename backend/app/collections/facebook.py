@@ -68,10 +68,14 @@ def stored(db: Session) -> dict:
 
 
 def config(db: Session) -> dict | None:
+    """Posting uses the Page's own token ("page_token"), fetched with the
+    system user token on "Save and check"; until then, the saved token."""
     s = stored(db)
     if not (s.get("page_id") and s.get("access_token")):
         return None
-    return {"api_version": API_VERSION, **s}
+    cfg = {"api_version": API_VERSION, **s}
+    cfg["access_token"] = s.get("page_token") or s["access_token"]
+    return cfg
 
 
 def connected(db: Session) -> bool:
@@ -111,6 +115,9 @@ def save_settings(db: Session, data: dict, actor_id: str) -> None:
             raise FacebookError("The access token contains characters that can't be part of it (for example \"…\" from a "
                                 "shortened copy). Copy the full token from Meta again.")
         s["access_token"] = token
+        s.pop("page_token", None)  # fetched again from the new token
+    if data.get("page_id") is not None and s.get("page_id") != stored(db).get("page_id"):
+        s.pop("page_token", None)
     _save(db, s, actor_id)
 
 
@@ -119,11 +126,15 @@ def refresh_page(db: Session) -> dict:
     cfg = config(db)
     if cfg is None:
         raise FacebookError("Enter the Page ID and Page access token first.")
-    info = _call(cfg, "GET", f"/{cfg['page_id']}?fields=name,link")
     s = stored(db)
+    # Ask with the token as entered (the system user's): Facebook returns the
+    # Page's own token alongside the name if the user has access to the Page.
+    info = _call({**cfg, "access_token": s["access_token"]}, "GET", f"/{cfg['page_id']}?fields=name,link,access_token")
     s.update(page_name=info.get("name"), page_link=info.get("link"))
+    if info.get("access_token"):
+        s["page_token"] = info["access_token"]
     _save(db, s)
-    return info
+    return {k: v for k, v in info.items() if k != "access_token"}
 
 
 # ---------------------------------------------------------------- HTTP
