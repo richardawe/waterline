@@ -241,9 +241,10 @@ days ahead (Lagos time).
   and never returned. "Save and check" asks Meta for the number to prove
   they work. As of 2026-11-02 it is Meta's **test number** (+1 555 058 4319,
   phone number ID 1335405489665397, account 2151893508741594), which can
-  only message numbers on its allowed list. The site number +234 903 410
-  4100 stays on the phone app (owner decision). The portal will get its own
-  number.
+  only message numbers on its allowed list. The site number (now +234 911 310
+  4482, Config → `contact_whatsapp`) is separate from the portal's API
+  number; the earlier site number was kept on the phone app (owner
+  decision). The portal will get its own number.
   - **Templates:** "Submit templates" sends each live segment's active
     templates to Meta as `wl_<segment>_<key>_v<version>` (UTILITY, named
     parameters = our placeholders). WhatsApp refuses empty parameters, so a

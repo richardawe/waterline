@@ -4,7 +4,7 @@ Read this before touching deploy config, `admin.html`, or the frontend↔backend
 wiring. It's the operational context a fresh session/agent won't have —
 architecture is easy to re-derive by reading code; the state below isn't.
 
-Last updated: 2026-11-07.
+Last updated: 2026-11-13.
 
 ## What this is
 
@@ -138,6 +138,28 @@ backend.
     `waterline_bank_details` in Config. Whether the daily-job cron was ever
     set up is unknown; until confirmed, an Admin uses "Run daily jobs now".
 
+- **Collections additions (2026-11-12/13), all live; details in
+  `docs/collections.md`:**
+  - **Daily leads digest:** Prospects → "Send today's digest" sends today's
+    New prospects on WhatsApp (template `wl_internal_leads_digest_v1`) only
+    to Config → `leads_digest_recipients` (Admin-edited). Owner's number
+    is on the list; the template still needs submitting/approval in
+    Channels, and on Meta's test number recipients must be on its allowed list.
+  - **Proposal letters:** a prospect → "Proposal letter": pre-filled,
+    editable, Word (.docx via stdlib) or print/Save as PDF; kept in History.
+  - **Facebook Page posts:** Facebook tab (write, link, image, now or
+    scheduled, approval flow, debtor name/phone safety check). The
+    "Waterline Collections" Page is **connected** (2026-11-13) via system
+    user `waterline-collections` (app "Waterline", 3d7 Technologies
+    portfolio). Config → `facebook_posts_need_approval` defaults to true.
+    Two Save-and-check diagnostics commits (`95645cd`, `4610b16`, clearer
+    errors / auto-find the Page from the token) are on the dev branch, not
+    deployed: the owner got connected without them.
+  - Config boxes accept phone "smart quotes"; the recipients box takes
+    plain numbers.
+  - Facebook page images (profile, cover, intro post) were made for the
+    owner in a session scratchpad; they aren't in the repo.
+
 - **`CREATE EXTENSION vector;` unresolved, deliberately deprioritized.**
   Failed via phpPgAdmin's query box (it wraps every query in
   `SELECT COUNT(*) FROM (...) AS sub` for pagination, which chokes on DDL —
@@ -167,10 +189,17 @@ backend.
   page's own script block.
 
 - **Collections decisions by the owner (2026-11-02):**
-  - The site's WhatsApp number **+234 903 410 4100** (the old +234 809 410
-    4100 was wrong) stays on the phone app. **Do not move it to the API**:
-    coexistence reportedly isn't available for Nigerian numbers, so moving
-    it would be one-way. The portal gets its own new number.
+  - **The site's call/WhatsApp number is now +234 911 310 4482** (owner,
+    2026-11-13). It lives in Config → `contact_whatsapp` (the live value;
+    portal footers, letters and the public pages read it) and is also
+    written into the public pages' HTML (FAQ, JSON-LD, before-JS text,
+    terms, privacy) and the code default. Change all of them together.
+    Earlier numbers: +234 903 410 4100 (until 2026-11-13), +234 809 410
+    4100 (wrong). The earlier number was kept on the phone app and **not
+    moved to the WhatsApp API** (coexistence reportedly isn't available for
+    Nigerian numbers, so moving is one-way). Whether that applies to the new
+    number hasn't been confirmed: ask before moving it. The portal's API
+    number is separate (still Meta's test number).
   - **Outreach limits stay as they are** (1 a day, 2 a week per debtor). The
     owner asked to remove them, then said "leave for now" after hearing the
     WhatsApp-ban and harassment-rule risks. Inbox replies to someone who

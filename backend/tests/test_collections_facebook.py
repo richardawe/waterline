@@ -209,9 +209,9 @@ def test_posts_naming_a_debtor_or_their_phone_are_refused(cl_api, cl_db, monkeyp
         assert "debtor records" in r.json()["detail"] and "Chinedu" not in r.json()["detail"]
     assert _post(cl_api, admin_h, "draft", link="https://example.com/chinedu-eze").status_code == 422
     # ordinary words, single names and our own number are fine
-    ok = "Chinedu, our new teammate, says hello. WhatsApp us on +234 903 410 4100."
+    ok = "Chinedu, our new teammate, says hello. WhatsApp us on +234 911 310 4482."
     assert _post(cl_api, admin_h, "publish", message=ok).status_code == 201
-    assert not cl_db.execute(select(DebtorAccount.id).where(DebtorAccount.phone_index == crypto.blind_index("+2349034104100"))).first()
+    assert not cl_db.execute(select(DebtorAccount.id).where(DebtorAccount.phone_index == crypto.blind_index("+2349113104482"))).first()
 
 
 def test_only_jpg_or_png_and_delete_rules(cl_api, cl_db, monkeypatch):
